@@ -6,6 +6,7 @@ const DEFAULT_START_PORT = 40000;
 class ClusterService {
 
     constructor() {
+        this._port = DEFAULT_SERVER_PORT;
         this._currentPort = DEFAULT_START_PORT;
     }
 
@@ -29,10 +30,12 @@ class ClusterService {
 
             server.once('error', function(err) {
                 if (err.code === 'EADDRINUSE') {
+                    server.close();
                     resolve(true);
                     return;
                 }
 
+                server.close();
                 reject(err);
             });
 
@@ -50,7 +53,15 @@ class ClusterService {
      * The port of this local cluster service itself
      */
     getClusterServicePort() {
-        return DEFAULT_SERVER_PORT;
+        return this._port;
+    }
+
+    /**
+     * Set the port to be used for this local service
+     * @param port
+     */
+    setClusterServicePort(port) {
+        this._port = port;
     }
 
     /**
