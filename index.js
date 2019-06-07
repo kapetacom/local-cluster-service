@@ -1,5 +1,7 @@
 const clusterService = require('./src/clusterService');
+const storageService = require('./src/storageService');
 const express = require('express');
+const HTTP = require('http');
 
 let currentServer = null;
 
@@ -9,25 +11,32 @@ function createServer() {
     app.use('/proxy', require('./src/proxy/routes'));
     app.use('/config', require('./src/config/routes'));
 
-    return app;
+    return HTTP.createServer(app);
 }
 
 module.exports = {
     /**
      * Starts the local cluster service.
-     * @param {integer} [port] An optional port.
      * @return {Promise<Integer>} resolves when listening is done with port number. Rejects if listening failed.
      */
-    start: function(port) {
+    start: async function() {
         if (currentServer) {
             return Promise.reject(new Error('Server already started'));
         }
 
+        const clusterPort = storageService.get('cluster','port');
+        if (clusterPort) {
+            clusterService.setClusterServicePort(clusterPort);
+        }
+
+        await clusterService.init();
+
         currentServer = createServer();
-        if (port) {
-            clusterService.setClusterServicePort(port);
-        } else {
-            port = clusterService.getClusterServicePort();
+
+        const port = clusterService.getClusterServicePort();
+
+        if (clusterPort !== port) {
+            storageService.put('cluster','port', port);
         }
 
         return new Promise((resolve, reject) => {
@@ -44,16 +53,17 @@ module.exports = {
 
     /**
      * Stops any currently running cluster services.
-     * @return {boolean} Returns true if the service was stopped - false if no service was running.
+     * @return {Promise<boolean>} Returns true if the service was stopped - false if no service was running.
      */
     stop: function() {
         if (currentServer) {
-            currentServer.close();
-            currentServer = null;
-            return true;
+            return new Promise(function(resolve) {
+                currentServer.close(() => resolve(true));
+                currentServer = null;
+            });
         }
 
-        return false;
+        return Promise.resolve(false);
     }
 };
 

@@ -1,6 +1,5 @@
 const net = require('net');
-
-const DEFAULT_SERVER_PORT = 30033;
+const DEFAULT_SERVER_PORT = 35100;
 const DEFAULT_START_PORT = 40000;
 
 class ClusterService {
@@ -8,7 +7,31 @@ class ClusterService {
     constructor() {
         this._port = DEFAULT_SERVER_PORT;
         this._currentPort = DEFAULT_START_PORT;
+        this._initialized = false;
     }
+
+    async init() {
+        if (this._initialized) {
+            return;
+        }
+
+        this._initialized = true;
+        await this._findClusterServicePort();
+
+    }
+
+    async _findClusterServicePort() {
+        while(true) {
+
+            const isUsed = await this._checkIfPortIsUsed(this._port);
+            if (!isUsed) {
+                break;
+            }
+
+            this._port++;
+        }
+    }
+
 
     /**
      * Gets next available port
@@ -48,6 +71,7 @@ class ClusterService {
         });
 
     }
+
 
     /**
      * The port of this local cluster service itself
