@@ -15,6 +15,19 @@ function createServer() {
 }
 
 module.exports = {
+
+    isRunning: function() {
+        return !!currentServer;
+    },
+
+    getCurrentPort: function() {
+        if (!currentServer) {
+            return -1;
+        }
+
+        return currentServer.port;
+    },
+
     /**
      * Starts the local cluster service.
      * @return {Promise<Integer>} resolves when listening is done with port number. Rejects if listening failed.
@@ -48,6 +61,7 @@ module.exports = {
             });
 
             currentServer.listen(port, () => resolve(port));
+            currentServer.port = port;
         });
     },
 
