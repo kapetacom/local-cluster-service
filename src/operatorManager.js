@@ -1,0 +1,179 @@
+const serviceManager = require('./serviceManager');
+const storageService = require('./storageService');
+const containerManager = require('./containerManager');
+const _ = require('lodash');
+const mkdirp = require('mkdirp');
+const Path = require('path');
+const md5 = require('md5');
+
+class Operator {
+    constructor(data, credentials) {
+        this._data = data;
+        this._credentials = credentials;
+    }
+
+    getData() {
+        return this._data;
+    }
+
+    getCredentials() {
+        return this._credentials;
+    }
+}
+
+class OperatorManager {
+
+    constructor() {
+        this._mountDir = Path.join(storageService.getBlockwareBasedir(), 'mounts');
+
+        mkdirp.sync(this._mountDir);
+    }
+
+    _getMountPoint(operatorType, mountName) {
+        return Path.join(this._mountDir, operatorType, mountName);
+    }
+
+    async getResourceInfo(fromServiceId, resourceType, portType) {
+        const operator = RESOURCE_OPERATORS[resourceType.toLowerCase()];
+        if (!operator) {
+            throw new Error('Unknown resource type: ' + resourceType);
+        }
+
+        const credentials = operator.getCredentials();
+
+        const container = await this.ensureResource(resourceType);
+
+        const portInfo = await container.getPort(portType);
+
+        if (!portInfo) {
+            throw new Error('Unknown resource port type : ' + resourceType + '#' + portType);
+        }
+
+        return {
+            host: 'localhost',
+            port: portInfo.hostPort,
+            type: portType,
+            protocol: portInfo.protocol,
+            credentials
+        };
+    }
+
+    /**
+     * Ensure we have a running operator of given type
+     *
+     * @param resourceType
+     * @return {Promise<ContainerInfo>}
+     */
+    async ensureResource(resourceType) {
+        const operator = RESOURCE_OPERATORS[resourceType.toLowerCase()];
+        if (!operator) {
+            throw new Error('Unknown operator type: ' + resourceType);
+        }
+
+        const operatorData = operator.getData();
+
+        const portTypes = Object.keys(operatorData.ports);
+
+        portTypes.sort();
+
+        const containerBaseName = 'blockware-resource';
+
+        const nameParts = [resourceType.toLowerCase()];
+
+        const ports = {};
+
+        for(let i = 0 ; i < portTypes.length; i++) {
+            const portType = portTypes[i];
+            let containerPortInfo = operatorData.ports[portType];
+            const hostPort = await serviceManager.ensureServicePort(resourceType, portType);
+
+            if (typeof containerPortInfo === 'number' ||
+                typeof containerPortInfo === 'string') {
+                containerPortInfo = {port: containerPortInfo, type: 'tcp'};
+            }
+
+            if (!containerPortInfo.type) {
+                containerPortInfo.type = 'tcp';
+            }
+
+            const portId = containerPortInfo.port + '/' + containerPortInfo.type;
+            nameParts.push(portType + '-' + portId + '-' + hostPort);
+
+            ports[portId] = {
+                type: portType,
+                hostPort
+            };
+        }
+
+        const mounts = {};
+
+        _.forEach(operatorData.mounts, (containerPath, mountName) => {
+            const hostPath = this._getMountPoint(resourceType, mountName);
+            mkdirp.sync(hostPath);
+            mounts[containerPath] = hostPath;
+        });
+
+        const containerName = containerBaseName + '-' + md5(nameParts.join('_'));
+        let container = await containerManager.get(containerName);
+
+        const isRunning = container ? await container.isRunning() : false;
+        if (container && !isRunning) {
+            await container.start();
+        }
+
+        if (!container) {
+
+            container = await containerManager.run(
+                operatorData.image,
+                containerName,
+                {
+                    mounts,
+                    ports,
+                    env: operatorData.env
+                });
+        }
+
+        return container;
+    }
+}
+
+//Hardcoded for now - should be moved out of this project.
+const RESOURCE_OPERATORS = {
+    'sqldb.blockware.com/v1/postgresql': new Operator({
+        image: 'postgres:9.6',
+        ports: {
+            postgres: {
+                port: 5432,
+                type: 'tcp'
+            }
+        },
+        mounts: {
+            data: '/var/lib/postgresql/data/pgdata'
+        },
+        env: {
+            PGDATA: '/var/lib/postgresql/data/pgdata',
+            POSTGRES_USER: 'postgres',
+            POSTGRES_PASSWORD: 'postgres'
+        }
+    }, {username: 'postgres', password: 'postgres'}),
+
+    'nosqldb.blockware.com/v1/mongodb': new Operator({
+        image: 'mongo:4.0',
+        ports: {
+            mongodb: {
+                port: 27017,
+                type: 'tcp'
+            }
+        },
+        mounts: {
+            db:'/data/db'
+        },
+        env: {
+            MONGO_INITDB_ROOT_USERNAME: 'root',
+            MONGO_INITDB_ROOT_PASSWORD: 'root'
+        }
+    }, {username: 'root', password: 'root'})
+};
+
+
+module.exports = new OperatorManager();

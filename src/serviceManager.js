@@ -7,7 +7,17 @@ const DEFAULT_PORT_TYPE = 'rest';
 class ServiceManager {
 
     constructor() {
-        this._services = {};
+        this._services = storageService.get("services");
+        if (!this._services) {
+            this._services = {};
+        }
+
+        _.forEach(this._services, (service) => {
+            _.forEach(service, (portInfo, portType) => {
+                clusterService.reservePort(portInfo.port);
+            });
+
+        });
     }
 
     _forLocal(port, path) {
@@ -27,9 +37,7 @@ class ServiceManager {
         }
 
         if (!this._services[serviceId]) {
-            this._services[serviceId] = {
-                portType
-            };
+            this._services[serviceId] = {};
         }
 
         if (!this._services[serviceId][portType]) {
@@ -78,6 +86,10 @@ class ServiceManager {
     async getProviderAddress(serviceId, portType) {
         const port = await this.ensureServicePort(serviceId, portType);
         return this._forLocal(port)
+    }
+
+    getServices() {
+        return this._services;
     }
 
     getProvidersFor(serviceId) {

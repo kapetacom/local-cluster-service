@@ -2,6 +2,7 @@ const {Router} = require('express');
 const YAML = require('yaml');
 const configManager = require('../configManager');
 const serviceManager = require('../serviceManager');
+const operatorManager = require('../operatorManager');
 
 const router = new Router();
 
@@ -49,6 +50,23 @@ router.put('/:service', (req, res) => {
 router.get('/:service/provides/:type', async (req, res) => {
     //Get service port
     res.send('' + await serviceManager.ensureServicePort(req.params.service, req.params.type));
+});
+
+/**
+ * Used by services to get info for consumed operator resource.
+ *
+ * If the operator resource is not already available this will cause it to start an instance and
+ * assign port numbers to it etc.
+ */
+router.get('/:fromService/consumes/resource/:resourceType/:portType', async (req, res) => {
+
+    const operatorInfo = await operatorManager.getResourceInfo(
+        req.params.fromService,
+        req.params.resourceType,
+        req.params.portType
+    );
+
+    res.send(operatorInfo);
 });
 
 /**

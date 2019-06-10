@@ -1,5 +1,7 @@
 const clusterService = require('./src/clusterService');
 const storageService = require('./src/storageService');
+const serviceManager = require('./src/serviceManager');
+const networkManager = require('./src/networkManager');
 const express = require('express');
 const HTTP = require('http');
 
@@ -78,6 +80,8 @@ module.exports = {
         }
 
         return Promise.resolve(false);
-    }
+    },
+    getTrafficForService: serviceId => networkManager.getTrafficForService(serviceId),
+    getServices: () => serviceManager.getServices()
 };
 

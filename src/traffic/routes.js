@@ -1,9 +1,9 @@
 const {Router} = require('express');
 const router = new Router();
-const networkManger = require('../networkManager');
+const networkManager = require('../networkManager');
 
 router.get('/:service/', (req, res) => {
-    res.send(networkManger.getTrafficForService(req.params.service));
+    res.send(networkManager.getTrafficForService(req.params.service));
 });
 
 

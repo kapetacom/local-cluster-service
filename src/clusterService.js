@@ -8,6 +8,16 @@ class ClusterService {
         this._port = DEFAULT_SERVER_PORT;
         this._currentPort = DEFAULT_START_PORT;
         this._initialized = false;
+        this._reservedPorts = [];
+    }
+
+    reservePort(port) {
+        const intPort = parseInt(port);
+        if (this._reservedPorts.indexOf(intPort) > -1) {
+            throw new Error('Port already reserved: ' + intPort);
+        }
+
+        this._reservedPorts.push(intPort);
     }
 
     async init() {
@@ -29,6 +39,7 @@ class ClusterService {
             }
 
             this._port++;
+
         }
     }
 
@@ -39,6 +50,11 @@ class ClusterService {
      */
     async getNextAvailablePort() {
         while(true) {
+
+            while (this._reservedPorts.indexOf(this._currentPort) > -1) {
+                this._currentPort++;
+            }
+
             const nextPort = this._currentPort++;
             const isUsed = await this._checkIfPortIsUsed(nextPort);
             if (!isUsed) {
