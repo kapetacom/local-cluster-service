@@ -39,16 +39,20 @@ class StorageService {
         FS.writeFileSync(STORAGE_PATH, YAML.stringify(this._data));
     }
 
-    section(section) {
+    section(section, defaultValue) {
+        if (!defaultValue) {
+            defaultValue = {};
+        }
         if (!this._data[section]) {
-            this._data[section] = {};
+            this._data[section] = defaultValue;
+            this._writeConfig();
         }
 
         return this._data[section];
     }
 
     put(section, property, value) {
-        if (_.isObject(property)) {
+        if (!_.isString(property)) {
             this._data[section] = property;
             this._writeConfig();
             return;
