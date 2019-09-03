@@ -34,8 +34,25 @@ router.post('/create', async (req, res) => {
         return;
     }
 
+    let content;
+    switch(req.headers['content-type']) {
+        case 'application/json':
+        case 'application/x-json':
+        case 'text/json':
+            content = JSON.parse(req.stringBody);
+            break;
+
+        case 'application/yaml':
+        case 'application/x-yaml':
+        case 'text/yaml':
+        case 'text/x-yaml':
+        default:
+            content = YAML.parse(req.stringBody);
+            break;
+    }
+
     try {
-        const asset = await assetManager.createAsset(req.query.path, YAML.parse(req.stringBody));
+        const asset = await assetManager.createAsset(req.query.path, content);
 
         res.status(200).send(asset);
     } catch(err) {

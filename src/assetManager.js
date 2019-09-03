@@ -1,15 +1,22 @@
 const _ = require('lodash');
 const FS = require('fs');
 const YAML = require('yaml');
-
+const SchemaHandlers = require('./assets/schema-handlers');
 const storageService = require('./storageService');
 
 function enrichAsset(asset) {
     const exists = asset.path && FS.existsSync(asset.path);
+    const [protocol, id] = parseRef(asset.ref);
+
+    const SchemaHandler = SchemaHandlers.get(protocol);
+
+    const editable = SchemaHandler.isEditable(id, asset.ref);
+
     try {
         const data = exists ? YAML.parse(FS.readFileSync(asset.path).toString()) : undefined;
         return {
             ...asset,
+            editable,
             exists,
             data
         };
@@ -17,31 +24,6 @@ function enrichAsset(asset) {
         throw new Error('Failed to read asset on path: ' + asset.path + ' - ' + err.message);
     }
 }
-
-const SchemaHandlers = {
-    file: function(id, ref) {
-        if (!FS.existsSync(id)) {
-            throw new Error('File not found: ' + id);
-        }
-
-        return [
-            id,
-            YAML.parse(FS.readFileSync(id).toString()),
-        ];
-    },
-    github: function(id, ref) {
-        throw new Error('GitHub schema is not yet implemented')
-    },
-    blockware: function(id, ref) {
-        throw new Error('Blockware schema is not yet implemented')
-    },
-    http: function(id, ref) {
-        throw new Error('HTTP schema is not yet implemented')
-    },
-    https: function(id, ref) {
-        return this.http(id);
-    }
-};
 
 function parseRef(ref) {
     let out = ref.split(/:\/\//,2);
@@ -87,9 +69,9 @@ class AssetManager {
 
         const [protocol, id] = parseRef(ref);
 
-        const schemaHandler = SchemaHandlers[protocol];
+        const SchemaHandler = SchemaHandlers.get(protocol);
 
-        const [path, content] = await schemaHandler(id, ref);
+        const [path, content] = await SchemaHandler.unpack(id, ref);
 
         if (!content || !content.kind) {
             throw new Error('Invalid asset - missing kind: ' + ref);
