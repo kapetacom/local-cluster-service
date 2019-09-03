@@ -5,6 +5,9 @@ const assetManager = require('../assetManager');
 const router = new Router();
 
 router.use('/', (req, res, next) => {
+
+    res.set('Access-Control-Allow-Origin', req.headers.origin);
+
     // push the data to body
     var body = [];
     req.on('data', (chunk) => {
@@ -23,34 +26,16 @@ router.get('/', (req, res) => {
 });
 
 /**
- * Unregisters an asset (doesn't delete the asset)
- */
-router.delete('/', (req, res) => {
-    if (!req.query.path) {
-        res.status(400).send({error:'Query parameter "path" is missing'});
-        return;
-    }
-
-    try {
-        assetManager.unregisterAsset(req.query.path);
-
-        res.status(204).send();
-    } catch(err) {
-        res.status(400).send({error: err.message});
-    }
-});
-
-/**
  * Creates a new local file and registers it as an asset
  */
-router.post('/create', (req, res) => {
+router.post('/create', async (req, res) => {
     if (!req.query.path) {
         res.status(400).send({error:'Query parameter "path" is missing'});
         return;
     }
 
     try {
-        const asset = assetManager.createAsset(req.query.path, YAML.parse(req.stringBody));
+        const asset = await assetManager.createAsset(req.query.path, YAML.parse(req.stringBody));
 
         res.status(200).send(asset);
     } catch(err) {
@@ -59,17 +44,37 @@ router.post('/create', (req, res) => {
 
 });
 
+
 /**
- * Registers an existing file as an asset
+ * Unregisters an asset (doesn't delete the asset)
  */
-router.put('/import', (req, res) => {
-    if (!req.query.path) {
-        res.status(400).send({error:'Path parameter is missing'});
+router.delete('/', (req, res) => {
+    if (!req.query.ref) {
+        res.status(400).send({error:'Query parameter "ref" is missing'});
         return;
     }
 
     try {
-        const asset = assetManager.registerAsset(req.query.path);
+        assetManager.unregisterAsset(req.query.ref);
+
+        res.status(204).send();
+    } catch(err) {
+        res.status(400).send({error: err.message});
+    }
+});
+
+
+/**
+ * Registers an existing file as an asset
+ */
+router.put('/import', async (req, res) => {
+    if (!req.query.ref) {
+        res.status(400).send({error:'Query parameter "ref" is missing'});
+        return;
+    }
+
+    try {
+        const asset = await assetManager.importAsset(req.query.ref);
 
         res.status(200).send(asset);
     } catch(err) {

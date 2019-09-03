@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/blockwarecom/local-cluster-service#readme",
   "dependencies": {
-    "@blockware/cluster-config": "0.0.2",
+    "@blockware/cluster-config": "0.0.3",
     "express": "4.17.1",
     "lodash": "4.17.11",
     "md5": "2.2.1",
