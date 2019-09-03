@@ -33,19 +33,22 @@ module.exports = {
     })
   },
   readDirectory:function readDirectory(path){
-    fs.readdir(pathArg,(err,files)=>{
+    fs.readdir(path,(err,files)=>{
       let response = [];
       files.forEach((file)=>{
-        response.push({path:path.join(pathArg,file),folder:fs.lstatSync(path.join(pathArg,file)).isDirectory()})
+        response.push({path:path.join(path,file),folder:fs.lstatSync(path.join(pathArg,file)).isDirectory()})
       });
       return response;
     });
   },
   readFile:function readFile(path){
-    if(!isFile(pathArg)){
+    if(!isFile(path)){
       return new Error("The path provided is invalid.Please check that the path and file name that were provided are spelled correctly. ");
     }else{
-      return fs.readFileSync(pathArg);
+      return fs.readFileSync(path);
     }
+  },
+  getRootFolder:function getRootFolder(){
+    return require('os').homedir();
   }
 }
