@@ -13,7 +13,8 @@ function createServer() {
     app.use('/proxy', require('./src/proxy/routes'));
     app.use('/config', require('./src/config/routes'));
     app.use('/files', require('./src/filesystem/routes'));
-    
+    app.use('/assets', require('./src/assets/routes'));
+
     return HTTP.createServer(app);
 }
 
