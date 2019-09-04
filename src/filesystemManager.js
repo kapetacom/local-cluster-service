@@ -1,52 +1,67 @@
 
-
+var Path = require("path");
 var fs = require("fs");
 
+function isFile(path){
+  try {
+    return fs.statSync(path).isFile()
+  } catch (error) {
+    return false;
+  }
+}
 module.exports = {
-
-  isFile:function isFile(path){
-    try {
-      return fs.statSync(path).isFile()
-    } catch (error) {
-      return false;
-    }
-  },
-  writeFile:function writeFile(path,data){
-    fs.writeFile(path, data ,(err)=>{
-      if(err){
-        err.message+=". You can only create files in existing directories.";
-        return err
-      }
-      return 200
+  writeFile: async function writeFile(path,data){
+    return new Promise((resolve,reject)=>{
+      fs.writeFile(path, data ,(err)=>{
+        if(err){
+          err.message+=". You can only create files in existing directories.";
+          reject( err.message)
+        }
+        resolve(200);
+      })
     })
   },
-  createFolder:function createFolder(path){
-    let res = new Response()
-    fs.mkdir(path,(err)=>{
-      if(err){
-        res.statusCode = 500;
-        err.message+=". You can only create one single folder at a time.";
-        return err;
-      }
-      res.statusCode =200;
-      return 200;
+  createFolder: async function createFolder(path){
+    return new Promise((resolve,reject)=>{
+      fs.mkdir(path,(err)=>{
+        if(err){
+          err.message+=". You can only create one single folder at a time.";
+          reject(err.message);
+          return ;
+        }
+        resolve(200);
+      })
     })
   },
-  readDirectory:function readDirectory(path){
-    fs.readdir(path,(err,files)=>{
+  readDirectory: async function readDirectory(path){
+    return new Promise((resolve,reject)=>{
       let response = [];
-      files.forEach((file)=>{
-        response.push({path:path.join(path,file),folder:fs.lstatSync(path.join(pathArg,file)).isDirectory()})
+      fs.readdir(path,(err,files)=>{
+        if(err)  {
+          reject(new Error(err));
+          return;
+        }
+        files.forEach((file)=>{
+          response.push({path:Path.join(path,file),folder:fs.lstatSync(Path.join(path,file)).isDirectory()})
+        });
+        resolve(response)
       });
-      return response;
-    });
+    })
   },
-  readFile:function readFile(path){
-    if(!isFile(path)){
-      return new Error("The path provided is invalid.Please check that the path and file name that were provided are spelled correctly. ");
-    }else{
-      return fs.readFileSync(path);
-    }
+  readFile: async function readFile(path){
+    return new Promise((resolve,reject)=>{
+      if(!isFile(path)){
+        reject( new Error("The path provided is invalid.Please check that the path and file name that were provided are spelled correctly. "));
+      }else{
+        fs.readFile(path,(err,data)=>{
+          if(err){
+            reject(new Error(err.message));
+            return;
+          }
+          resolve(data)
+        });
+      }
+    })
   },
   getRootFolder:function getRootFolder(){
     return require('os').homedir();

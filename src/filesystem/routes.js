@@ -2,35 +2,46 @@ const {Router} = require('express');
 var fileManager = require('../filesystemManager')
 /* GET home page. */
 
-
 let router = new Router();
 
-router.get('/list/:path',  (req, res) => {   
-  let pathArg =  req.params.path;
-  res.send( fileManager.readDirectory(pathArg))
+router.use('/writefile', (req, res, next) => {
+  // push the data to body
+  var body = [];
+  req.on('data', (chunk) => {
+      body.push(chunk);
+  }).on('end', () => {
+      req.stringBody = Buffer.concat(body).toString();
+      next();
+  });
 });
 
-router.get('/readfile/:path', (req, res) => {
-  let pathArg =  req.params.path;
-  
-  res.send(fileManager.readFile(pathArg));
+router.get('/list', async (req, res) => {   
+  let pathArg =  req.query.path;
+  res.send( await fileManager.readDirectory(pathArg))
 });
 
-router.put('/mkdir/:path',  (req, res )=> {
-  let pathArg =  req.params.path;
-  res.send(fileManager.createFolder(pathArg))
+router.get('/readfile', async (req, res) => {
+  let pathArg =  req.query.path;
+  res.send(await fileManager.readFile(pathArg));
 });
 
-router.post('/writefile/:path',  (req, res)=> {
-  let pathArg =  req.params.path;
-  res.send(fileManager.writeFile(pathArg,req.stringBody))
+router.put('/mkdir', async (req, res )=> {
+  let pathArg =  req.query.path;  
+  res.sendStatus(await fileManager.createFolder(pathArg))
+});
+
+router.post('/writefile', async (req, res)=> {
+  let pathArg =  req.query.path;
+  fileManager.writeFile(pathArg,req.stringBody).then(code=>{
+    res.sendStatus(code)
+  }).catch(err=>{
+    res.send(err);
+  })
 });
 
 
 router.get('/root', (req,res)=>{
-  console.log(req.params);
-  
-  res.send(fileManager.getRootFolder())
+  res.send(fileManager.getRootFolder());
 });
 
 module.exports = router;
