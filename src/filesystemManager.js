@@ -17,7 +17,7 @@ module.exports = {
           err.message+=". You can only create files in existing directories.";
           reject( err.message)
         }
-        resolve(200);
+        resolve();
       })
     })
   },
@@ -29,7 +29,7 @@ module.exports = {
           reject(err.message);
           return ;
         }
-        resolve(200);
+        resolve();
       })
     })
   },
