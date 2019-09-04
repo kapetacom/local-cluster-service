@@ -1,14 +1,8 @@
 const _ = require('lodash');
-const OS = require('os');
-const Path = require('path');
 const FS = require('fs');
 const mkdirp = require('mkdirp');
 const YAML = require('yaml');
-
-const HOMEDIR = OS.homedir();
-
-const BLOCKWARE_DIR = Path.join(HOMEDIR, '.blockware');
-const STORAGE_PATH = Path.join(BLOCKWARE_DIR, 'cluster-service.yml');
+const ClusterConfiguration = require('@blockware/cluster-config');
 
 /**
  * Class that handles reading and writing from local configuration file.
@@ -20,35 +14,35 @@ class StorageService {
     }
 
     getBlockwareBasedir() {
-        return BLOCKWARE_DIR;
+        return ClusterConfiguration.getBlockwareBasedir();
     }
 
     _readConfig() {
-        if (FS.existsSync(STORAGE_PATH)) {
-            console.log('Reading configuration from %s', STORAGE_PATH);
-            return YAML.parse(FS.readFileSync(STORAGE_PATH).toString());
-        } else {
-            console.log('Configuration file not found %s', STORAGE_PATH);
-        }
-
-        return {};
+        return ClusterConfiguration.getClusterConfig();
     }
 
     _writeConfig() {
-        mkdirp.sync(BLOCKWARE_DIR);
-        FS.writeFileSync(STORAGE_PATH, YAML.stringify(this._data));
+        const configFile = ClusterConfiguration.getClusterConfigFile();
+
+        mkdirp.sync(this.getBlockwareBasedir());
+
+        FS.writeFileSync(configFile, YAML.stringify(this._data));
     }
 
-    section(section) {
+    section(section, defaultValue) {
+        if (!defaultValue) {
+            defaultValue = {};
+        }
         if (!this._data[section]) {
-            this._data[section] = {};
+            this._data[section] = defaultValue;
+            this._writeConfig();
         }
 
         return this._data[section];
     }
 
     put(section, property, value) {
-        if (_.isObject(property)) {
+        if (!_.isString(property)) {
             this._data[section] = property;
             this._writeConfig();
             return;
