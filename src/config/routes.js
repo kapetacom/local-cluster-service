@@ -39,7 +39,6 @@ router.put('/:service', (req, res) => {
     }
     //Get service YAML config
     configManager.setConfigForService(req.params.service, config);
-
     res.status(202).send({ok:true});
 });
 
