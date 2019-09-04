@@ -2,21 +2,27 @@ const {Router} = require('express');
 const YAML = require('yaml');
 const assetManager = require('../assetManager');
 
+
+function parseBody(req) {
+    switch(req.headers['content-type']) {
+        case 'application/json':
+        case 'application/x-json':
+        case 'text/json':
+            return JSON.parse(req.stringBody);
+
+        case 'application/yaml':
+        case 'application/x-yaml':
+        case 'text/yaml':
+        case 'text/x-yaml':
+        default:
+            return YAML.parse(req.stringBody);
+    }
+}
+
 const router = new Router();
 
-router.use('/', (req, res, next) => {
-
-    res.set('Access-Control-Allow-Origin', req.headers.origin);
-
-    // push the data to body
-    var body = [];
-    req.on('data', (chunk) => {
-        body.push(chunk);
-    }).on('end', () => {
-        req.stringBody = Buffer.concat(body).toString();
-        next();
-    });
-});
+router.use('/', require('../middleware/cors'));
+router.use('/', require('../middleware/stringBody'));
 
 /**
  * Get all local assets available
@@ -34,27 +40,33 @@ router.post('/create', async (req, res) => {
         return;
     }
 
-    let content;
-    switch(req.headers['content-type']) {
-        case 'application/json':
-        case 'application/x-json':
-        case 'text/json':
-            content = JSON.parse(req.stringBody);
-            break;
-
-        case 'application/yaml':
-        case 'application/x-yaml':
-        case 'text/yaml':
-        case 'text/x-yaml':
-        default:
-            content = YAML.parse(req.stringBody);
-            break;
-    }
+    const content = parseBody(req);
 
     try {
         const asset = await assetManager.createAsset(req.query.path, content);
 
         res.status(200).send(asset);
+    } catch(err) {
+        res.status(400).send({error: err.message});
+    }
+
+});
+
+/**
+ * Updates reference with new content
+ */
+router.put('/update', async (req, res) => {
+    if (!req.query.ref) {
+        res.status(400).send({error:'Query parameter "ref" is missing'});
+        return;
+    }
+
+    const content = parseBody(req);
+
+    try {
+        await assetManager.updateAsset(req.query.ref, content);
+
+        res.sendStatus(204);
     } catch(err) {
         res.status(400).send({error: err.message});
     }
