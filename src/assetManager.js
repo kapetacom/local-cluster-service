@@ -52,6 +52,15 @@ class AssetManager {
         return _.clone(this._assets).map(enrichAsset);
     }
 
+    getAsset(ref) {
+        const asset = _.find(this._assets, {ref});
+        if (!asset) {
+            throw new Error('Asset not found: ' + ref);
+        }
+
+        return enrichAsset(asset);
+    }
+
     async createAsset(path, yaml) {
         if (FS.existsSync(path)) {
             throw new Error('File already exists: ' + path);
