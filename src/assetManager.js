@@ -62,6 +62,14 @@ class AssetManager {
         return this.importAsset('file://' + path);
     }
 
+    async updateAsset(ref, yaml) {
+        const [protocol, id] = parseRef(ref);
+
+        const SchemaHandler = SchemaHandlers.get(protocol);
+
+        await SchemaHandler.pack(id, ref, yaml);
+    }
+
     async importAsset(ref) {
         if (_.find(this._assets, {ref})) {
             throw new Error('Asset already registered: ' + ref);

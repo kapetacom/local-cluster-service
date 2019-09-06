@@ -8,7 +8,6 @@ class FileSchemaHandler extends AbstractSchemaHandler {
         super('file');
     }
 
-
     isEditable(id, ref) {
         return true;
     }
@@ -22,6 +21,14 @@ class FileSchemaHandler extends AbstractSchemaHandler {
             id,
             YAML.parse(FS.readFileSync(id).toString()),
         ];
+    }
+
+    async pack(id, ref, content) {
+        if (!FS.existsSync(id)) {
+            throw new Error('File not found: ' + id);
+        }
+
+        FS.writeFileSync(id, YAML.stringify(content));
     }
 
 }
