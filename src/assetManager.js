@@ -3,6 +3,7 @@ const FS = require('fs');
 const YAML = require('yaml');
 const SchemaHandlers = require('./assets/schema-handlers');
 const storageService = require('./storageService');
+const codeGeneratorManager = require('./codeGeneratorManager');
 
 function enrichAsset(asset) {
     const exists = asset.path && FS.existsSync(asset.path);
@@ -68,7 +69,13 @@ class AssetManager {
 
         FS.writeFileSync(path, YAML.stringify(yaml));
 
-        return this.importAsset('file://' + path);
+        const asset = await this.importAsset('file://' + path);
+
+        if (codeGeneratorManager.canGenerateCode(yaml)) {
+            await codeGeneratorManager.generate(path, yaml);
+        }
+
+        return asset;
     }
 
     async updateAsset(ref, yaml) {
@@ -76,13 +83,22 @@ class AssetManager {
 
         const SchemaHandler = SchemaHandlers.get(protocol);
 
-        await SchemaHandler.pack(id, ref, yaml);
+        console.log('Updating asset', ref);
+
+        const yamlFile = await SchemaHandler.pack(id, ref, yaml);
+
+        if (codeGeneratorManager.canGenerateCode(yaml)) {
+            await codeGeneratorManager.generate(yamlFile, yaml);
+        }
+
     }
 
     async importAsset(ref) {
         if (_.find(this._assets, {ref})) {
             throw new Error('Asset already registered: ' + ref);
         }
+
+        console.log('Importing asset', ref);
 
         const [protocol, id] = parseRef(ref);
 

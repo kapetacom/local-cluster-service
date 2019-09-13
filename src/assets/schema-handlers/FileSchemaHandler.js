@@ -23,12 +23,14 @@ class FileSchemaHandler extends AbstractSchemaHandler {
         ];
     }
 
-    async pack(id, ref, content) {
-        if (!FS.existsSync(id)) {
-            throw new Error('File not found: ' + id);
+    async pack(path, ref, content) {
+        if (!FS.existsSync(path)) {
+            throw new Error('File not found: ' + path);
         }
 
-        FS.writeFileSync(id, YAML.stringify(content));
+        FS.writeFileSync(path, YAML.stringify(content));
+
+        return path;
     }
 
 }
