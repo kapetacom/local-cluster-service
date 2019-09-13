@@ -4,23 +4,27 @@ class NetworkManager {
         this._traffic = {};
     }
 
-    _ensureService(serviceId) {
-        if (!this._traffic[serviceId]) {
-            this._traffic[serviceId] = [];
+    _ensureService(systemId, serviceId) {
+        if (!this._traffic[systemId]) {
+            this._traffic[systemId] = {};
         }
 
-        return this._traffic[serviceId];
+        if (!this._traffic[systemId][serviceId]) {
+            this._traffic[systemId][serviceId] = [];
+        }
+
+        return this._traffic[systemId][serviceId];
     }
 
-    addRequest(fromServiceId, toServiceId, request) {
+    addRequest(systemId, fromServiceId, toServiceId, request) {
         const traffic = new Traffic(fromServiceId, toServiceId, request);
-        this._ensureService(toServiceId).push(traffic);
+        this._ensureService(systemId, toServiceId).push(traffic);
 
         return traffic;
     }
 
-    getTrafficForService(serviceId) {
-        return this._ensureService(serviceId);
+    getTrafficForService(systemId, serviceId) {
+        return this._ensureService(systemId, serviceId);
     }
 }
 

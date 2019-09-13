@@ -7,22 +7,29 @@ const networkManager = require('../networkManager');
 const serviceManager = require('../serviceManager');
 const clusterService = require('../clusterService');
 
-router.use('/:fromService/:toService/', (req, res, next) => {
-    // push the data to body
-    var body = [];
-    req.on('data', (chunk) => {
-        body.push(chunk);
-    }).on('end', () => {
-        req.body = Buffer.concat(body).toString();
-        next();
-    });
+router.use('/:systemId', (req, res, next) => {
+    req.blockware = {
+        systemId: req.params.systemId
+    };
 });
 
-router.all('/:fromService/:toService/:type/*', async (req, res) => {
-    //Get service YAML config
-    const address = await serviceManager.getProviderAddress(req.params.toService, req.params.type);
+router.use('/:systemId/:fromServiceId/:toServiceId/', require('../middleware/stringBody'));
 
-    const basePath = clusterService.getProxyPath(req.params.fromService, req.params.toService, req.params.type);
+router.all('/:systemId/:fromServiceId/:toServiceId/:type/*', async (req, res) => {
+    //Get service YAML config
+    const address = await serviceManager.getProviderAddress(
+        req.blockware.systemId,
+        req.params.toServiceId,
+        req.params.type
+    );
+
+    const basePath = clusterService.getProxyPath(
+        req.blockware.systemId,
+        req.params.fromServiceId,
+        req.params.toServiceId,
+        req.params.type
+    );
+
     const relativePath = req.path.substr(basePath.length);
 
     const headers = _.clone(req.headers);
@@ -35,12 +42,13 @@ router.all('/:fromService/:toService/:type/*', async (req, res) => {
         method: req.method,
         headers: req.headers,
         url: address + relativePath,
-        body: req.body
+        body: req.stringBody
     };
 
     const traffic = networkManager.addRequest(
-        req.params.fromService,
-        req.params.toService,
+        req.blockware.systemId,
+        req.params.fromServiceId,
+        req.params.toServiceId,
         reqOpts
     );
 

@@ -33,7 +33,16 @@ class OperatorManager {
         return Path.join(this._mountDir, operatorType, mountName);
     }
 
-    async getResourceInfo(fromServiceId, resourceType, portType) {
+    /**
+     * Get information about a specific resource
+     *
+     * @param systemId
+     * @param fromServiceId
+     * @param resourceType
+     * @param portType
+     * @returns {Promise<{host: string, port: (*|string), type: *, protocol: *, credentials: *}>}
+     */
+    async getResourceInfo(systemId, fromServiceId, resourceType, portType) {
         const operator = RESOURCE_OPERATORS[resourceType.toLowerCase()];
         if (!operator) {
             throw new Error('Unknown resource type: ' + resourceType);
@@ -41,7 +50,7 @@ class OperatorManager {
 
         const credentials = operator.getCredentials();
 
-        const container = await this.ensureResource(resourceType);
+        const container = await this.ensureResource(systemId, resourceType);
 
         const portInfo = await container.getPort(portType);
 
@@ -61,10 +70,11 @@ class OperatorManager {
     /**
      * Ensure we have a running operator of given type
      *
+     * @param systemId
      * @param resourceType
      * @return {Promise<ContainerInfo>}
      */
-    async ensureResource(resourceType) {
+    async ensureResource(systemId, resourceType) {
         const operator = RESOURCE_OPERATORS[resourceType.toLowerCase()];
         if (!operator) {
             throw new Error('Unknown operator type: ' + resourceType);

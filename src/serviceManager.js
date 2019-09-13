@@ -7,16 +7,17 @@ const DEFAULT_PORT_TYPE = 'rest';
 class ServiceManager {
 
     constructor() {
-        this._services = storageService.get("services");
-        if (!this._services) {
-            this._services = {};
+        this._systems = storageService.get("services");
+        if (!this._systems) {
+            this._systems = {};
         }
 
-        _.forEach(this._services, (service) => {
-            _.forEach(service, (portInfo, portType) => {
-                clusterService.reservePort(portInfo.port);
+        _.forEach(this._systems, (system) => {
+            _.forEach(system, (services) => {
+                _.forEach(services, (portInfo) => {
+                    clusterService.reservePort(portInfo.port);
+                });
             });
-
         });
     }
 
@@ -31,29 +32,46 @@ class ServiceManager {
         return `http://localhost:${port}/${path}`;
     }
 
-    async ensureServicePort(serviceId, portType) {
+    _ensureSystem(systemId) {
+        if (!this._systems[systemId]) {
+            this._systems[systemId] = {};
+        }
+
+        return this._systems[systemId];
+    }
+
+    _ensureService(systemId, serviceId) {
+
+        const system = this._ensureSystem(systemId);
+
+        if (!system[serviceId]) {
+            system[serviceId] = {};
+        }
+
+        return system[serviceId];
+    }
+
+    async ensureServicePort(systemId, serviceId, portType) {
         if (!portType) {
             portType = DEFAULT_PORT_TYPE;
         }
 
-        if (!this._services[serviceId]) {
-            this._services[serviceId] = {};
-        }
+        const service = this._ensureService(systemId, serviceId);
 
-        if (!this._services[serviceId][portType]) {
+        if (!service[portType]) {
             const port = await clusterService.getNextAvailablePort();
-            this._services[serviceId][portType] = {port};
+            service[portType] = {port};
             this._save();
         }
 
-        const portTypeSection = this._services[serviceId][portType];
+        const portTypeSection = service[portType];
 
 
         return portTypeSection.port;
     }
 
     _save() {
-        storageService.put("services", this._services);
+        storageService.put("services", this._systems);
     }
 
     /**
@@ -61,14 +79,15 @@ class ServiceManager {
      *
      * This returns a local proxy path to allow traffic inspection and control.
      *
+     * @param systemId
      * @param fromServiceId
      * @param toServiceId
      * @param portType
      * @return {string}
      */
-    getConsumerAddress(fromServiceId, toServiceId, portType) {
+    getConsumerAddress(systemId, fromServiceId, toServiceId, portType) {
         const port = clusterService.getClusterServicePort();
-        const path = clusterService.getProxyPath(fromServiceId, toServiceId, portType);
+        const path = clusterService.getProxyPath(systemId, fromServiceId, toServiceId, portType);
         return this._forLocal(port, path);
     }
 
@@ -79,30 +98,29 @@ class ServiceManager {
      * For local services this address will be on localhost - for remote services it will
      * be their remotely available address.
      *
+     * @param systemId
      * @param serviceId
      * @param portType
      * @return {string}
      */
-    async getProviderAddress(serviceId, portType) {
-        const port = await this.ensureServicePort(serviceId, portType);
+    async getProviderAddress(systemId, serviceId, portType) {
+        const port = await this.ensureServicePort(systemId, serviceId, portType);
         return this._forLocal(port)
     }
 
     getServices() {
-        return this._services;
+        return this._systems;
     }
 
-    getProvidersFor(serviceId) {
-        if (!this._services[serviceId]) {
-            this._services[serviceId] = {};
-        }
-
-        return _.cloneDeep(this._services[serviceId]);
+    getProvidersFor(systemId, serviceId) {
+        const service = this._ensureService(systemId, serviceId);
+        return _.cloneDeep(service);
     }
 
-    getConsumersFor(fromServiceId) {
+    getConsumersFor(systemId, fromServiceId) {
         const consumers = {};
-        _.forEach(this._services, (portTypes, toServiceId) => {
+        const system = this._ensureSystem(systemId);
+        _.forEach(system, (portTypes, toServiceId) => {
             if (fromServiceId === toServiceId) {
                 return; //Ignore itself
             }
@@ -112,7 +130,7 @@ class ServiceManager {
             }
 
             _.forEach(portTypes, (portTypeInfo, portType) => {
-                consumers[toServiceId][portType] = this.getConsumerAddress(fromServiceId, toServiceId, portType);
+                consumers[toServiceId][portType] = this.getConsumerAddress(systemId, fromServiceId, toServiceId, portType);
             });
         });
         return consumers;

@@ -8,22 +8,33 @@ class ConfigManager {
         this._config = storageService.section('config');
     }
 
-    setConfigForService(serviceId, config) {
-        this._config[serviceId] = config || {};
+    _forSystem(systemId) {
+        if (!this._config[systemId]) {
+            this._config[systemId] = {};
+        }
 
-        storageService.put('config', serviceId, this._config[serviceId]);
+        return this._config[systemId];
     }
 
-    getConfigForService(serviceId) {
-        if (!this._config[serviceId]) {
-            this._config[serviceId] = {};
+    setConfigForService(systemId, serviceId, config) {
+        const systemConfig = this._forSystem(systemId);
+        systemConfig[serviceId] = config || {};
+
+        storageService.put('config', systemId, systemConfig);
+    }
+
+    getConfigForService(systemId, serviceId) {
+        const systemConfig = this._forSystem(systemId);
+
+        if (!systemConfig[serviceId]) {
+            systemConfig[serviceId] = {};
         }
 
-        if (!this._config[serviceId].blockware) {
-            this._config[serviceId].blockware = {};
+        if (!systemConfig[serviceId].blockware) {
+            systemConfig[serviceId].blockware = {};
         }
 
-        const blockwareConfig = this._config[serviceId].blockware;
+        const blockwareConfig = systemConfig[serviceId].blockware;
 
         if (!blockwareConfig.providers) {
             blockwareConfig.providers = {};
@@ -33,10 +44,10 @@ class ConfigManager {
             blockwareConfig.consumers = {};
         }
 
-        _.extend(blockwareConfig.providers, serviceManager.getProvidersFor(serviceId));
-        _.extend(blockwareConfig.consumers, serviceManager.getConsumersFor(serviceId));
+        _.extend(blockwareConfig.providers, serviceManager.getProvidersFor(systemId, serviceId));
+        _.extend(blockwareConfig.consumers, serviceManager.getConsumersFor(systemId, serviceId));
 
-        return this._config[serviceId];
+        return systemConfig[serviceId];
     }
 }
 

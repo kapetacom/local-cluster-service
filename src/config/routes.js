@@ -6,23 +6,16 @@ const operatorManager = require('../operatorManager');
 
 const router = new Router();
 
-router.use('/:service', (req, res, next) => {
-    // push the data to body
-    var body = [];
-    req.on('data', (chunk) => {
-        body.push(chunk);
-    }).on('end', () => {
-        req.stringBody = Buffer.concat(body).toString();
-        next();
-    });
-});
+router.use('/', require('../middleware/blockware'));
+
+router.use('/:serviceId', require('../middleware/stringBody'));
 
 /**
  * Returns the full configuration for a given service.
  */
-router.get('/:service', (req, res) => {
+router.get('/:serviceId', (req, res) => {
     //Get service YAML config
-    const config = configManager.getConfigForService(req.params.service);
+    const config = configManager.getConfigForService(req.blockware.systemId, req.params.serviceId);
 
     res.send(YAML.stringify(config));
 });
@@ -31,14 +24,18 @@ router.get('/:service', (req, res) => {
 /**
  * Updates the full configuration for a given service.
  */
-router.put('/:service', (req, res) => {
+router.put('/:serviceId', (req, res) => {
 
     let config = YAML.parse(req.stringBody);
     if (!config) {
         config = {};
     }
     //Get service YAML config
-    configManager.setConfigForService(req.params.service, config);
+    configManager.setConfigForService(
+        req.blockware.systemId,
+        req.params.serviceId,
+        config
+    );
     res.status(202).send({ok:true});
 });
 
@@ -46,9 +43,13 @@ router.put('/:service', (req, res) => {
  * Services call this to request a free port. If a service has
  * already called the endpoint the same port is returned.
  */
-router.get('/:service/provides/:type', async (req, res) => {
+router.get('/:serviceId/provides/:type', async (req, res) => {
     //Get service port
-    res.send('' + await serviceManager.ensureServicePort(req.params.service, req.params.type));
+    res.send('' + await serviceManager.ensureServicePort(
+        req.blockware.systemId,
+        req.params.serviceId,
+        req.params.type
+    ));
 });
 
 /**
@@ -57,10 +58,10 @@ router.get('/:service/provides/:type', async (req, res) => {
  * If the operator resource is not already available this will cause it to start an instance and
  * assign port numbers to it etc.
  */
-router.get('/:fromService/consumes/resource/:resourceType/:portType', async (req, res) => {
-
+router.get('/:fromServiceId/consumes/resource/:resourceType/:portType', async (req, res) => {
     const operatorInfo = await operatorManager.getResourceInfo(
-        req.params.fromService,
+        req.blockware.systemId,
+        req.params.fromServiceId,
         req.params.resourceType,
         req.params.portType
     );
@@ -74,9 +75,14 @@ router.get('/:fromService/consumes/resource/:resourceType/:portType', async (req
  * If the remote service is not already registered with a port - we do that here
  * to handle clients for services that hasn't started yet.
  */
-router.get('/:fromService/consumes/:toService/:type', (req, res) => {
+router.get('/:fromServiceId/consumes/:toServiceId/:type', (req, res) => {
 
-    res.send(serviceManager.getConsumerAddress(req.params.fromService, req.params.toService, req.params.type));
+    res.send(serviceManager.getConsumerAddress(
+        req.blockware.systemId,
+        req.params.fromServiceId,
+        req.params.toServiceId,
+        req.params.type
+    ));
 });
 
 module.exports = router;
