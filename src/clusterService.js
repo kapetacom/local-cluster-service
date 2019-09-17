@@ -108,13 +108,13 @@ class ClusterService {
      * Gets that proxy path of a given request
      *
      * @param systemId
-     * @param fromServiceId
-     * @param toServiceId
+     * @param blockInstanceId
+     * @param resourceName
      * @param portType
      * @return {string}
      */
-    getProxyPath(systemId, fromServiceId, toServiceId, portType) {
-        return `/proxy/${systemId}/${fromServiceId}/${toServiceId}/${portType}/`;
+    getProxyPath(systemId, blockInstanceId, resourceName, portType) {
+        return `/proxy/${encodeURIComponent(systemId)}/${encodeURIComponent(blockInstanceId)}/${encodeURIComponent(resourceName)}/${encodeURIComponent(portType)}/`;
     }
 }
 

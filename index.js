@@ -83,7 +83,6 @@ module.exports = {
 
         return Promise.resolve(false);
     },
-    getTrafficForService: serviceId => networkManager.getTrafficForService(serviceId),
     getServices: () => serviceManager.getServices()
 };
 

@@ -1,43 +1,100 @@
+
 class NetworkManager {
 
+    static toConnectionId(connection) {
+        return [
+            connection.from.blockId,
+            connection.from.resourceName,
+            connection.to.blockId,
+            connection.to.resourceName
+        ].join('_');
+    }
+
     constructor() {
-        this._traffic = {};
+        this._connections = {};
+        this._sources = {};
+        this._targets = {};
     }
 
-    _ensureService(systemId, serviceId) {
-        if (!this._traffic[systemId]) {
-            this._traffic[systemId] = {};
+    _ensureSystem(systemId) {
+        if (!this._connections[systemId]) {
+            this._connections[systemId] = {};
         }
 
-        if (!this._traffic[systemId][serviceId]) {
-            this._traffic[systemId][serviceId] = [];
+        if (!this._sources[systemId]) {
+            this._sources[systemId] = {};
         }
 
-        return this._traffic[systemId][serviceId];
+        if (!this._targets[systemId]) {
+            this._targets[systemId] = {};
+        }
     }
 
-    addRequest(systemId, fromServiceId, toServiceId, request) {
-        const traffic = new Traffic(fromServiceId, toServiceId, request);
-        this._ensureService(systemId, toServiceId).push(traffic);
+    _ensureConnection(systemId, connectionId) {
+        this._ensureSystem(systemId);
+
+        if (!this._connections[systemId][connectionId]) {
+            this._connections[systemId][connectionId] = [];
+        }
+
+        return this._connections[systemId][connectionId];
+    }
+
+    _ensureSource(systemId, sourceBlockInstanceId) {
+        this._ensureSystem(systemId);
+
+        if (!this._sources[systemId][sourceBlockInstanceId]) {
+            this._sources[systemId][sourceBlockInstanceId] = [];
+        }
+
+        return this._sources[systemId][sourceBlockInstanceId];
+    }
+
+    _ensureTarget(systemId, targetBlockInstanceId) {
+        this._ensureSystem(systemId);
+
+        if (!this._targets[systemId][targetBlockInstanceId]) {
+            this._targets[systemId][targetBlockInstanceId] = [];
+        }
+
+        return this._targets[systemId][targetBlockInstanceId];
+    }
+
+    addRequest(systemId, connection, request) {
+        const traffic = new Traffic(connection, request);
+
+        const connectionId = NetworkManager.toConnectionId(connection);
+
+        this._ensureConnection(systemId, connectionId).push(traffic);
+        this._ensureSource(systemId, connection.from.blockId).push(traffic);
+        this._ensureTarget(systemId, connection.to.blockId).push(traffic);
 
         return traffic;
     }
 
-    getTrafficForService(systemId, serviceId) {
-        return this._ensureService(systemId, serviceId);
+    getTrafficForConnection(systemId, connectionId) {
+        return this._ensureConnection(systemId, connectionId);
+    }
+
+    getTrafficForSource(systemId, blockInstanceId) {
+
+        return this._ensureSource(systemId, blockInstanceId);
+    }
+
+    getTrafficForTarget(systemId, blockInstanceId) {
+        return this._ensureTarget(systemId, blockInstanceId);
     }
 }
 
 
 class Traffic {
 
-    constructor(fromServiceId, toServiceId, request) {
-        this.fromServiceId = fromServiceId;
-        this.toServiceId = toServiceId;
+    constructor(connection, request) {
+        this.connection = connection;
         this.request = request;
         this.response = null;
-        this.ended = null;
         this.error = null;
+        this.ended = null;
         this.created = new Date().getTime();
     }
 
