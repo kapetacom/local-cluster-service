@@ -5,6 +5,8 @@ const SchemaHandlers = require('./assets/schema-handlers');
 const storageService = require('./storageService');
 const codeGeneratorManager = require('./codeGeneratorManager');
 
+const PLAN_KIND = 'core.blockware.com/v1/Plan';
+
 function enrichAsset(asset) {
     const exists = asset.path && FS.existsSync(asset.path);
     const [protocol, id] = parseRef(asset.ref);
@@ -51,6 +53,22 @@ class AssetManager {
         }
 
         return _.clone(this._assets).map(enrichAsset);
+    }
+
+    getPlans() {
+        return this.getAssets().filter((asset) => {
+            return PLAN_KIND === asset.kind;
+        });
+    }
+
+    getPlan(ref) {
+        const asset = this.getAsset(ref);
+
+        if (asset.kind !== PLAN_KIND) {
+            throw new Error('Asset was not a plan: ' + ref);
+        }
+
+        return asset.data;
     }
 
     getAsset(ref) {

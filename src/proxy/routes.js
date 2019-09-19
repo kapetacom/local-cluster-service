@@ -6,24 +6,48 @@ const router = new Router();
 const networkManager = require('../networkManager');
 const serviceManager = require('../serviceManager');
 const clusterService = require('../clusterService');
+const assetManager = require('../assetManager');
 
-router.use('/:fromService/:toService/', (req, res, next) => {
-    // push the data to body
-    var body = [];
-    req.on('data', (chunk) => {
-        body.push(chunk);
-    }).on('end', () => {
-        req.body = Buffer.concat(body).toString();
-        next();
+router.use('/:systemId/:blockInstanceId/:resourceName/', require('../middleware/stringBody'));
+
+router.all('/:systemId/:blockInstanceId/:resourceName/:type/*', async (req, res) => {
+
+    let plan = null;
+    try {
+        plan = await assetManager.getPlan(req.params.systemId);
+    } catch(err) {
+        res.status(400).send({error: err.message});
+        return;
+    }
+
+    const connection = _.find(plan.spec.connections, (connection) => {
+        return connection.to.blockId === req.params.blockInstanceId &&
+            connection.to.resourceName === req.params.resourceName;
     });
-});
 
-router.all('/:fromService/:toService/:type/*', async (req, res) => {
+    if (!connection) {
+        res.status(401).send({error:`No connection found for block "${req.params.blockInstanceId}" and resource "${req.params.resourceName}"`});
+        return;
+    }
+
     //Get service YAML config
-    const address = await serviceManager.getProviderAddress(req.params.toService, req.params.type);
+    const address = await serviceManager.getProviderAddress(
+        req.params.systemId,
+        connection.from.blockId,
+        connection.from.resourceName,
+        req.params.type
+    );
 
-    const basePath = clusterService.getProxyPath(req.params.fromService, req.params.toService, req.params.type);
-    const relativePath = req.path.substr(basePath.length);
+    const basePath = clusterService.getProxyPath(
+        req.params.systemId,
+        req.params.blockInstanceId,
+        req.params.resourceName,
+        req.params.type
+    );
+
+    const relativePath = req.originalUrl.substr(basePath.length);
+
+    console.log('Route to service', connection.from, address, req.params.type, basePath, req.originalUrl, relativePath);
 
     const headers = _.clone(req.headers);
 
@@ -35,19 +59,19 @@ router.all('/:fromService/:toService/:type/*', async (req, res) => {
         method: req.method,
         headers: req.headers,
         url: address + relativePath,
-        body: req.body
+        body: req.stringBody
     };
 
     const traffic = networkManager.addRequest(
-        req.params.fromService,
-        req.params.toService,
+        req.params.systemId,
+        connection,
         reqOpts
     );
 
     request(reqOpts, function(err, response, responseBody) {
         if (err) {
             traffic.asError(err);
-            res.send(500, 'ERR: ' + err);
+            res.status(500).send({error: '' + err});
             return;
         }
 
