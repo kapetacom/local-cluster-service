@@ -7,6 +7,7 @@ const networkManager = require('../networkManager');
 const serviceManager = require('../serviceManager');
 const clusterService = require('../clusterService');
 const assetManager = require('../assetManager');
+const socketManager = require('../socketManager');
 
 router.use('/:systemId/:blockInstanceId/:resourceName/', require('../middleware/stringBody'));
 
@@ -68,9 +69,13 @@ router.all('/:systemId/:blockInstanceId/:resourceName/:type/*', async (req, res)
         reqOpts
     );
 
+    socketManager.emit(traffic.connectionId, 'traffic_start', traffic);
+
     request(reqOpts, function(err, response, responseBody) {
         if (err) {
             traffic.asError(err);
+            socketManager.emit(traffic.connectionId, 'traffic_end', traffic);
+
             res.status(500).send({error: '' + err});
             return;
         }
@@ -90,6 +95,8 @@ router.all('/:systemId/:blockInstanceId/:resourceName/:type/*', async (req, res)
             headers: response.headers,
             body: responseBody
         });
+
+        socketManager.emit(traffic.connectionId, 'traffic_end', traffic);
 
         if (responseBody) {
             res.send(responseBody);
