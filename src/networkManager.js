@@ -64,7 +64,7 @@ class NetworkManager {
 
         const traffic = new Traffic(connection, request);
 
-        this._ensureConnection(systemId, connectionId).push(traffic);
+        this._ensureConnection(systemId, traffic.connectionId).push(traffic);
         this._ensureSource(systemId, connection.from.blockId).push(traffic);
         this._ensureTarget(systemId, connection.to.blockId).push(traffic);
 

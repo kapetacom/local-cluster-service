@@ -62,6 +62,8 @@ router.get('/identity', async (req, res) => {
 
         res.send(identity);
     } catch(err) {
+        console.log(err);
+        
         res.send({error: err.message});
     }
 });
