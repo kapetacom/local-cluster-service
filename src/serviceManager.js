@@ -79,10 +79,10 @@ class ServiceManager {
      *
      * This returns a local proxy path to allow traffic inspection and control.
      *
-     * @param systemId
-     * @param consumerInstanceId
-     * @param consumerResourceName
-     * @param portType
+     * @param {string} systemId
+     * @param {string} consumerInstanceId
+     * @param {string} consumerResourceName
+     * @param {string} portType
      * @return {string}
      */
     getConsumerAddress(systemId, consumerInstanceId, consumerResourceName, portType) {
@@ -98,14 +98,14 @@ class ServiceManager {
      * For local services this address will be on localhost - for remote services it will
      * be their remotely available address.
      *
-     * @param systemId
-     * @param blockInstanceId
-     * @param resourceName
-     * @param portType
+     * @param {string} systemId
+     * @param {string} providerInstanceId
+     * @param {string} providerResourceName
+     * @param {string} portType
      * @return {string}
      */
-    async getProviderAddress(systemId, blockInstanceId, resourceName, portType) {
-        const port = await this.ensureServicePort(systemId, blockInstanceId, resourceName, portType);
+    async getProviderAddress(systemId, providerInstanceId, providerResourceName, portType) {
+        const port = await this.ensureServicePort(systemId, providerInstanceId, providerResourceName, portType);
         return this._forLocal(port)
     }
 
