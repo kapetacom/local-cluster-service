@@ -80,14 +80,14 @@ class ServiceManager {
      * This returns a local proxy path to allow traffic inspection and control.
      *
      * @param systemId
-     * @param blockInstanceId
-     * @param resourceName
+     * @param consumerInstanceId
+     * @param consumerResourceName
      * @param portType
      * @return {string}
      */
-    getConsumerAddress(systemId, blockInstanceId, resourceName, portType) {
+    getConsumerAddress(systemId, consumerInstanceId, consumerResourceName, portType) {
         const port = clusterService.getClusterServicePort();
-        const path = clusterService.getProxyPath(systemId, blockInstanceId, resourceName, portType);
+        const path = clusterService.getProxyPath(systemId, consumerInstanceId, consumerResourceName, portType);
         return this._forLocal(port, path);
     }
 

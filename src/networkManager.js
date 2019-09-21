@@ -60,9 +60,9 @@ class NetworkManager {
         return this._targets[systemId][targetBlockInstanceId];
     }
 
-    addRequest(systemId, connection, request) {
+    addRequest(systemId, connection, request, consumerMethodId, providerMethodId) {
 
-        const traffic = new Traffic(connection, request);
+        const traffic = new Traffic(connection, request, consumerMethodId, providerMethodId);
 
         this._ensureConnection(systemId, traffic.connectionId).push(traffic);
         this._ensureSource(systemId, connection.from.blockId).push(traffic);
@@ -88,10 +88,11 @@ class NetworkManager {
 
 class Traffic {
 
-    constructor(connection, request) {
+    constructor(connection, request, consumerMethodId, providerMethodId) {
         this.id = uuid.v4();
         this.connectionId = NetworkManager.toConnectionId(connection);
-        this.connection = connection;
+        this.consumerMethodId = consumerMethodId;
+        this.providerMethodId = providerMethodId;
         this.request = request;
         this.response = null;
         this.error = null;
