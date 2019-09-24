@@ -174,9 +174,9 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
 
         const reqOpts = {
             method: providerMethod.method || 'GET',
-            headers: req.headers,
             url: address + providerPath,
-            body: req.stringBody
+            body: req.stringBody,
+            headers
         };
 
         const traffic = networkManager.addRequest(
