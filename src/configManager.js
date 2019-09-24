@@ -63,6 +63,10 @@ class ConfigManager {
                 return;
             }
 
+            if (!planAsset.data.spec.blocks) {
+                return;
+            }
+
             planAsset.data.spec.blocks.forEach((blockInstance) => {
                 if (blockInstance.block.ref === blockRef) {
                     matchingIdentities.push({

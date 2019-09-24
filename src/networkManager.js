@@ -1,4 +1,4 @@
-
+const uuid = require('node-uuid');
 class NetworkManager {
 
     static toConnectionId(connection) {
@@ -60,12 +60,11 @@ class NetworkManager {
         return this._targets[systemId][targetBlockInstanceId];
     }
 
-    addRequest(systemId, connection, request) {
-        const traffic = new Traffic(connection, request);
+    addRequest(systemId, connection, request, consumerMethodId, providerMethodId) {
 
-        const connectionId = NetworkManager.toConnectionId(connection);
+        const traffic = new Traffic(connection, request, consumerMethodId, providerMethodId);
 
-        this._ensureConnection(systemId, connectionId).push(traffic);
+        this._ensureConnection(systemId, traffic.connectionId).push(traffic);
         this._ensureSource(systemId, connection.from.blockId).push(traffic);
         this._ensureTarget(systemId, connection.to.blockId).push(traffic);
 
@@ -89,8 +88,11 @@ class NetworkManager {
 
 class Traffic {
 
-    constructor(connection, request) {
-        this.connection = connection;
+    constructor(connection, request, consumerMethodId, providerMethodId) {
+        this.id = uuid.v4();
+        this.connectionId = NetworkManager.toConnectionId(connection);
+        this.consumerMethodId = consumerMethodId;
+        this.providerMethodId = providerMethodId;
         this.request = request;
         this.response = null;
         this.error = null;
