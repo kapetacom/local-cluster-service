@@ -139,6 +139,7 @@ class OperatorManager {
                 {
                     mounts,
                     ports,
+                    health: operatorData.health,
                     env: operatorData.env
                 });
         }
@@ -151,6 +152,10 @@ class OperatorManager {
 const RESOURCE_OPERATORS = {
     'sqldb.blockware.com/v1/postgresql': new Operator({
         image: 'postgres:9.6',
+        health: {
+            cmd: 'psql --user postgres postgres -c \'select true\' > /dev/null',
+            interval: 5000
+        },
         ports: {
             postgres: {
                 port: 5432,
@@ -169,6 +174,10 @@ const RESOURCE_OPERATORS = {
 
     'nosqldb.blockware.com/v1/mongodb': new Operator({
         image: 'mongo:4.0',
+        health: {
+            cmd: 'echo \'db.runCommand("ping").ok\' | mongo test --quiet',
+            interval: 5000
+        },
         ports: {
             mongodb: {
                 port: 27017,

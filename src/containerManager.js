@@ -3,6 +3,9 @@ const _  = require('lodash');
 
 const LABEL_PORT_PREFIX = 'blockware_port-';
 
+const NANO_SECOND = 1000000;
+const HEALTH_CHECK_INTERVAL = 1000;
+const HEALTH_CHECK_MAX = 20;
 
 const promisifyStream = (stream) => new Promise((resolve, reject) => {
     stream.on('data', (d) => console.log(d.toString()))
@@ -74,11 +77,28 @@ class ContainerManager {
             Env.push(name + '=' + value);
         });
 
+        let HealthCheck = undefined;
+
+        if (opts.health) {
+            HealthCheck = {
+                Test: [
+                    'CMD-SHELL',
+                    opts.health.cmd
+                ],
+                Interval: opts.health.interval ? opts.health.interval * NANO_SECOND : 5000 * NANO_SECOND,
+                Timeout: opts.health.timeout ? opts.health.timeout * NANO_SECOND : 15000 * NANO_SECOND,
+                Retries: opts.health.retries || 10
+            };
+
+            console.log('Adding health check', HealthCheck);
+        }
+
         const dockerContainer = await this._docker.container.create({
             name: name,
             Image: image,
             Labels,
             Env,
+            HealthCheck,
             HostConfig: {
                 PortBindings,
                 Mounts
@@ -87,7 +107,49 @@ class ContainerManager {
 
         await dockerContainer.start();
 
+        if (opts.health) {
+            await this._waitForHealthy(dockerContainer);
+        }
+
         return new ContainerInfo(dockerContainer);
+    }
+
+
+    async _waitForHealthy(container, attempt) {
+        if (!attempt) {
+            attempt = 0;
+        }
+
+        if (attempt >= HEALTH_CHECK_MAX) {
+            throw new Error('Operator did not become healthy within the timeout');
+        }
+
+        if (await this._isHealthy(container)) {
+            console.log('Container became healthy');
+            return;
+        }
+
+        return new Promise((resolve) => {
+            setTimeout(async () => {
+                await this._waitForHealthy(container, attempt + 1);
+                resolve();
+            }, HEALTH_CHECK_INTERVAL)
+        });
+
+    }
+
+    async _isHealthy(container) {
+        const info = await container.status();
+
+        if (info &&
+            info.data &&
+            info.data.State &&
+            info.data.State.Health &&
+            info.data.State.Health.Status) {
+            return info.data.State.Health.Status === 'healthy'
+        }
+
+        return false;
     }
 
     /**
