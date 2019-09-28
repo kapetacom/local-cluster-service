@@ -87,12 +87,13 @@ router.get('/provides/:type', async (req, res) => {
  * If the operator resource is not already available this will cause it to start an instance and
  * assign port numbers to it etc.
  */
-router.get('/consumes/resource/:resourceType/:portType', async (req, res) => {
+router.get('/consumes/resource/:resourceType/:portType/:name', async (req, res) => {
     const operatorInfo = await operatorManager.getResourceInfo(
         req.blockware.systemId,
         req.blockware.instanceId,
         req.params.resourceType,
-        req.params.portType
+        req.params.portType,
+        req.params.name
     );
 
     res.send(operatorInfo);
