@@ -1,7 +1,6 @@
 const clusterService = require('./src/clusterService');
 const storageService = require('./src/storageService');
 const serviceManager = require('./src/serviceManager');
-const networkManager = require('./src/networkManager');
 const socketManager = require('./src/socketManager');
 const express = require('express');
 const HTTP = require('http');
@@ -13,9 +12,10 @@ function createServer() {
     app.use('/traffic', require('./src/traffic/routes'));
     app.use('/proxy', require('./src/proxy/routes'));
     app.use('/config', require('./src/config/routes'));
+    app.use('/instances', require('./src/instances/routes'));
     app.use('/files', require('./src/filesystem/routes'));
     app.use('/assets', require('./src/assets/routes'));
-    server = HTTP.createServer(app);
+    const server = HTTP.createServer(app);
 
     //socket 
     io = require("socket.io")(server);
