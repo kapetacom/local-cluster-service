@@ -88,6 +88,7 @@ class InstanceManager {
 
                 if (response.responseCode > 399) {
                     resolve(STATUS_UNHEALTHY);
+                    return;
                 }
 
                 resolve(STATUS_READY);
