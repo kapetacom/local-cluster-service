@@ -36,13 +36,14 @@ class OperatorManager {
     /**
      * Get information about a specific resource
      *
-     * @param systemId
-     * @param fromServiceId
-     * @param resourceType
-     * @param portType
+     * @param {string} systemId
+     * @param {string} fromServiceId
+     * @param {string} resourceType
+     * @param {string} portType
+     * @param {string} name
      * @returns {Promise<{host: string, port: (*|string), type: *, protocol: *, credentials: *}>}
      */
-    async getResourceInfo(systemId, fromServiceId, resourceType, portType) {
+    async getResourceInfo(systemId, fromServiceId, resourceType, portType, name) {
         const operator = RESOURCE_OPERATORS[resourceType.toLowerCase()];
         if (!operator) {
             throw new Error('Unknown resource type: ' + resourceType);
@@ -58,11 +59,16 @@ class OperatorManager {
             throw new Error('Unknown resource port type : ' + resourceType + '#' + portType);
         }
 
+        const dbName = name + '_' + fromServiceId.replace(/[^a-z0-9]/gi, '');
+
         return {
             host: 'localhost',
             port: portInfo.hostPort,
             type: portType,
             protocol: portInfo.protocol,
+            options: {
+                dbName
+            },
             credentials
         };
     }
