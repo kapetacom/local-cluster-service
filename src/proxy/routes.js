@@ -162,7 +162,6 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
         let address = await serviceManager.getProviderAddress(
             req.params.systemId,
             connection.from.blockId,
-            connection.from.resourceName,
             req.params.type
         );
 

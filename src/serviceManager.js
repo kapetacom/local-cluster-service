@@ -51,7 +51,7 @@ class ServiceManager {
         return system[serviceId];
     }
 
-    async ensureServicePort(systemId, blockInstanceId, resourceName, portType) {
+    async ensureServicePort(systemId, blockInstanceId, portType) {
         if (!portType) {
             portType = DEFAULT_PORT_TYPE;
         }
@@ -100,12 +100,11 @@ class ServiceManager {
      *
      * @param {string} systemId
      * @param {string} providerInstanceId
-     * @param {string} providerResourceName
      * @param {string} portType
      * @return {string}
      */
-    async getProviderAddress(systemId, providerInstanceId, providerResourceName, portType) {
-        const port = await this.ensureServicePort(systemId, providerInstanceId, providerResourceName, portType);
+    async getProviderAddress(systemId, providerInstanceId, portType) {
+        const port = await this.ensureServicePort(systemId, providerInstanceId, portType);
         return this._forLocal(port)
     }
 
