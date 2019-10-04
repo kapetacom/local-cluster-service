@@ -24,7 +24,6 @@ function isPidRunning(pid) {
 }
 
 class InstanceManager {
-
     constructor() {
         this._instances = storageService.section('instances', []);
         this._interval = setInterval(() => this._checkInstances(), CHECK_INTERVAL);
@@ -66,7 +65,7 @@ class InstanceManager {
     async _getInstanceStatus(instance) {
         if (instance.status === STATUS_STOPPED) {
             //Will only change when it reregisters
-            return;
+            return STATUS_STOPPED;
         }
 
         if (!instance.pid ||

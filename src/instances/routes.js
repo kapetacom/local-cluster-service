@@ -10,7 +10,7 @@ router.get('/', (req, res) => {
     res.send(instanceManager.getInstances());
 });
 
-
+router.use('/', require('../middleware/cors'));
 router.use('/', require('../middleware/blockware'));
 router.use('/', require('../middleware/stringBody'));
 
