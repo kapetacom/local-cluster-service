@@ -2,6 +2,7 @@ const {Router} = require('express');
 const instanceManager = require('../instanceManager');
 
 const router = new Router();
+router.use('/', require('../middleware/cors'));
 
 /**
  * Get all instances
@@ -10,7 +11,7 @@ router.get('/', (req, res) => {
     res.send(instanceManager.getInstances());
 });
 
-router.use('/', require('../middleware/cors'));
+
 router.use('/', require('../middleware/blockware'));
 router.use('/', require('../middleware/stringBody'));
 
