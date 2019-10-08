@@ -2,7 +2,7 @@ const _ = require('lodash');
 const FS = require('fs');
 const mkdirp = require('mkdirp');
 const YAML = require('yaml');
-const ClusterConfiguration = require('@blockware/cluster-config');
+const ClusterConfiguration = require('@blockware/local-cluster-config');
 
 /**
  * Class that handles reading and writing from local configuration file.
