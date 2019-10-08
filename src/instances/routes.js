@@ -1,4 +1,5 @@
 const {Router} = require('express');
+
 const instanceManager = require('../instanceManager');
 
 const router = new Router();
@@ -11,9 +12,46 @@ router.get('/', (req, res) => {
     res.send(instanceManager.getInstances());
 });
 
+/**
+ * Start all instances in a plan
+ */
+router.post('/:systemId/start', (req, res) => {
+    instanceManager.startAllInstances(req.params.systemId);
+
+    res.status(202).send({ok:true});
+});
+
+/**
+ * Stop all instances in plan
+ */
+router.post('/:systemId/stop', (req, res) => {
+    instanceManager.stopAllInstances(req.params.systemId);
+
+    res.status(202).send({ok:true});
+});
+
+/**
+ * Start single instance in a plan
+ */
+router.post('/:systemId/:instanceId/start', (req, res) => {
+    instanceManager.startInstance(req.params.systemId, req.params.instanceId);
+
+    res.status(202).send({ok:true});
+});
+
+/**
+ * Stop single instance in a plan
+ */
+router.post('/:systemId/:instanceId/stop', (req, res) => {
+    instanceManager.stopInstance(req.params.systemId, req.params.instanceId);
+
+    res.status(202).send({ok:true});
+});
+
+router.use('/', require('../middleware/stringBody'));
+
 
 router.use('/', require('../middleware/blockware'));
-router.use('/', require('../middleware/stringBody'));
 
 /**
  * Updates the full configuration for a given service.
@@ -39,5 +77,6 @@ router.delete('/', (req, res) => {
 
     res.status(202).send({ok:true});
 });
+
 
 module.exports = router;

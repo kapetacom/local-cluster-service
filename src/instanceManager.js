@@ -1,8 +1,13 @@
 const _ = require('lodash');
 const request = require('request');
+const Path = require('path');
+
+const {BlockInstanceRunner} = require('@blockware/local-cluster-executor');
+
 const storageService = require('./storageService');
 const socketManager = require('./socketManager');
 const serviceManager = require('./serviceManager');
+const assetManager = require('./assetManager');
 
 const CHECK_INTERVAL = 10000;
 const HEALTH_PORT_TYPE = 'rest';
@@ -27,6 +32,7 @@ class InstanceManager {
     constructor() {
         this._instances = storageService.section('instances', []);
         this._interval = setInterval(() => this._checkInstances(), CHECK_INTERVAL);
+        this._processes = {};
 
         this._checkInstances();
     }
@@ -159,6 +165,105 @@ class InstanceManager {
         socketManager.emit(`${systemId}/instances`, type, payload);
     }
 
+    startAllInstances(planRef) {
+        this.stopAllInstances(planRef);
+
+        const plan = assetManager.getPlan(planRef);
+        if (!plan) {
+            throw new Error('Plan not found: ' + planRef);
+        }
+
+        if (!plan.spec.blocks) {
+            console.warn('No blocks found in plan', planRef);
+            return;
+        }
+
+        _.forEach(plan.spec.blocks, (blockInstance) => {
+            this.startInstance(planRef, blockInstance.id);
+        })
+    }
+
+    stopAllInstances(planRef) {
+        if (this._processes[planRef]) {
+            _.forEach(this._processes[planRef], (instance) => {
+                instance.process.kill();
+            });
+
+            this._processes[planRef] = {};
+        }
+
+        //Also stop instances not being maintained by the cluster service
+        this._instances
+            .filter(instance => instance.systemId === planRef)
+            .forEach((instance) => {
+            if (instance.pid) {
+                try {
+                    process.kill(instance.pid);
+                } catch(err) {
+                    console.log('Failed to kill process: %s', instance.pid);
+                }
+            }
+        });
+    }
+
+    startInstance(planRef, instanceId) {
+        const plan = assetManager.getPlan(planRef);
+        if (!plan) {
+            throw new Error('Plan not found: ' + planRef);
+        }
+
+        const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, {id: instanceId}) : null;
+        if (!blockInstance) {
+            throw new Error('Block instance not found: ' + instanceId);
+        }
+
+        const blockAsset = assetManager.getAsset(blockInstance.block.ref);
+
+        if (!blockAsset) {
+            throw new Error('Block not found: ' + blockInstance.block.ref);
+        }
+
+        if (!this._processes[planRef]) {
+            this._processes[planRef] = {};
+        }
+
+        this.stopInstance(planRef, instanceId);
+
+        const process = BlockInstanceRunner.start(Path.dirname(blockAsset.path), blockInstance.block.ref, planRef, instanceId);
+        if (!process) {
+            throw new Error('Start script not available for block: ' + blockInstance.block.ref);
+        }
+
+        this._processes[planRef][instanceId] = process;
+    }
+
+    stopInstance(planRef, instanceId) {
+        if (!this._processes[planRef]) {
+            return;
+        }
+
+        if (this._processes[planRef][instanceId]) {
+            this._processes[planRef][instanceId].process.kill();
+            delete this._processes[planRef][instanceId];
+        }
+    }
+
+    stopAll() {
+        _.forEach(this._processes, (instances) => {
+            _.forEach(instances, (instance) => {
+                instance.process.kill();
+            });
+        });
+
+        this._processes = {};
+    }
 }
 
-module.exports = new InstanceManager();
+
+const instanceManager = new InstanceManager();
+
+process.on('exit', () => {
+    instanceManager.stopAll();
+});
+
+module.exports = instanceManager;
