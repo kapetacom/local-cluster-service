@@ -2,7 +2,7 @@ const _ = require('lodash');
 const request = require('request');
 const Path = require('path');
 
-const {BlockInstanceRunner} = require('@blockware/local-cluster-executor');
+const { BlockInstanceRunner } = require('@blockware/local-cluster-executor');
 
 const storageService = require('./storageService');
 const socketManager = require('./socketManager');
@@ -14,6 +14,7 @@ const HEALTH_PORT_TYPE = 'rest';
 
 const EVENT_STATUS_CHANGED = 'status-changed';
 const EVENT_INSTANCE_CREATED = 'instance-created';
+const EVENT_INSTANCE_EXITED = 'instance-exited';
 
 const STATUS_STARTING = 'starting';
 const STATUS_READY = 'ready';
@@ -37,13 +38,13 @@ class InstanceManager {
         this._checkInstances();
     }
 
-    _save() {
+    _save(){
         storageService.put('instances', this._instances);
     }
 
     async _checkInstances() {
         let changed = false;
-        for( let i = 0; i < this._instances.length; i++) {
+        for(let i = 0; i < this._instances.length; i++) {
             const instance = this._instances[i];
 
             const newStatus = await this._getInstanceStatus(instance);
@@ -196,14 +197,14 @@ class InstanceManager {
         this._instances
             .filter(instance => instance.systemId === planRef)
             .forEach((instance) => {
-            if (instance.pid) {
-                try {
-                    process.kill(instance.pid);
-                } catch(err) {
-                    console.log('Failed to kill process: %s', instance.pid);
+                if (instance.pid) {
+                    try {
+                        process.kill(instance.pid);
+                    } catch(err) {
+                        console.log('Failed to kill process: %s', instance.pid);
+                    }
                 }
-            }
-        });
+            });
     }
 
     startInstance(planRef, instanceId) {
@@ -233,6 +234,11 @@ class InstanceManager {
         if (!process) {
             throw new Error('Start script not available for block: ' + blockInstance.block.ref);
         }
+        process.process.on('exit', (message) => {            
+            if (message === 0) {
+                this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, { error: "failed to start instance", status: EVENT_INSTANCE_EXITED, instanceId: blockInstance.id })
+            }
+        })
 
         this._processes[planRef][instanceId] = process;
     }

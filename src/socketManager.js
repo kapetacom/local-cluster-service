@@ -22,8 +22,6 @@ class SocketManager {
 
     emit(context, type, payload) {
         console.log("emit", context, type, payload);
-
-
         this._io.to(context).emit(type, payload);
     }
 
