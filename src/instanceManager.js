@@ -2,7 +2,7 @@ const _ = require('lodash');
 const request = require('request');
 const Path = require('path');
 
-const { BlockInstanceRunner } = require('@blockware/local-cluster-executor');
+const {BlockInstanceRunner} = require('@blockware/local-cluster-executor');
 
 const storageService = require('./storageService');
 const socketManager = require('./socketManager');
@@ -38,13 +38,13 @@ class InstanceManager {
         this._checkInstances();
     }
 
-    _save(){
+    _save() {
         storageService.put('instances', this._instances);
     }
 
     async _checkInstances() {
         let changed = false;
-        for(let i = 0; i < this._instances.length; i++) {
+        for( let i = 0; i < this._instances.length; i++) {
             const instance = this._instances[i];
 
             const newStatus = await this._getInstanceStatus(instance);
@@ -235,7 +235,7 @@ class InstanceManager {
             throw new Error('Start script not available for block: ' + blockInstance.block.ref);
         }
         process.process.on('exit', (message) => {            
-            if (message === 0) {
+            if (message === 0) {   
                 this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, { error: "failed to start instance", status: EVENT_INSTANCE_EXITED, instanceId: blockInstance.id })
             }
         })
