@@ -15,6 +15,7 @@ function createServer() {
     app.use('/instances', require('./src/instances/routes'));
     app.use('/files', require('./src/filesystem/routes'));
     app.use('/assets', require('./src/assets/routes'));
+    app.use('/providers', require('./src/providers/routes'));
     const server = HTTP.createServer(app);
 
     //socket 

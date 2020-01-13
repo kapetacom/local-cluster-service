@@ -1,22 +1,21 @@
 const Path = require('path');
 
 const {registry:Targets, BlockCodeGenerator, CodeWriter} = require('@blockware/codegen');
-
-//Hardcoded for now
-Targets.register('targets.blockware.com/v1/java8-springboot2',
-    require('@blockware/codegen-target-java8-springboot2'));
-
-Targets.register('targets.blockware.com/v1/nodejs9',
-    require('@blockware/codegen-target-nodejs9'));
-
-const BLOCK_KINDS = [
-    'core.blockware.com/v1/Block/Service'
-];
+const ClusterConfiguration = require('@blockware/local-cluster-config');
 
 class CodeGeneratorManager {
 
+    reload() {
+        const providerDir = ClusterConfiguration.getProvidersBasedir();
+
+        console.log('Reloading language targets from %s', providerDir);
+        Targets.reset();
+        Targets.load(providerDir);
+        console.log('Language targets loaded\n');
+    }
+
     canGenerateCode(yamlContent) {
-        return yamlContent && BLOCK_KINDS.indexOf(yamlContent.kind) > -1;
+        return yamlContent && yamlContent.kind.startsWith('blocks.blockware.com/');
     }
 
     async generate(yamlFile, yamlContent) {
@@ -35,3 +34,4 @@ class CodeGeneratorManager {
 }
 
 module.exports = new CodeGeneratorManager();
+module.exports.reload();
