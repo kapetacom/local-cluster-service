@@ -2,13 +2,16 @@ const Path = require('path');
 
 const {registry:Targets, BlockCodeGenerator, CodeWriter} = require('@blockware/codegen');
 const ClusterConfiguration = require('@blockware/local-cluster-config');
+const TARGET_KIND = 'core.blockware.com/v1/LanguageTarget';
+
 class CodeGeneratorManager {
 
     reload() {
-        const providerDir = ClusterConfiguration.getProvidersBasedir();
-
         Targets.reset();
-        Targets.load(providerDir);
+        const languageTargets = ClusterConfiguration.getProviderDefinitions(TARGET_KIND);
+        languageTargets.forEach((languageTarget) => {
+            Targets.register(languageTarget.definition.metadata.id, require(languageTarget.path));
+        });
     }
 
     canGenerateCode(yamlContent) {
