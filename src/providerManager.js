@@ -2,28 +2,28 @@ const _ = require('lodash');
 const FS = require('fs');
 const Path = require('path');
 const Glob = require("glob");
-const storageService = require('./storageService');
 
 const ClusterConfiguration = require('@blockware/local-cluster-config');
-
-const PROVIDER_BASEDIR = ClusterConfiguration.getProvidersBasedir();
 
 class ProviderManager {
 
     constructor() {
-        this._providers = storageService.section('providers', []);
-    }
 
-    _save() {
-        storageService.put('providers', this._providers);
     }
 
     getWebAssets() {
-        const jsFiles = Glob.sync('**/web/**/*.js', {cwd: PROVIDER_BASEDIR});
+        const webProviders = ClusterConfiguration.getProviderDefinitions().filter((providerDefinition) => providerDefinition.hasWeb);
 
-        return jsFiles.map((file) => {
-            return Path.join(PROVIDER_BASEDIR, file);
+        let jsFiles = [];
+        webProviders.map((webProvider) => {
+            return Glob.sync('web/**/*.js', {cwd: webProvider.path}).map((file) => {
+                return Path.join(webProvider.path, file);
+            });
+        }).forEach((webFiles) => {
+            jsFiles = jsFiles.concat(webFiles);
         });
+
+        return jsFiles;
     }
 
     /**
