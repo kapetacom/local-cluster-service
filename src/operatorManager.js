@@ -1,3 +1,4 @@
+const ClusterConfiguration = require('@blockware/local-cluster-config');
 const serviceManager = require('./serviceManager');
 const storageService = require('./storageService');
 const containerManager = require('./containerManager');
@@ -6,10 +7,11 @@ const mkdirp = require('mkdirp');
 const Path = require('path');
 const md5 = require('md5');
 
+const KIND_OPERATOR = 'core.blockware.com/v1/ResourceType/Operator';
+
 class Operator {
-    constructor(data, credentials) {
+    constructor(data) {
         this._data = data;
-        this._credentials = credentials;
     }
 
     getData() {
@@ -17,7 +19,7 @@ class Operator {
     }
 
     getCredentials() {
-        return this._credentials;
+        return this._data.credentials;
     }
 }
 
@@ -34,6 +36,32 @@ class OperatorManager {
     }
 
     /**
+     * Get operator definition for resource type
+     *
+     * @param resourceType
+     * @return {Operator}
+     */
+    getOperator(resourceType) {
+        const operators = ClusterConfiguration.getProviderDefinitions(KIND_OPERATOR);
+
+        const operator = _.find(operators, (operator) => operator.definition &&
+            operator.definition.metadata &&
+            operator.definition.metadata.id &&
+            operator.definition.metadata.id.toLowerCase() === resourceType.toLowerCase());
+
+        if (!operator) {
+            throw new Error('Unknown resource type: ' + resourceType);
+        }
+
+        if (!operator.definition.spec ||
+            !operator.definition.spec.local) {
+            throw new Error('Operator missing local definition: ' + resourceType);
+        }
+
+        return new Operator(operator.definition.spec.local);
+    }
+
+    /**
      * Get information about a specific resource
      *
      * @param {string} systemId
@@ -44,10 +72,8 @@ class OperatorManager {
      * @returns {Promise<{host: string, port: (*|string), type: *, protocol: *, credentials: *}>}
      */
     async getResourceInfo(systemId, fromServiceId, resourceType, portType, name) {
-        const operator = RESOURCE_OPERATORS[resourceType.toLowerCase()];
-        if (!operator) {
-            throw new Error('Unknown resource type: ' + resourceType);
-        }
+
+        const operator = this.getOperator(resourceType);
 
         const credentials = operator.getCredentials();
 
@@ -81,10 +107,7 @@ class OperatorManager {
      * @return {Promise<ContainerInfo>}
      */
     async ensureResource(systemId, resourceType) {
-        const operator = RESOURCE_OPERATORS[resourceType.toLowerCase()];
-        if (!operator) {
-            throw new Error('Unknown operator type: ' + resourceType);
-        }
+        const operator = this.getOperator(resourceType);
 
         const operatorData = operator.getData();
 

@@ -6,7 +6,7 @@ const storageService = require('./storageService');
 
 const ClusterConfiguration = require('@blockware/local-cluster-config');
 
-const ProvidersBasedir = Path.join(ClusterConfiguration.getBlockwareBasedir(), 'providers');
+const PROVIDER_BASEDIR = ClusterConfiguration.getProvidersBasedir();
 
 class ProviderManager {
 
@@ -18,14 +18,11 @@ class ProviderManager {
         storageService.put('providers', this._providers);
     }
 
-
-
     getWebAssets() {
-        const jsFiles = Glob.sync('**/web/**/*.js', {cwd: ProvidersBasedir})
-        console.log('jsFiles', jsFiles);
+        const jsFiles = Glob.sync('**/web/**/*.js', {cwd: PROVIDER_BASEDIR});
 
         return jsFiles.map((file) => {
-            return Path.join(ProvidersBasedir, file);
+            return Path.join(PROVIDER_BASEDIR, file);
         });
     }
 
@@ -43,6 +40,18 @@ class ProviderManager {
 
         return `Blockware.applyProviders = function() {\n ${includedJS} \n};`
     }
+}
+
+const providerDefinitions = ClusterConfiguration.getProviderDefinitions();
+
+if (providerDefinitions.length > 0) {
+    console.log('## Loaded the following providers ##');
+    providerDefinitions.forEach(providerDefinition => {
+        console.log(' - %s[%s]', providerDefinition.definition.kind, providerDefinition.definition.metadata.id);
+        console.log('   from %s', providerDefinition.path);
+    })
+} else {
+    console.log('## No providers found ##');
 }
 
 module.exports = new ProviderManager();
