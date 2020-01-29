@@ -15,7 +15,7 @@ const HEALTH_PORT_TYPE = 'rest';
 const EVENT_STATUS_CHANGED = 'status-changed';
 const EVENT_INSTANCE_CREATED = 'instance-created';
 const EVENT_INSTANCE_EXITED = 'instance-exited';
-const EVENT_INSTANCE_STDOUT = 'instance-stdout-log';
+const EVENT_INSTANCE_LOG = 'instance-log';
 
 const STATUS_STARTING = 'starting';
 const STATUS_READY = 'ready';
@@ -238,11 +238,13 @@ class InstanceManager {
         //emit stdout/stderr via sockets 
         process.stdout.on("data", (data) => {
             const payload = {source:"stdout", level : "INFO", data:data.toString()}
-            this._emit(instanceId, EVENT_INSTANCE_STDOUT, payload);
+            this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
         });
         process.stderr.on("data", (data) => {
+            console.log("sending data to ", instanceId);
+            
             const payload = {source:"stderr", level : "ERROR", data:data.toString()}
-            this._emit(instanceId, EVENT_INSTANCE_STDOUT, payload);
+            this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
         });
 
         process.process.on('exit', (message) => {
