@@ -15,6 +15,7 @@ const HEALTH_PORT_TYPE = 'rest';
 const EVENT_STATUS_CHANGED = 'status-changed';
 const EVENT_INSTANCE_CREATED = 'instance-created';
 const EVENT_INSTANCE_EXITED = 'instance-exited';
+const EVENT_INSTANCE_LOG = 'instance-log';
 
 const STATUS_STARTING = 'starting';
 const STATUS_READY = 'ready';
@@ -44,7 +45,7 @@ class InstanceManager {
 
     async _checkInstances() {
         let changed = false;
-        for( let i = 0; i < this._instances.length; i++) {
+        for(let i = 0; i < this._instances.length; i++) {
             const instance = this._instances[i];
 
             const newStatus = await this._getInstanceStatus(instance);
@@ -213,7 +214,7 @@ class InstanceManager {
             throw new Error('Plan not found: ' + planRef);
         }
 
-        const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, {id: instanceId}) : null;
+        const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, { id: instanceId }) : null;
         if (!blockInstance) {
             throw new Error('Block instance not found: ' + instanceId);
         }
@@ -234,8 +235,13 @@ class InstanceManager {
         if (!process) {
             throw new Error('Start script not available for block: ' + blockInstance.block.ref);
         }
-        process.process.on('exit', (message) => {            
-            if (message === 0) {   
+        //emit stdout/stderr via sockets 
+        process.stdout.on("data", (data) => {
+            this._emit(instanceId, EVENT_INSTANCE_LOG, data.toString());
+        });
+
+        process.process.on('exit', (message) => {
+            if (message === 0) {
                 this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, { error: "failed to start instance", status: EVENT_INSTANCE_EXITED, instanceId: blockInstance.id })
             }
         })
