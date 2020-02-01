@@ -53,6 +53,22 @@ class PlanKindHandler {
             return Path.resolve(from, to);
         });
     }
+
+    /**
+     * Read all references from plan
+     *
+     * @param planKind {object}
+     */
+    readAssetRefs(planYmlFile, planKind) {
+
+        const absolutePlan = this.resolveAbsoluteFileRefs(planYmlFile, planKind);
+
+        return absolutePlan.spec.blocks.filter((block) => {
+            return (block.block && block.block.ref);
+        }).map((block) => {
+            return block.block.ref;
+        });
+    }
 }
 
 

@@ -115,8 +115,12 @@ class AssetManager {
 
     }
 
+    hasAsset(ref) {
+        return !!_.find(this._assets, {ref});
+    }
+
     async importAsset(ref) {
-        if (_.find(this._assets, {ref})) {
+        if (this.hasAsset(ref)) {
             throw new Error('Asset already registered: ' + ref);
         }
 
@@ -130,6 +134,17 @@ class AssetManager {
 
         if (!content || !content.kind) {
             throw new Error('Invalid asset - missing kind: ' + ref);
+        }
+
+        if (PlanKindHandler.isKind(content.kind)) {
+            //Import all missing linked refs from plan
+            const linkedRefs = PlanKindHandler.readAssetRefs(id, content);
+            while(linkedRefs.length > 0) {
+                const linkedRef = linkedRefs.pop();
+                if (!this.hasAsset(linkedRef)) {
+                    await this.importAsset(linkedRef);
+                }
+            }
         }
 
         const asset = {
