@@ -4,8 +4,7 @@ const YAML = require('yaml');
 const SchemaHandlers = require('./assets/schema-handlers');
 const storageService = require('./storageService');
 const codeGeneratorManager = require('./codeGeneratorManager');
-
-const PLAN_KIND = 'core.blockware.com/v1/Plan';
+const PlanKindHandler = require('./assets/kind-handlers/PlanKindHandler');
 
 function enrichAsset(asset) {
     const exists = asset.path && FS.existsSync(asset.path);
@@ -16,7 +15,12 @@ function enrichAsset(asset) {
     const editable = SchemaHandler.isEditable(id, asset.ref);
 
     try {
-        const data = exists ? YAML.parse(FS.readFileSync(asset.path).toString()) : undefined;
+        let data = exists ? YAML.parse(FS.readFileSync(asset.path).toString()) : undefined;
+
+        if (data && PlanKindHandler.isKind(data.kind)) {
+            data = PlanKindHandler.resolveAbsoluteFileRefs(asset.path, data);
+        }
+
         return {
             ...asset,
             editable,
@@ -57,14 +61,14 @@ class AssetManager {
 
     getPlans() {
         return this.getAssets().filter((asset) => {
-            return PLAN_KIND === asset.kind;
+            return PlanKindHandler.isKind(asset.kind);
         });
     }
 
     getPlan(ref) {
         const asset = this.getAsset(ref);
 
-        if (asset.kind !== PLAN_KIND) {
+        if (!PlanKindHandler.isKind(asset.kind)) {
             throw new Error('Asset was not a plan: ' + ref);
         }
 
