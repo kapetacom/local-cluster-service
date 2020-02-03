@@ -17,7 +17,7 @@
   },
   "scripts": {
     "start": "nodemon start.js",
-    "build":"echo 'Dummy Build Performed'"
+    "build": "echo 'Dummy Build Performed'"
   },
   "homepage": "https://github.com/blockwarecom/local-cluster-service#readme",
   "dependencies": {
