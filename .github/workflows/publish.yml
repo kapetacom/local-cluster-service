@@ -1,0 +1,31 @@
+name: Bump & Publish
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 12
+          registry-url: https://registry.npmjs.org/
+      - run: |
+          git config --global user.email "build@blockware.com"
+          git config --global user.name "Block Builder"
+      - run: npm update -D
+      - run: npm install
+      - run: git add package*.json && git commit -m 'Autoupgrade dependencies' || exit 0
+      - run: npm version patch
+      - run: |
+          git push
+      - run: npm publish
+        env:
+          CI: true
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}

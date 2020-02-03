@@ -1,40 +1,22 @@
 const {Router} = require('express');
-const request = require('request');
-const Path = require('path');
 const _ = require('lodash');
 
 const router = new Router();
-const networkManager = require('../networkManager');
 const serviceManager = require('../serviceManager');
 const clusterService = require('../clusterService');
 const assetManager = require('../assetManager');
-const socketManager = require('../socketManager');
-const pathTemplateParser = require('../utils/pathTemplateParser');
+
+/**
+ * @var {{[key:string]:ProxyRequestHandler}}
+ */
+const TYPE_HANDLERS = {
+    rest: require('./types/rest'),
+    web: require('./types/web')
+};
 
 function getResource(resources, resourceName) {
     return _.find(resources, (resource) => {
-        return (resource.metadata.name === resourceName);
-    });
-}
-
-function getRestMethodId(restResource, httpMethod, httpPath) {
-    return _.findKey(restResource.spec.methods, (method) => {
-        let methodType = method.method ? method.method.toUpperCase() : 'GET';
-
-        if (methodType !== httpMethod.toUpperCase()) {
-            return false;
-        }
-
-        let path = method.path;
-
-        if (restResource.spec.basePath) {
-            path = Path.join(restResource.spec.basePath, path);
-        }
-
-        const pathTemplate = pathTemplateParser(path);
-
-        return pathTemplate.matches(httpPath);
-
+        return (resource.metadata.name.toLowerCase() === resourceName.toLowerCase());
     });
 }
 
@@ -43,13 +25,20 @@ router.use('/:systemId/:consumerInstanceId/:consumerResourceName', require('../m
 router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async (req, res) => {
 
     try {
+
+        const typeHandler = TYPE_HANDLERS[req.params.type.toLowerCase()];
+        if (!typeHandler) {
+            res.status(401).send({error: 'Unknown connection type: ' + req.params.type});
+            return;
+        }
+
         const plan = await assetManager.getPlan(req.params.systemId);
 
         // We can find the connection by the consumer information alone since
         // only 1 provider can be connected to a consumer resource at a time
         const connection = _.find(plan.spec.connections, (connection) => {
-            return connection.to.blockId === req.params.consumerInstanceId &&
-                connection.to.resourceName === req.params.consumerResourceName;
+            return connection.to.blockId.toLowerCase() === req.params.consumerInstanceId.toLowerCase() &&
+                connection.to.resourceName.toLowerCase() === req.params.consumerResourceName.toLowerCase();
         });
 
         if (!connection) {
@@ -58,7 +47,7 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
         }
 
         const toBlockInstance = _.find(plan.spec.blocks, (blockInstance) => {
-            return blockInstance.id === connection.to.blockId;
+            return blockInstance.id.toLowerCase() === connection.to.blockId.toLowerCase();
         });
 
         if (!toBlockInstance) {
@@ -89,29 +78,8 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
          */
         const consumerPath = req.originalUrl.substr(basePath.length - 1);
 
-        const consumerMethodId = getRestMethodId(toResource, req.method, consumerPath);
-
-        if (!consumerMethodId) {
-            res.status(401).send({
-                error:`Consumer method not found for path "${req.method} ${consumerPath}" in resource "${req.params.consumerInstanceId}::${req.params.consumerResourceName}`
-            });
-            return;
-        }
-
-        const consumerMethod = toResource.spec.methods[consumerMethodId];
-
-
-        const providerMethodId = _.findKey(connection.mapping, (mapping) => {
-            return mapping.targetId === consumerMethodId;
-        });
-
-        if (!providerMethodId) {
-            res.status(401).send({error:`Connection contained no mapping for consumer method "${consumerMethodId}`});
-            return;
-        }
-
         const fromBlockInstance = _.find(plan.spec.blocks, (blockInstance) => {
-            return blockInstance.id === connection.from.blockId;
+            return blockInstance.id.toLowerCase() === connection.from.blockId.toLowerCase();
         });
 
         if (!fromBlockInstance) {
@@ -128,35 +96,6 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
             return;
         }
 
-        const providerMethod = fromResource.spec.methods[providerMethodId];
-
-        if (!providerMethod) {
-            res.status(401).send({
-                error:`Provider method not found "${providerMethodId}" in resource "${connection.from.blockId}::${connection.from.resourceName}`
-            });
-            return;
-        }
-
-        //Now we've resolved all the things involved in the connection - do the actual transformation
-
-        const consumerPathTemplate = pathTemplateParser(consumerMethod.path);
-        const providerPathTemplate = pathTemplateParser(providerMethod.path);
-
-        const pathVariables = consumerPathTemplate.parse(consumerPath);
-
-        let providerPath = providerPathTemplate.create(pathVariables);
-
-        if (!providerPath.startsWith('/')) {
-            providerPath = '/' + providerPath;
-        }
-
-        const headers = _.clone(req.headers);
-
-        delete headers['content-length'];
-        delete headers['content-encoding'];
-        delete headers['connection'];
-        delete headers['host'];
-        delete headers['origin'];
 
         //Get target address
         let address = await serviceManager.getProviderAddress(
@@ -169,61 +108,15 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
             address = address.substr(0, address.length - 1);
         }
 
-        console.log('Route to provider: %s => %s', consumerPath, address + providerPath);
-
-        const reqOpts = {
-            method: providerMethod.method || 'GET',
-            url: address + providerPath,
-            body: req.stringBody,
-            headers
-        };
-
-        const traffic = networkManager.addRequest(
-            req.params.systemId,
-            connection,
-            reqOpts,
-            consumerMethodId,
-            providerMethodId
-        );
-
-        socketManager.emit(traffic.connectionId, 'traffic_start', traffic);
-
-        request(reqOpts, function(err, response, responseBody) {
-            if (err) {
-                traffic.asError(err);
-                socketManager.emit(traffic.connectionId, 'traffic_end', traffic);
-
-                res.status(500).send({error: '' + err});
-                return;
-            }
-
-            const headers = _.clone(response.headers);
-
-            delete headers['content-length'];
-            delete headers['content-encoding'];
-            delete headers['connection'];
-
-            res.set(headers);
-
-            res.status(response.statusCode);
-
-            traffic.withResponse({
-                code: response.statusCode,
-                headers: response.headers,
-                body: responseBody
-            });
-
-            socketManager.emit(traffic.connectionId, 'traffic_end', traffic);
-
-            if (responseBody) {
-                res.send(responseBody);
-            } else {
-                res.end();
-            }
+        typeHandler(req, res, {
+            consumerPath,
+            address,
+            toResource,
+            fromResource,
+            connection
         });
 
     } catch(err) {
-        console.log('Failed', err.stack);
         res.status(400).send({error: err.message});
     }
 

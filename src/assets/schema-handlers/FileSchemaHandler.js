@@ -1,4 +1,5 @@
 const AbstractSchemaHandler = require('./AbstractSchemaHandler');
+const PlanKindHandler = require('../kind-handlers/PlanKindHandler');
 const FS = require('fs');
 const YAML = require('yaml');
 
@@ -17,15 +18,25 @@ class FileSchemaHandler extends AbstractSchemaHandler {
             throw new Error('File not found: ' + id);
         }
 
+        let content = YAML.parse(FS.readFileSync(id).toString());
+
+        if (content && PlanKindHandler.isKind(content.kind)) {
+            content = PlanKindHandler.resolveAbsoluteFileRefs(id, content);
+        }
+
         return [
             id,
-            YAML.parse(FS.readFileSync(id).toString()),
+            content
         ];
     }
 
     async pack(path, ref, content) {
         if (!FS.existsSync(path)) {
             throw new Error('File not found: ' + path);
+        }
+
+        if (content && PlanKindHandler.isKind(content.kind)) {
+            content = PlanKindHandler.resolveRelativeFileRefs(path, content);
         }
 
         FS.writeFileSync(path, YAML.stringify(content));
