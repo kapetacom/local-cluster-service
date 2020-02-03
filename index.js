@@ -58,6 +58,8 @@ module.exports = {
 
         const port = clusterService.getClusterServicePort();
 
+        const ip = clusterService.getClusterServiceIp();
+
         if (clusterPort !== port) {
             storageService.put('cluster','port', port);
         }
@@ -70,7 +72,7 @@ module.exports = {
                 reject(err);
             });
 
-            currentServer.listen(port, () => resolve(port));
+            currentServer.listen(port, ip, () => resolve(port));
             currentServer.port = port;
         });
     },

@@ -16,7 +16,8 @@
     "url": "https://github.com/blockwarecom/local-cluster-service/issues"
   },
   "scripts": {
-    "start": "nodemon start.js"
+    "start": "nodemon start.js",
+    "build":"echo 'Dummy Build Performed'"
   },
   "homepage": "https://github.com/blockwarecom/local-cluster-service#readme",
   "dependencies": {
