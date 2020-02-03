@@ -10,6 +10,9 @@
   "keywords": [
     "blockware"
   ],
+  "scripts": {
+    "build":"echo 'Build Performed'"
+  },
   "author": "Henrik Hofmeister <hh@blockware.com>",
   "license": "MIT",
   "bugs": {
