@@ -208,6 +208,14 @@ class InstanceManager {
             });
     }
 
+    _resolveReference(blockRef, planRef) {
+        if (blockRef.startsWith('file://') &&
+            planRef.startsWith('file://')) {
+            return 'file://' + Path.resolve(Path.dirname(planRef.substring(7)), blockRef.substring(7));
+        }
+        return blockRef;
+    }
+
     startInstance(planRef, instanceId) {
         const plan = assetManager.getPlan(planRef);
         if (!plan) {
@@ -219,10 +227,12 @@ class InstanceManager {
             throw new Error('Block instance not found: ' + instanceId);
         }
 
-        const blockAsset = assetManager.getAsset(blockInstance.block.ref);
+        const blockRef = this._resolveReference(blockInstance.block.ref, planRef);
+
+        const blockAsset = assetManager.getAsset(blockRef);
 
         if (!blockAsset) {
-            throw new Error('Block not found: ' + blockInstance.block.ref);
+            throw new Error('Block not found: ' + blockRef);
         }
 
         if (!this._processes[planRef]) {
@@ -231,19 +241,19 @@ class InstanceManager {
 
         this.stopInstance(planRef, instanceId);
 
-        const process = BlockInstanceRunner.start(Path.dirname(blockAsset.path), blockInstance.block.ref, planRef, instanceId);
+        const process = BlockInstanceRunner.start(Path.dirname(blockAsset.path), blockRef, planRef, instanceId);
         if (!process) {
-            throw new Error('Start script not available for block: ' + blockInstance.block.ref);
+            throw new Error('Start script not available for block: ' + blockRef);
         }
         //emit stdout/stderr via sockets 
         process.stdout.on("data", (data) => {
-            const payload = {source:"stdout", level : "INFO", data:data.toString()}
+            const payload = {source:"stdout", level : "INFO", data:data.toString()};
             this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
         });
         process.stderr.on("data", (data) => {
             console.log("sending data to ", instanceId);
             
-            const payload = {source:"stderr", level : "ERROR", data:data.toString()}
+            const payload = {source:"stderr", level : "ERROR", data:data.toString()};
             this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
         });
 
@@ -251,7 +261,7 @@ class InstanceManager {
             if (message === 0) {
                 this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, { error: "failed to start instance", status: EVENT_INSTANCE_EXITED, instanceId: blockInstance.id })
             }
-        })
+        });
 
         this._processes[planRef][instanceId] = process;
     }
