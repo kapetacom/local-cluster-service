@@ -1,7 +1,7 @@
 const net = require('net');
 const DEFAULT_SERVER_PORT = 35100;
 const DEFAULT_START_PORT = 40000;
-const DEFAULT_IP = '127.0.0.1';
+const DEFAULT_HOST = '127.0.0.1';
 
 class ClusterService {
 
@@ -10,7 +10,7 @@ class ClusterService {
         this._currentPort = DEFAULT_START_PORT;
         this._initialized = false;
         this._reservedPorts = [];
-        this._ip = DEFAULT_IP;
+        this._host = DEFAULT_HOST;
     }
 
     reservePort(port) {
@@ -65,7 +65,7 @@ class ClusterService {
         }
     }
 
-    _checkIfPortIsUsed(port, ip=this._ip) {
+    _checkIfPortIsUsed(port, host=this._host) {
         return new Promise((resolve, reject) => {
             const server = net.createServer();
 
@@ -85,7 +85,7 @@ class ClusterService {
                 resolve(false);
             });
 
-            server.listen( port, ip );
+            server.listen( port, host );
         });
 
     }
@@ -99,10 +99,10 @@ class ClusterService {
     }
     
     /* 
-     *Gets the Ip ( 127.0.0.1 ) on which Express JS is listening
+     *Gets the host name ( 127.0.0.1 ) on which Express JS is listening
      */
-    getClusterServiceIp() {
-        return this._ip;
+     getClusterServiceHost() {
+        return this._host;
     }
 
     /**
@@ -111,6 +111,10 @@ class ClusterService {
      */
     setClusterServicePort(port) {
         this._port = port;
+    }
+
+    setClusterServiceHost(host) {
+        this._host = host;
     }
 
     /**

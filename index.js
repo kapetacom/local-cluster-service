@@ -52,16 +52,25 @@ module.exports = {
             clusterService.setClusterServicePort(clusterPort);
         }
 
+        const clusterHost = storageService.get('cluster','host');
+        if (clusterHost) {
+            clusterService.setClusterServiceHost(clusterHost);
+        }
+
         await clusterService.init();
 
         currentServer = createServer();
 
         const port = clusterService.getClusterServicePort();
 
-        const ip = clusterService.getClusterServiceIp();
+        const host = clusterService.getClusterServiceHost();
 
         if (clusterPort !== port) {
             storageService.put('cluster','port', port);
+        }
+
+        if (clusterHost !== host) {
+            storageService.put('cluster','host', host);
         }
 
         return new Promise((resolve, reject) => {
@@ -72,7 +81,7 @@ module.exports = {
                 reject(err);
             });
 
-            currentServer.listen(port, ip, () => resolve(port));
+            currentServer.listen(port, host, () => resolve(port));
             currentServer.port = port;
         });
     },
