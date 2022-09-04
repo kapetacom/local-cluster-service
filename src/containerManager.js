@@ -38,7 +38,7 @@ class ContainerManager {
      * @param {{ports:{},mounts:{},env:{}}} opts
      * @return {Promise<ContainerInfo>}
      */
-    async run(image, name, opts) {
+    async run(image, name, opts) {
 
         const Mounts = [];
         const PortBindings = {};
@@ -157,7 +157,7 @@ class ContainerManager {
      * @param name
      * @return {Promise<ContainerInfo>}
      */
-    async get(name) {
+    async get(name) {
         let dockerContainer = null;
 
         try {
@@ -195,13 +195,13 @@ class ContainerInfo {
     async isRunning() {
         const inspectResult = await this.getStatus();
 
-        if (!inspectResult || 
+        if (!inspectResult || 
             !inspectResult.State) {
             return false;
         }
 
 
-        return inspectResult.State.Running || inspectResult.State.Restarting;
+        return inspectResult.State.Running || inspectResult.State.Restarting;
     }
 
     async start() {
@@ -259,7 +259,7 @@ class ContainerInfo {
 
         });
 
-        _.forEach(inspectResult.HostConfig.PortBindings, (portBindings, containerPortSpec) => {
+        _.forEach(inspectResult.HostConfig.PortBindings, (portBindings, containerPortSpec) => {
             let [containerPort, protocol] = containerPortSpec.split(/\//);
 
             const hostPort = portBindings[0].HostPort;

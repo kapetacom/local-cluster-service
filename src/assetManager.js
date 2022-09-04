@@ -47,7 +47,7 @@ class AssetManager {
         this._assets = storageService.section('assets', []);
     }
 
-    _save() {
+    _save() {
         storageService.put('assets', this._assets);
     }
 
@@ -132,7 +132,7 @@ class AssetManager {
 
         const [path, content] = await SchemaHandler.unpack(id, ref);
 
-        if (!content || !content.kind) {
+        if (!content || !content.kind) {
             throw new Error('Invalid asset - missing kind: ' + ref);
         }
 

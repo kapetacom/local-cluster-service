@@ -110,7 +110,7 @@ module.exports = function proxyRestRequest(req, res, opts) {
     console.log('Route to provider: %s => %s', opts.consumerPath, opts.address + providerPath);
 
     const reqOpts = {
-        method: providerMethod.method || 'GET',
+        method: providerMethod.method || 'GET',
         url: opts.address + providerPath,
         body: req.stringBody,
         headers: requestHeaders
