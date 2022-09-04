@@ -25,11 +25,12 @@ class ServiceManager {
         if (!path) {
             path = '';
         }
+        const host = clusterService.getClusterServiceHost();
 
         if (path.startsWith('/')) {
             path = path.substr(1);
         }
-        return `http://localhost:${port}/${path}`;
+        return `http://${host}:${port}/${path}`;
     }
 
     _ensureSystem(systemId) {
