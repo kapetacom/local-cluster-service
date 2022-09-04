@@ -81,7 +81,8 @@ module.exports = {
                 reject(err);
             });
 
-            currentServer.listen(port, host, () => resolve(port));
+            currentServer.listen(port, host, () => resolve({host,port}));
+            currentServer.host = host;
             currentServer.port = port;
         });
     },

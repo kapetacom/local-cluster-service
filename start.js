@@ -1,3 +1,3 @@
 const localClusterService = require('./index');
 
-localClusterService.start().then(port => console.log('Listening on port localhost:%s', port));
+localClusterService.start().then(({host,port}) => console.log('Listening on port %s:%s', host, port));
