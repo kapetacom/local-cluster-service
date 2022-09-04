@@ -48,7 +48,7 @@ class ClusterService {
 
     /**
      * Gets next available port
-     * @return {number}
+     * @return {Promise<number>}
      */
     async getNextAvailablePort() {
         while(true) {
