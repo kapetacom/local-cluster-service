@@ -19,7 +19,6 @@ jobs:
       - run: |
           git config --global user.email "build@blockware.com"
           git config --global user.name "Block Builder"
-      - run: npm update -D
       - run: npm install
       - run: git add package*.json && git commit -m 'Autoupgrade dependencies' || exit 0
       - run: npm version patch
