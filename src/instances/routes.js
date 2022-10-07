@@ -48,6 +48,20 @@ router.post('/:systemId/:instanceId/stop', (req, res) => {
     res.status(202).send({ok:true});
 });
 
+
+/**
+ * Get logs for instance in a plan
+ */
+router.get('/:systemId/:instanceId/logs', (req, res) => {
+    const process = instanceManager.getProcessForInstance(req.params.systemId, req.params.instanceId);
+    if (!process) {
+        res.status(404).send({ok:false});
+        return;
+    }
+
+    res.status(202).send({logs:process.logs});
+});
+
 router.use('/', require('../middleware/stringBody'));
 
 

@@ -242,18 +242,19 @@ class InstanceManager {
         this.stopInstance(planRef, instanceId);
 
         const process = BlockInstanceRunner.start(Path.dirname(blockAsset.path), blockRef, planRef, instanceId);
+        process.logs = [];
         if (!process) {
             throw new Error('Start script not available for block: ' + blockRef);
         }
         //emit stdout/stderr via sockets 
         process.stdout.on("data", (data) => {
-            const payload = {source:"stdout", level : "INFO", data:data.toString()};
+            const payload = {source:"stdout", level : "INFO", message:data.toString(), time: Date.now()};
+            process.logs.push(payload);
             this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
         });
         process.stderr.on("data", (data) => {
-            console.log("sending data to ", instanceId);
-            
-            const payload = {source:"stderr", level : "ERROR", data:data.toString()};
+            const payload = {source:"stderr", level : "ERROR", message:data.toString(), time: Date.now()};
+            process.logs.push(payload);
             this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
         });
 
@@ -264,6 +265,14 @@ class InstanceManager {
         });
 
         this._processes[planRef][instanceId] = process;
+    }
+
+    getProcessForInstance(planRef, instanceId) {
+        if (!this._processes[planRef]) {
+            return;
+        }
+
+        return this._processes[planRef][instanceId];
     }
 
     stopInstance(planRef, instanceId) {

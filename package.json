@@ -32,7 +32,7 @@
     "node-docker-api": "1.1.22",
     "node-uuid": "^1.4.8",
     "request": "2.88.0",
-    "socket.io": "^2.2.0",
+    "socket.io": "^4.5.2",
     "yaml": "^1.6.0"
   },
   "devDependencies": {

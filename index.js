@@ -2,8 +2,10 @@ const clusterService = require('./src/clusterService');
 const storageService = require('./src/storageService');
 const serviceManager = require('./src/serviceManager');
 const socketManager = require('./src/socketManager');
+const containerManager = require('./src/containerManager');
 const express = require('express');
 const HTTP = require('http');
+const {Server} = require("socket.io");
 
 let currentServer = null;
 
@@ -19,7 +21,11 @@ function createServer() {
     const server = HTTP.createServer(app);
 
     //socket 
-    io = require("socket.io")(server);
+    const io = new Server(server, {
+        cors: {
+            origin: "http://localhost:8080"
+        }
+    });
     socketManager.setIo(io);
     return server;
 }
@@ -44,7 +50,13 @@ module.exports = {
      */
     start: async function() {
         if (currentServer) {
-            return Promise.reject(new Error('Server already started'));
+            throw new Error('Server already started');
+        }
+
+        try {
+            await containerManager.ping()
+        } catch (e) {
+            throw new Error('Could not ping docker runtime: ' + e.toString() + '. Make sure docker is running and working.');
         }
 
         const clusterPort = storageService.get('cluster','port');

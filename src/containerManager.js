@@ -16,6 +16,12 @@ const promisifyStream = (stream) => new Promise((resolve, reject) => {
 class ContainerManager {
     constructor() {
         this._docker = new Docker();
+        this._alive = false;
+    }
+
+    async ping() {
+        await this._docker.ping();
+        this._alive = true;
     }
 
     async pull(image) {
