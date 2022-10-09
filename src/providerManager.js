@@ -8,23 +8,39 @@ const ClusterConfiguration = require('@blockware/local-cluster-config');
 class ProviderManager {
 
     constructor() {
+        this._assetCache = {};
+    }
 
+    getWebProviders() {
+        return ClusterConfiguration
+            .getProviderDefinitions()
+            .filter((providerDefinition) => providerDefinition.hasWeb)
     }
 
     getWebAssets() {
-        const webProviders = ClusterConfiguration.getProviderDefinitions().filter((providerDefinition) => providerDefinition.hasWeb);
+        const webProviders = this.getWebProviders();
 
-        let jsFiles = [];
+        let providerFiles = [];
         webProviders.map((webProvider) => {
             return Glob.sync('web/**/*.js', {cwd: webProvider.path}).map((file) => {
-                return Path.join(webProvider.path, file);
+                return {webProvider, file};
             });
         }).forEach((webFiles) => {
-            jsFiles = jsFiles.concat(webFiles);
+            providerFiles.push(...webFiles);
         });
 
-        return jsFiles;
+        return providerFiles;
     }
+
+    loadAssets() {
+        this.getWebAssets().forEach((asset) => {
+            const providerId = asset.webProvider.definition.metadata.id;
+            const file = asset.file;
+            const assetId = `${providerId}/${file}`;
+            this._assetCache[assetId] = Path.join(asset.webProvider.path, file);
+        })
+    }
+
 
     /**
      * Returns all public (web) javascript for available providers.
@@ -34,11 +50,22 @@ class ProviderManager {
      *
      */
     getPublicJS() {
-        const includedJS = this.getWebAssets().map((file) => {
-            return FS.readFileSync(file).toString();
-        }).join('\n\n');
+        this.loadAssets();
+        const includes = Object.keys(this._assetCache).map((assetId) => {
+            return `${ClusterConfiguration.getClusterServiceAddress()}/providers/asset/${assetId}`
+        });
 
-        return `Blockware.applyProviders = function() {\n ${includedJS} \n};`
+        return `Blockware.setPluginPaths(${JSON.stringify(includes)});`
+    }
+
+    getAsset(id) {
+        if (_.isEmpty(this._assetCache)) {
+            this.loadAssets();
+        }
+        if (this._assetCache[id]) {
+            return FS.readFileSync(this._assetCache[id]).toString();
+        }
+        return null;
     }
 }
 
