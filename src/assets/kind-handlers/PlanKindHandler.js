@@ -1,6 +1,6 @@
 const Path = require('path');
 const _ = require('lodash');
-const PLAN_KIND = 'core.blockware.com/v1/Plan';
+const PLAN_KIND = 'core/plan';
 
 class PlanKindHandler {
 
