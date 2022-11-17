@@ -7,7 +7,7 @@ const mkdirp = require('mkdirp');
 const Path = require('path');
 const md5 = require('md5');
 
-const KIND_OPERATOR = 'core.blockware.com/v1/ResourceType/Operator';
+const KIND_OPERATOR = 'core/resource-type-operator';
 
 class Operator {
     constructor(data) {
@@ -46,8 +46,8 @@ class OperatorManager {
 
         const operator = _.find(operators, (operator) => operator.definition &&
             operator.definition.metadata &&
-            operator.definition.metadata.id &&
-            operator.definition.metadata.id.toLowerCase() === resourceType.toLowerCase());
+            operator.definition.metadata.name &&
+            operator.definition.metadata.name.toLowerCase() === resourceType.toLowerCase());
 
         if (!operator) {
             throw new Error('Unknown resource type: ' + resourceType);

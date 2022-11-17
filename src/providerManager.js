@@ -34,7 +34,7 @@ class ProviderManager {
 
     loadAssets() {
         this.getWebAssets().forEach((asset) => {
-            const providerId = asset.webProvider.definition.metadata.id;
+            const providerId = asset.webProvider.definition.metadata.name;
             const file = asset.file;
             const assetId = `${providerId}/${file}`;
             this._assetCache[assetId] = Path.join(asset.webProvider.path, file);
@@ -74,7 +74,7 @@ const providerDefinitions = ClusterConfiguration.getProviderDefinitions();
 if (providerDefinitions.length > 0) {
     console.log('## Loaded the following providers ##');
     providerDefinitions.forEach(providerDefinition => {
-        console.log(' - %s[%s]', providerDefinition.definition.kind, providerDefinition.definition.metadata.id);
+        console.log(' - %s[%s]', providerDefinition.definition.kind, providerDefinition.definition.metadata.name);
         console.log('   from %s', providerDefinition.path);
     })
 } else {
