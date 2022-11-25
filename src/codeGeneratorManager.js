@@ -3,6 +3,7 @@ const Path = require('path');
 const {registry:Targets, BlockCodeGenerator, CodeWriter} = require('@blockware/codegen');
 const ClusterConfiguration = require('@blockware/local-cluster-config');
 const TARGET_KIND = 'core/language-target';
+const BLOCK_TYPE_KIND = 'core/block-type';
 
 class CodeGeneratorManager {
 
@@ -15,7 +16,9 @@ class CodeGeneratorManager {
     }
 
     canGenerateCode(yamlContent) {
-        return yamlContent && yamlContent.kind.startsWith('blocks.blockware.com/');
+        const blockTypes = ClusterConfiguration.getProviderDefinitions(BLOCK_TYPE_KIND);
+        const blockTypeKinds = blockTypes.map(blockType => blockType.definition.metadata.name.toLowerCase());
+        return yamlContent && yamlContent.kind && blockTypeKinds.indexOf(yamlContent.kind.toLowerCase()) > -1;
     }
 
     async generate(yamlFile, yamlContent) {
