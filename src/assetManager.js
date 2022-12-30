@@ -25,6 +25,7 @@ function enrichAsset(asset) {
             ...asset,
             editable,
             exists,
+            kind: data.kind,
             data
         };
     } catch (err) {
@@ -111,8 +112,9 @@ class AssetManager {
 
         if (codeGeneratorManager.canGenerateCode(yaml)) {
             await codeGeneratorManager.generate(yamlFile, yaml);
+        } else {
+            console.log('Could not generate code for %s', yaml.kind ? yaml.kind : 'unknown yaml');
         }
-
     }
 
     hasAsset(ref) {
@@ -149,8 +151,7 @@ class AssetManager {
 
         const asset = {
             ref,
-            path,
-            kind: content.kind,
+            path
         };
 
         this._assets.push(asset);

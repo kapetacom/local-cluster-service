@@ -1,30 +1,28 @@
-name: Bump & Publish
-
+name: Publish to Blockware Public NPM
 on:
   push:
     branches:
       - master
-
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v3
         with:
           node-version: 18
           registry-url: https://registry.npmjs.org/
-      - run: |
-          git config --global user.email "build@blockware.com"
-          git config --global user.name "Block Builder"
+
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_ARTIFACTORY_SERVICE_ACCOUNT }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - run: echo '@blockware:registry=${{ secrets.GCP_ARTIFACT_NPM_URL }}' > .npmrc
       - run: npm install
-      - run: git add package*.json && git commit -m 'Autoupgrade dependencies' || exit 0
-      - run: npm version patch
-      - run: |
-          git push
-      - run: npm publish
-        env:
-          CI: true
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+      - run: npx google-artifactregistry-auth .npmrc
+      - run: npm publish --registry ${{ secrets.GCP_ARTIFACT_NPM_URL }}

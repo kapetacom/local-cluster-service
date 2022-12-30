@@ -64,6 +64,7 @@ router.post('/create', async (req, res) => {
 
         res.status(200).send(asset);
     } catch(err) {
+        console.log('Failed while creating asset', req.query.path, err.message);
         res.status(400).send({error: err.message});
     }
 
@@ -85,6 +86,7 @@ router.put('/update', async (req, res) => {
 
         res.sendStatus(204);
     } catch(err) {
+        console.log('Failed while updating asset', req.query.ref, err.message);
         res.status(400).send({error: err.message});
     }
 

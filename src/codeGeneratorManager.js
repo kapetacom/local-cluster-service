@@ -11,13 +11,14 @@ class CodeGeneratorManager {
         Targets.reset();
         const languageTargets = ClusterConfiguration.getProviderDefinitions(TARGET_KIND);
         languageTargets.forEach((languageTarget) => {
-            Targets.register(languageTarget.definition.metadata.name, require(languageTarget.path));
+            const key = `${languageTarget.definition.metadata.name}:${languageTarget.version}`
+            Targets.register(key, require(languageTarget.path));
         });
     }
 
     canGenerateCode(yamlContent) {
         const blockTypes = ClusterConfiguration.getProviderDefinitions(BLOCK_TYPE_KIND);
-        const blockTypeKinds = blockTypes.map(blockType => blockType.definition.metadata.name.toLowerCase());
+        const blockTypeKinds = blockTypes.map(blockType => blockType.definition.metadata.name.toLowerCase() + ':' + blockType.version);
         return yamlContent && yamlContent.kind && blockTypeKinds.indexOf(yamlContent.kind.toLowerCase()) > -1;
     }
 
@@ -27,14 +28,13 @@ class CodeGeneratorManager {
         const codeGenerator = new BlockCodeGenerator(yamlContent);
 
         const output = await codeGenerator.generate();
-
-        const writer = new CodeWriter(baseDir);
-
+        const writer = new CodeWriter(baseDir, {});
         writer.write(output);
 
         console.log('Code generated for path: %s', baseDir);
     }
 }
 
-module.exports = new CodeGeneratorManager();
-module.exports.reload();
+const manager = new CodeGeneratorManager();
+manager.reload();
+module.exports = manager;
