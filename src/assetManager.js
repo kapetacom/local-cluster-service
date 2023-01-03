@@ -138,26 +138,27 @@ class AssetManager {
     }
 
     async importFile(filePath) {
+        if (filePath.startsWith('file://')) {
+            filePath = filePath.substring('file://'.length);
+        }
 
         if (!FS.existsSync(filePath)) {
             throw new Error('File not found: ' + filePath);
         }
 
-        const refs = [];
-
-        const blockInfos = YAML.parseAllDocuments(FS.readFileSync(filePath).toString())
+        const assetInfos = YAML.parseAllDocuments(FS.readFileSync(filePath).toString())
             .map(doc => doc.toJSON());
 
-        blockInfos.forEach(blockInfo => {
-            const version = 'local';
-            const [handle, name] = blockInfo.metadata.name.split('/');
+        const assetInfo = assetInfos[0];
+        const version = 'local';
+        const [handle, name] = assetInfo.metadata.name.split('/');
 
-            const target = ClusterConfiguration.getRepositoryAssetPath(handle, name, version);
-            if (!FS.existsSync(target)) {
-                makeSymLink(Path.dirname(filePath), target);
-                refs.push(`blockware://${blockInfo.metadata.name}:${version}`);
-            }
-        });
+        const target = ClusterConfiguration.getRepositoryAssetPath(handle, name, version);
+        if (!FS.existsSync(target)) {
+            makeSymLink(Path.dirname(filePath), target);
+        }
+
+        const refs = assetInfos.map(assetInfo => `blockware://${assetInfo.metadata.name}:${version}`);
 
         return this.getAssets().filter(a => refs.some(ref => compareRefs(ref, a.ref)));
     }
