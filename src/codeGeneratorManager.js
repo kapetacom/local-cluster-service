@@ -9,7 +9,7 @@ class CodeGeneratorManager {
 
     reload() {
         Targets.reset();
-        const languageTargets = ClusterConfiguration.getProviderDefinitions(TARGET_KIND);
+        const languageTargets = ClusterConfiguration.getDefinitions(TARGET_KIND);
         languageTargets.forEach((languageTarget) => {
             const key = `${languageTarget.definition.metadata.name}:${languageTarget.version}`
             Targets.register(key, require(languageTarget.path));
@@ -17,7 +17,7 @@ class CodeGeneratorManager {
     }
 
     canGenerateCode(yamlContent) {
-        const blockTypes = ClusterConfiguration.getProviderDefinitions(BLOCK_TYPE_KIND);
+        const blockTypes = ClusterConfiguration.getDefinitions(BLOCK_TYPE_KIND);
         const blockTypeKinds = blockTypes.map(blockType => blockType.definition.metadata.name.toLowerCase() + ':' + blockType.version);
         return yamlContent && yamlContent.kind && blockTypeKinds.indexOf(yamlContent.kind.toLowerCase()) > -1;
     }

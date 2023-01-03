@@ -42,7 +42,7 @@ class OperatorManager {
      * @return {Operator}
      */
     getOperator(resourceType) {
-        const operators = ClusterConfiguration.getProviderDefinitions(KIND_OPERATOR);
+        const operators = ClusterConfiguration.getDefinitions(KIND_OPERATOR);
 
         const operator = _.find(operators, (operator) => operator.definition &&
             operator.definition.metadata &&

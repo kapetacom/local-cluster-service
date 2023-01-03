@@ -122,7 +122,7 @@ router.put('/import', async (req, res) => {
     }
 
     try {
-        const asset = await assetManager.importAsset(req.query.ref);
+        const asset = await assetManager.importFile(req.query.ref);
 
         res.status(200).send(asset);
     } catch(err) {

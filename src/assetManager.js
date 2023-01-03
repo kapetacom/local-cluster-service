@@ -1,75 +1,86 @@
-const _ = require('lodash');
-const FS = require('fs');
+const Path = require("node:path");
+const FS = require('node:fs');
+const FSExtra = require('fs-extra');
 const YAML = require('yaml');
-const SchemaHandlers = require('./assets/schema-handlers');
-const storageService = require('./storageService');
+const ClusterConfiguration = require('@blockware/local-cluster-config');
 const codeGeneratorManager = require('./codeGeneratorManager');
-const PlanKindHandler = require('./assets/kind-handlers/PlanKindHandler');
+
+function makeSymLink(directory, versionTarget) {
+    FSExtra.mkdirpSync(Path.dirname(versionTarget));
+    FSExtra.createSymlinkSync(directory, versionTarget);
+}
 
 function enrichAsset(asset) {
-    const exists = asset.path && FS.existsSync(asset.path);
-    const [protocol, id] = parseRef(asset.ref);
-
-    const SchemaHandler = SchemaHandlers.get(protocol);
-
-    const editable = SchemaHandler.isEditable(id, asset.ref);
-
-    try {
-        let data = exists ? YAML.parse(FS.readFileSync(asset.path).toString()) : undefined;
-
-        if (data && PlanKindHandler.isKind(data.kind)) {
-            data = PlanKindHandler.resolveAbsoluteFileRefs(asset.path, data);
-        }
-
-        return {
-            ...asset,
-            editable,
-            exists,
-            kind: data.kind,
-            data
-        };
-    } catch (err) {
-        throw new Error('Failed to read asset on path: ' + asset.path + ' - ' + err.message);
+    return {
+        ref: `blockware://${asset.definition.metadata.name}:${asset.version}`,
+        editable: asset.version === 'local', //Only local versions are editable
+        exists: true,
+        version: asset.version,
+        kind: asset.definition.kind,
+        data: asset.definition,
+        path: asset.path,
+        ymlPath: asset.ymlPath
     }
 }
 
+function compareRefs(a, b) {
+    const [aProtocol, aId] = parseRef(a);
+    const [bProtocol, bId] = parseRef(b);
+
+    return aProtocol === bProtocol && aId === bId;
+}
 function parseRef(ref) {
     let out = ref.split(/:\/\//,2);
 
+    if (out.length === 1) {
+        return [
+            'blockware',
+            ref.toLowerCase()
+        ]
+    }
     return [
         out[0].toLowerCase(),
-        out[1]
+        out[1].toLowerCase()
     ];
 }
 
 class AssetManager {
 
     constructor() {
-        this._assets = storageService.section('assets', []);
+
     }
 
-    _save() {
-        storageService.put('assets', this._assets);
-    }
 
-    getAssets() {
-        if (!this._assets) {
-            return [];
+    /**
+     *
+     * @param {string[]} [assetKinds]
+     * @returns {{path: *, ref: string, data: *, editable: boolean, kind: *, exists: boolean}[]}
+     */
+    getAssets(assetKinds) {
+        const blockTypeProviders = ClusterConfiguration.getDefinitions('core/block-type');
+
+        if (!assetKinds) {
+            assetKinds = blockTypeProviders.map(p => {
+                return `${p.definition.metadata.name}:${p.version}`
+            });
+            assetKinds.push('core/plan');
         }
 
-        return _.clone(this._assets).map(enrichAsset);
+        console.log('assetKinds', assetKinds);
+
+        const assets = ClusterConfiguration.getDefinitions(assetKinds);
+
+        return assets.map(enrichAsset);
     }
 
     getPlans() {
-        return this.getAssets().filter((asset) => {
-            return PlanKindHandler.isKind(asset.kind);
-        });
+        return this.getAssets(['core/plan']);
     }
 
     getPlan(ref) {
         const asset = this.getAsset(ref);
 
-        if (!PlanKindHandler.isKind(asset.kind)) {
+        if ('core/plan' !== asset.kind) {
             throw new Error('Asset was not a plan: ' + ref);
         }
 
@@ -77,12 +88,12 @@ class AssetManager {
     }
 
     getAsset(ref) {
-        const asset = _.find(this._assets, {ref});
+        const asset = this.getAssets().find(a => compareRefs(a.ref,ref));
         if (!asset) {
             throw new Error('Asset not found: ' + ref);
         }
 
-        return enrichAsset(asset);
+        return asset;
     }
 
     async createAsset(path, yaml) {
@@ -92,7 +103,7 @@ class AssetManager {
 
         FS.writeFileSync(path, YAML.stringify(yaml));
 
-        const asset = await this.importAsset('file://' + path);
+        const asset = await this.importFile(path);
 
         if (codeGeneratorManager.canGenerateCode(yaml)) {
             await codeGeneratorManager.generate(path, yaml);
@@ -102,71 +113,64 @@ class AssetManager {
     }
 
     async updateAsset(ref, yaml) {
-        const [protocol, id] = parseRef(ref);
+        const asset = this.getAsset(ref);
+        if (!asset) {
+            throw new Error('Attempted to update unknown asset: ' + ref);
+        }
 
-        const SchemaHandler = SchemaHandlers.get(protocol);
+        if (!asset.editable) {
+            throw new Error('Attempted to update read-only asset: ' + ref);
+        }
 
-        console.log('Updating asset', ref);
+        if (!asset.ymlPath) {
+            throw new Error('Attempted to update corrupted asset: ' + ref);
+        }
 
-        const yamlFile = await SchemaHandler.pack(id, ref, yaml);
+        FS.writeFileSync(asset.ymlPath, YAML.stringify(yaml));
 
         if (codeGeneratorManager.canGenerateCode(yaml)) {
-            await codeGeneratorManager.generate(yamlFile, yaml);
+            await codeGeneratorManager.generate(asset.ymlPath, yaml);
         } else {
             console.log('Could not generate code for %s', yaml.kind ? yaml.kind : 'unknown yaml');
         }
     }
 
     hasAsset(ref) {
-        return !!_.find(this._assets, {ref});
+        return !!this.getAsset(ref);
     }
 
-    async importAsset(ref) {
-        if (this.hasAsset(ref)) {
-            throw new Error('Asset already registered: ' + ref);
+    async importFile(filePath) {
+
+        if (!FS.existsSync(filePath)) {
+            throw new Error('File not found: ' + filePath);
         }
 
-        console.log('Importing asset', ref);
+        const refs = [];
 
-        const [protocol, id] = parseRef(ref);
+        const blockInfos = YAML.parseAllDocuments(FS.readFileSync(filePath).toString())
+            .map(doc => doc.toJSON());
 
-        const SchemaHandler = SchemaHandlers.get(protocol);
+        blockInfos.forEach(blockInfo => {
+            const version = 'local';
+            const [handle, name] = blockInfo.metadata.name.split('/');
 
-        const [path, content] = await SchemaHandler.unpack(id, ref);
-
-        if (!content || !content.kind) {
-            throw new Error('Invalid asset - missing kind: ' + ref);
-        }
-
-        if (PlanKindHandler.isKind(content.kind)) {
-            //Import all missing linked refs from plan
-            const linkedRefs = PlanKindHandler.readAssetRefs(id, content);
-            while(linkedRefs.length > 0) {
-                const linkedRef = linkedRefs.pop();
-                if (!this.hasAsset(linkedRef)) {
-                    await this.importAsset(linkedRef);
-                }
+            const target = ClusterConfiguration.getRepositoryAssetPath(handle, name, version);
+            if (!FS.existsSync(target)) {
+                makeSymLink(Path.dirname(filePath), target);
+                refs.push(`blockware://${blockInfo.metadata.name}:${version}`);
             }
-        }
+        });
 
-        const asset = {
-            ref,
-            path
-        };
-
-        this._assets.push(asset);
-        this._save();
-
-        return enrichAsset(asset);
+        return this.getAssets().filter(a => refs.some(ref => compareRefs(ref, a.ref)));
     }
 
     unregisterAsset(ref) {
-        if (!_.find(this._assets, {ref: ref})) {
+        const asset = this.getAsset(ref);
+        if (!asset) {
             throw new Error('Asset does not exists: ' + ref);
         }
-
-        _.remove(this._assets, {ref: ref});
-        this._save();
+        //Remove from repository. If its local it is just a symlink - so no unchecked code is removed.
+        FSExtra.removeSync(asset.path);
     }
 }
 

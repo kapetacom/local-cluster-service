@@ -1,6 +1,6 @@
 {
   "name": "@blockware/local-cluster-service",
-  "version": "0.0.40",
+  "version": "0.0.41",
   "description": "Manages configuration, ports and service discovery for locally running blockware systems",
   "main": "index.js",
   "repository": {
@@ -25,6 +25,7 @@
     "@blockware/local-cluster-executor": "<2",
     "@blockware/sdk-config": "<2",
     "express": "4.17.1",
+    "fs-extra": "^11.1.0",
     "glob": "7.1.6",
     "lodash": "^4.17.15",
     "md5": "2.2.1",
