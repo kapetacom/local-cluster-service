@@ -66,8 +66,6 @@ class AssetManager {
             assetKinds.push('core/plan');
         }
 
-        console.log('assetKinds', assetKinds);
-
         const assets = ClusterConfiguration.getDefinitions(assetKinds);
 
         return assets.map(enrichAsset);
