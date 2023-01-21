@@ -18,6 +18,13 @@ function createServer() {
     app.use('/files', require('./src/filesystem/routes'));
     app.use('/assets', require('./src/assets/routes'));
     app.use('/providers', require('./src/providers/routes'));
+    app.use('/', (err, req, res, next) => {
+        console.error('Request failed: %s %s', req.method, req.originalUrl, err.stack);
+        res.status(500).send({
+            ok: false,
+            error: err.error ?? err.message
+        })
+    });
     const server = HTTP.createServer(app);
 
     //socket 
