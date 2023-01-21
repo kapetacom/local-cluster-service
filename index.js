@@ -23,6 +23,7 @@ function createServer() {
     //socket 
     const io = new Server(server, {
         cors: {
+            //TODO: This should'nt be hardcoded but also shouldn't be "*"
             origin: "http://localhost:8080"
         }
     });

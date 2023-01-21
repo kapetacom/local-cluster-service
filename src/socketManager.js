@@ -1,4 +1,3 @@
-
 const _ = require('lodash');
 
 class SocketManager {
@@ -7,10 +6,6 @@ class SocketManager {
         this._io = null;
         this._sockets = [];
         return this;
-    }
-
-    getName() {
-        return this.name;
     }
 
     setIo(io) {

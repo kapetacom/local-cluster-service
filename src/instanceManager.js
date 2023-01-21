@@ -24,7 +24,7 @@ const STATUS_STOPPED = 'stopped';
 
 function isPidRunning(pid) {
     try {
-        return process.kill(pid,0)
+        return process.kill(pid, 0)
     } catch (err) {
         return err.code === 'EPERM';
     }
@@ -45,7 +45,7 @@ class InstanceManager {
 
     async _checkInstances() {
         let changed = false;
-        for(let i = 0; i < this._instances.length; i++) {
+        for (let i = 0; i < this._instances.length; i++) {
             const instance = this._instances[i];
 
             const newStatus = await this._getInstanceStatus(instance);
@@ -180,9 +180,18 @@ class InstanceManager {
             return;
         }
 
+        let errors = [];
         _.forEach(plan.spec.blocks, (blockInstance) => {
-            this.startInstance(planRef, blockInstance.id);
+            try {
+                this.startInstance(planRef, blockInstance.id);
+            } catch (e) {
+                errors.push(e);
+            }
         })
+
+        if (errors.length > 0) {
+            throw errors[0];
+        }
     }
 
     stopAllInstances(planRef) {
@@ -201,7 +210,7 @@ class InstanceManager {
                 if (instance.pid) {
                     try {
                         process.kill(instance.pid);
-                    } catch(err) {
+                    } catch (err) {
                         console.log('Failed to kill process: %s', instance.pid);
                     }
                 }
@@ -222,7 +231,7 @@ class InstanceManager {
             throw new Error('Plan not found: ' + planRef);
         }
 
-        const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, { id: instanceId }) : null;
+        const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, {id: instanceId}) : null;
         if (!blockInstance) {
             throw new Error('Block instance not found: ' + instanceId);
         }
@@ -248,19 +257,23 @@ class InstanceManager {
         }
         //emit stdout/stderr via sockets 
         process.stdout.on("data", (data) => {
-            const payload = {source:"stdout", level : "INFO", message:data.toString(), time: Date.now()};
+            const payload = {source: "stdout", level: "INFO", message: data.toString(), time: Date.now()};
             process.logs.push(payload);
             this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
         });
         process.stderr.on("data", (data) => {
-            const payload = {source:"stderr", level : "ERROR", message:data.toString(), time: Date.now()};
+            const payload = {source: "stderr", level: "ERROR", message: data.toString(), time: Date.now()};
             process.logs.push(payload);
             this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
         });
 
         process.process.on('exit', (message) => {
             if (message === 0) {
-                this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, { error: "failed to start instance", status: EVENT_INSTANCE_EXITED, instanceId: blockInstance.id })
+                this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, {
+                    error: "failed to start instance",
+                    status: EVENT_INSTANCE_EXITED,
+                    instanceId: blockInstance.id
+                })
             }
         });
 
