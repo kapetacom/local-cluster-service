@@ -16,35 +16,46 @@ router.get('/', (req, res) => {
 /**
  * Start all instances in a plan
  */
-router.post('/:systemId/start', (req, res) => {
-    instanceManager.startAllInstances(req.params.systemId);
+router.post('/:systemId/start', async (req, res) => {
+    const processes = await instanceManager.createProcessesForPlan(req.params.systemId);
 
-    res.status(202).send({ok:true});
+    res.status(202).send({
+        ok:true,
+        processes: processes.map(p => {
+            return {pid:p.pid, type:p.type};
+        })
+    });
 });
 
 /**
  * Stop all instances in plan
  */
-router.post('/:systemId/stop', (req, res) => {
-    instanceManager.stopAllInstances(req.params.systemId);
+router.post('/:systemId/stop', async (req, res) => {
+    await instanceManager.stopAllForPlan(req.params.systemId);
 
-    res.status(202).send({ok:true});
+    res.status(202).send({
+        ok:true
+    });
 });
 
 /**
  * Start single instance in a plan
  */
-router.post('/:systemId/:instanceId/start', (req, res) => {
-    instanceManager.startInstance(req.params.systemId, req.params.instanceId);
+router.post('/:systemId/:instanceId/start', async (req, res) => {
+    const process = await instanceManager.createProcess(req.params.systemId, req.params.instanceId);
 
-    res.status(202).send({ok:true});
+    res.status(202).send({
+        ok:true,
+        pid: process.pid,
+        type: process.type
+    });
 });
 
 /**
  * Stop single instance in a plan
  */
-router.post('/:systemId/:instanceId/stop', (req, res) => {
-    instanceManager.stopInstance(req.params.systemId, req.params.instanceId);
+router.post('/:systemId/:instanceId/stop', async (req, res) => {
+    await instanceManager.stopProcess(req.params.systemId, req.params.instanceId);
 
     res.status(202).send({ok:true});
 });
@@ -54,13 +65,15 @@ router.post('/:systemId/:instanceId/stop', (req, res) => {
  * Get logs for instance in a plan
  */
 router.get('/:systemId/:instanceId/logs', (req, res) => {
-    const process = instanceManager.getProcessForInstance(req.params.systemId, req.params.instanceId);
-    if (!process) {
+    const processInfo = instanceManager.getProcessForInstance(req.params.systemId, req.params.instanceId);
+    if (!processInfo) {
         res.status(404).send({ok:false});
         return;
     }
 
-    res.status(202).send({logs:process.logs});
+    res.status(202).send({
+        logs: processInfo.logs()
+    });
 });
 
 router.use('/', require('../middleware/stringBody'));
@@ -71,11 +84,11 @@ router.use('/', require('../middleware/blockware'));
 /**
  * Updates the full configuration for a given service.
  */
-router.put('/', (req, res) => {
+router.put('/', async (req, res) => {
 
     let instance = JSON.parse(req.stringBody);
 
-    instanceManager.registerInstance(
+    await instanceManager.registerInstance(
         req.blockware.systemId,
         req.blockware.instanceId,
         instance
@@ -87,8 +100,8 @@ router.put('/', (req, res) => {
 /**
  * Delete instance
  */
-router.delete('/', (req, res) => {
-    instanceManager.instanceStopped(req.blockware.systemId, req.blockware.instanceId);
+router.delete('/', async (req, res) => {
+    await instanceManager.setInstanceAsStopped(req.blockware.systemId, req.blockware.instanceId);
 
     res.status(202).send({ok:true});
 });

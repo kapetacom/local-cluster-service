@@ -1,6 +1,5 @@
 const _ = require('lodash');
 const request = require('request');
-const Path = require('path');
 
 const {BlockInstanceRunner} = require('@blockware/local-cluster-executor');
 
@@ -8,6 +7,7 @@ const storageService = require('./storageService');
 const socketManager = require('./socketManager');
 const serviceManager = require('./serviceManager');
 const assetManager = require('./assetManager');
+const containerManager = require('./containerManager');
 
 const CHECK_INTERVAL = 10000;
 const HEALTH_PORT_TYPE = 'rest';
@@ -22,18 +22,24 @@ const STATUS_READY = 'ready';
 const STATUS_UNHEALTHY = 'unhealthy';
 const STATUS_STOPPED = 'stopped';
 
-function isPidRunning(pid) {
-    try {
-        return process.kill(pid, 0)
-    } catch (err) {
-        return err.code === 'EPERM';
-    }
-}
-
 class InstanceManager {
     constructor() {
-        this._instances = storageService.section('instances', []);
         this._interval = setInterval(() => this._checkInstances(), CHECK_INTERVAL);
+        /**
+         * Contains an array of running instances that have self-registered with this
+         * cluster service. This is done by the Blockware SDKs
+         *
+         * @type {any[]}
+         * @private
+         */
+        this._instances = storageService.section('instances', []);
+        /**
+         * Contains the process info for the instances started by this manager. In memory only
+         * so can't be relied on for knowing everything that's running.
+         *
+         * @type {{[systemId:string]:{[instanceId:string]:ProcessInfo}}}
+         * @private
+         */
         this._processes = {};
 
         this._checkInstances();
@@ -49,7 +55,6 @@ class InstanceManager {
             const instance = this._instances[i];
 
             const newStatus = await this._getInstanceStatus(instance);
-
 
             if (newStatus === STATUS_UNHEALTHY &&
                 instance.status === STATUS_STARTING) {
@@ -70,14 +75,32 @@ class InstanceManager {
         }
     }
 
+    async _isRunning(instance) {
+        if (!instance.pid) {
+            return;
+        }
+
+        if (instance.type === 'docker') {
+            const container = await containerManager.get(instance.pid);
+            return await container.isRunning()
+        }
+
+        //Otherwise its just a normal process.
+        //TODO: Handle for Windows
+        try {
+            return process.kill(instance.pid, 0)
+        } catch (err) {
+            return err.code === 'EPERM';
+        }
+    }
+
     async _getInstanceStatus(instance) {
         if (instance.status === STATUS_STOPPED) {
             //Will only change when it reregisters
             return STATUS_STOPPED;
         }
 
-        if (!instance.pid ||
-            !isPidRunning(instance.pid)) {
+        if (!await this._isRunning(instance)) {
             return STATUS_STOPPED;
         }
 
@@ -108,9 +131,16 @@ class InstanceManager {
             return [];
         }
 
-        return _.clone(this._instances);
+        return [...this._instances];
     }
 
+    /**
+     *
+     * @param {string} systemId
+     * @param {string} instanceId
+     * @param {{health:string,pid:string,type:'docker'|'local'}} info
+     * @return {Promise<void>}
+     */
     async registerInstance(systemId, instanceId, info) {
         let instance = _.find(this._instances, {systemId, instanceId});
 
@@ -125,7 +155,7 @@ class InstanceManager {
         let health = info.health;
         if (health) {
             if (health.startsWith('/')) {
-                health = health.substr(1);
+                health = health.substring(1);
             }
             healthUrl = address + health;
         }
@@ -133,6 +163,7 @@ class InstanceManager {
         if (instance) {
             instance.status = STATUS_STARTING;
             instance.pid = info.pid;
+            instance.type = info.type;
             instance.health = healthUrl;
             this._emit(systemId, EVENT_STATUS_CHANGED, instance);
         } else {
@@ -141,6 +172,7 @@ class InstanceManager {
                 instanceId,
                 status: STATUS_STARTING,
                 pid: info.pid,
+                type: info.type,
                 health: healthUrl
             };
 
@@ -152,7 +184,7 @@ class InstanceManager {
         this._save();
     }
 
-    instanceStopped(systemId, instanceId) {
+    setInstanceAsStopped(systemId, instanceId) {
         const instance = _.find(this._instances, {systemId, instanceId});
         if (instance) {
             instance.status = STATUS_STOPPED;
@@ -167,8 +199,13 @@ class InstanceManager {
         socketManager.emit(`${systemId}/instances`, type, payload);
     }
 
-    startAllInstances(planRef) {
-        this.stopAllInstances(planRef);
+    /**
+     *
+     * @param planRef
+     * @return {Promise<ProcessInfo[]>}
+     */
+    async createProcessesForPlan(planRef) {
+        await this.stopAllForPlan(planRef);
 
         const plan = assetManager.getPlan(planRef);
         if (!plan) {
@@ -177,55 +214,66 @@ class InstanceManager {
 
         if (!plan.spec.blocks) {
             console.warn('No blocks found in plan', planRef);
-            return;
+            return [];
         }
 
+        let processes = [];
         let errors = [];
-        _.forEach(plan.spec.blocks, (blockInstance) => {
+        for(let blockInstance of Object.values(plan.spec.blocks)) {
             try {
-                this.startInstance(planRef, blockInstance.id);
+                processes.push(await this.createProcess(planRef, blockInstance.id));
             } catch (e) {
                 errors.push(e);
             }
-        })
+        }
 
         if (errors.length > 0) {
             throw errors[0];
         }
+
+        return processes;
     }
 
-    stopAllInstances(planRef) {
+    async _stopInstance(instance) {
+        if (!instance.pid) {
+            return;
+        }
+
+        if (instance.type === 'docker') {
+            const container = await containerManager.get(instance.pid);
+            await container.stop();
+            return;
+        }
+
+        //TODO: Handle for windows
+        process.kill(instance.pid);
+    }
+
+    async stopAllForPlan(planRef) {
         if (this._processes[planRef]) {
-            _.forEach(this._processes[planRef], (instance) => {
-                instance.process.kill();
-            });
+            for(let instance of Object.values(this._processes[planRef])) {
+                await instance.stop();
+            }
 
             this._processes[planRef] = {};
         }
 
         //Also stop instances not being maintained by the cluster service
-        this._instances
-            .filter(instance => instance.systemId === planRef)
-            .forEach((instance) => {
-                if (instance.pid) {
-                    try {
-                        process.kill(instance.pid);
-                    } catch (err) {
-                        console.log('Failed to kill process: %s', instance.pid);
-                    }
-                }
-            });
-    }
+        const instancesForPlan = this._instances
+            .filter(instance => instance.systemId === planRef);
 
-    _resolveReference(blockRef, planRef) {
-        if (blockRef.startsWith('file://') &&
-            planRef.startsWith('file://')) {
-            return 'file://' + Path.resolve(Path.dirname(planRef.substring(7)), blockRef.substring(7));
+        for(let instance of instancesForPlan) {
+            await this._stopInstance(instance);
         }
-        return blockRef;
     }
 
-    startInstance(planRef, instanceId) {
+    /**
+     *
+     * @param planRef
+     * @param instanceId
+     * @return {Promise<PromiseInfo>}
+     */
+    async createProcess(planRef, instanceId) {
         const plan = assetManager.getPlan(planRef);
         if (!plan) {
             throw new Error('Plan not found: ' + planRef);
@@ -236,7 +284,7 @@ class InstanceManager {
             throw new Error('Block instance not found: ' + instanceId);
         }
 
-        const blockRef = this._resolveReference(blockInstance.block.ref, planRef);
+        const blockRef = blockInstance.block.ref;
 
         const blockAsset = assetManager.getAsset(blockRef);
 
@@ -248,73 +296,74 @@ class InstanceManager {
             this._processes[planRef] = {};
         }
 
-        this.stopInstance(planRef, instanceId);
+        await this.stopProcess(planRef, instanceId);
 
-        const process = BlockInstanceRunner.start(Path.dirname(blockAsset.path), blockRef, planRef, instanceId);
-        process.logs = [];
-        if (!process) {
-            throw new Error('Start script not available for block: ' + blockRef);
-        }
-        //emit stdout/stderr via sockets 
-        process.stdout.on("data", (data) => {
+        const runner = new BlockInstanceRunner(planRef);
+
+        const process = await runner.start(blockRef, instanceId);
+        //emit stdout/stderr via sockets
+        process.output.on("data", (data) => {
             const payload = {source: "stdout", level: "INFO", message: data.toString(), time: Date.now()};
-            process.logs.push(payload);
-            this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
-        });
-        process.stderr.on("data", (data) => {
-            const payload = {source: "stderr", level: "ERROR", message: data.toString(), time: Date.now()};
-            process.logs.push(payload);
             this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
         });
 
-        process.process.on('exit', (message) => {
-            if (message === 0) {
+        process.output.on('exit', (exitCode) => {
+            if (exitCode !== 0) {
                 this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, {
-                    error: "failed to start instance",
+                    error: "Failed to start instance",
                     status: EVENT_INSTANCE_EXITED,
                     instanceId: blockInstance.id
                 })
             }
         });
 
-        this._processes[planRef][instanceId] = process;
+        return this._processes[planRef][instanceId] = process;
     }
 
+    /**
+     *
+     * @param {string} planRef
+     * @param {string} instanceId
+     * @return {ProcessInfo|null}
+     */
     getProcessForInstance(planRef, instanceId) {
         if (!this._processes[planRef]) {
-            return;
+            return null;
         }
 
         return this._processes[planRef][instanceId];
     }
 
-    stopInstance(planRef, instanceId) {
+    async stopProcess(planRef, instanceId) {
         if (!this._processes[planRef]) {
             return;
         }
 
         if (this._processes[planRef][instanceId]) {
-            this._processes[planRef][instanceId].process.kill();
+            await this._processes[planRef][instanceId].stop();
             delete this._processes[planRef][instanceId];
         }
     }
 
-    stopAll() {
-        _.forEach(this._processes, (instances) => {
-            _.forEach(instances, (instance) => {
-                instance.process.kill();
-            });
-        });
-
+    async stopAllProcesses() {
+        for(let processesForPlan of Object.values(this._processes)) {
+            for(let processInfo of Object.values(processesForPlan)) {
+                await processInfo.stop();
+            }
+        }
         this._processes = {};
+
+        for(let instance of this._instances) {
+            await this._stopInstance(instance);
+        }
     }
 }
 
 
 const instanceManager = new InstanceManager();
 
-process.on('exit', () => {
-    instanceManager.stopAll();
+process.on('exit', async () => {
+    await instanceManager.stopAllProcesses();
 });
 
 module.exports = instanceManager;

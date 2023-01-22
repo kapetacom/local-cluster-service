@@ -102,7 +102,7 @@ class ServiceManager {
      * @param {string} systemId
      * @param {string} providerInstanceId
      * @param {string} portType
-     * @return {string}
+     * @return {Promise<string>}
      */
     async getProviderAddress(systemId, providerInstanceId, portType) {
         const port = await this.ensureServicePort(systemId, providerInstanceId, portType);

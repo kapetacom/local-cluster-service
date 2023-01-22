@@ -147,15 +147,7 @@ class ContainerManager {
     async _isHealthy(container) {
         const info = await container.status();
 
-        if (info &&
-            info.data &&
-            info.data.State &&
-            info.data.State.Health &&
-            info.data.State.Health.Status) {
-            return info.data.State.Health.Status === 'healthy'
-        }
-
-        return false;
+        return info?.data?.State?.Health?.Status === 'healthy';
     }
 
     /**
