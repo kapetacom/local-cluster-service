@@ -1,6 +1,6 @@
 {
   "name": "@blockware/local-cluster-service",
-  "version": "0.0.46",
+  "version": "0.0.47",
   "description": "Manages configuration, ports and service discovery for locally running blockware systems",
   "main": "index.js",
   "repository": {
