@@ -8,6 +8,7 @@ const socketManager = require('./socketManager');
 const serviceManager = require('./serviceManager');
 const assetManager = require('./assetManager');
 const containerManager = require('./containerManager');
+const {parseBlockwareUri} = require("@blockware/local-cluster-executor/src/utils");
 
 const CHECK_INTERVAL = 10000;
 const HEALTH_PORT_TYPE = 'rest';
@@ -21,6 +22,8 @@ const STATUS_STARTING = 'starting';
 const STATUS_READY = 'ready';
 const STATUS_UNHEALTHY = 'unhealthy';
 const STATUS_STOPPED = 'stopped';
+
+const MIN_TIME_RUNNING = 30000; //If something didnt run for more than 30 secs - it failed
 
 class InstanceManager {
     constructor() {
@@ -134,6 +137,14 @@ class InstanceManager {
         return [...this._instances];
     }
 
+    getInstancesForPlan(systemId) {
+        if (!this._instances) {
+            return [];
+        }
+
+        return this._instances.filter(instance => instance.systemId === systemId);
+    }
+
     /**
      *
      * @param {string} systemId
@@ -239,14 +250,21 @@ class InstanceManager {
             return;
         }
 
-        if (instance.type === 'docker') {
-            const container = await containerManager.get(instance.pid);
-            await container.stop();
+        if (instance.status === 'stopped') {
             return;
         }
 
-        //TODO: Handle for windows
-        process.kill(instance.pid);
+        try {
+            if (instance.type === 'docker') {
+                const container = await containerManager.get(instance.pid);
+                await container.stop();
+                return;
+            }
+            //TODO: Handle for windows
+            process.kill(instance.pid, 'SIGKILL');
+        } catch (e) {
+            console.error('Failed to stop process', e);
+        }
     }
 
     async stopAllForPlan(planRef) {
@@ -299,7 +317,7 @@ class InstanceManager {
         await this.stopProcess(planRef, instanceId);
 
         const runner = new BlockInstanceRunner(planRef);
-
+        const startTime = Date.now();
         const process = await runner.start(blockRef, instanceId);
         //emit stdout/stderr via sockets
         process.output.on("data", (data) => {
@@ -308,13 +326,20 @@ class InstanceManager {
         });
 
         process.output.on('exit', (exitCode) => {
-            if (exitCode !== 0) {
+            const timeRunning = Date.now() - startTime;
+            if (exitCode !== 0 || timeRunning < MIN_TIME_RUNNING) {
                 this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, {
                     error: "Failed to start instance",
                     status: EVENT_INSTANCE_EXITED,
                     instanceId: blockInstance.id
                 })
             }
+        });
+
+        await this.registerInstance(planRef, instanceId, {
+            type: process.type,
+            pid: process.pid,
+            health: null
         });
 
         return this._processes[planRef][instanceId] = process;

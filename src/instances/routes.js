@@ -14,6 +14,13 @@ router.get('/', (req, res) => {
 });
 
 /**
+ * Get all instances
+ */
+router.get('/:systemId/instances', (req, res) => {
+    res.send(instanceManager.getInstancesForPlan(req.params.systemId));
+});
+
+/**
  * Start all instances in a plan
  */
 router.post('/:systemId/start', async (req, res) => {
