@@ -11,7 +11,7 @@ const containerManager = require('./containerManager');
 const {parseBlockwareUri} = require("@blockware/local-cluster-executor/src/utils");
 
 const CHECK_INTERVAL = 10000;
-const HEALTH_PORT_TYPE = 'rest';
+const DEFAULT_HEALTH_PORT_TYPE = 'rest';
 
 const EVENT_STATUS_CHANGED = 'status-changed';
 const EVENT_INSTANCE_CREATED = 'instance-created';
@@ -149,7 +149,7 @@ class InstanceManager {
      *
      * @param {string} systemId
      * @param {string} instanceId
-     * @param {{health:string,pid:string,type:'docker'|'local'}} info
+     * @param {{health:string,pid:string,type:'docker'|'local',portType?:string}} info
      * @return {Promise<void>}
      */
     async registerInstance(systemId, instanceId, info) {
@@ -159,7 +159,7 @@ class InstanceManager {
         let address = await serviceManager.getProviderAddress(
             systemId,
             instanceId,
-            HEALTH_PORT_TYPE
+            info.portType ?? DEFAULT_HEALTH_PORT_TYPE
         );
 
         let healthUrl = null;
