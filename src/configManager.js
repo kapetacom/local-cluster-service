@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const storageService = require('./storageService');
 const assetManager = require('./assetManager');
+const {parseBlockwareUri} = require("@blockware/nodejs-utils");
 
 class ConfigManager {
 
@@ -54,9 +55,11 @@ class ConfigManager {
      * @returns {Promise<{systemId:string,instanceId:string}>}
      */
     async resolveIdentity(blockRef, systemId) {
-        const planAssets = await assetManager.getPlans();
+        const planAssets = assetManager.getPlans();
 
-        var matchingIdentities = [];
+        const blockUri = parseBlockwareUri(blockRef);
+
+        let matchingIdentities = [];
         planAssets.forEach((planAsset) => {
             if (systemId && planAsset.ref !== systemId) {
                 //Skip plans that do not match systemid if provided
@@ -68,7 +71,8 @@ class ConfigManager {
             }
 
             planAsset.data.spec.blocks.forEach((blockInstance) => {
-                if (blockInstance.block.ref === blockRef) {
+                const refUri = parseBlockwareUri(blockInstance.block.ref);
+                if (refUri.equals(blockUri)) {
                     matchingIdentities.push({
                         systemId: planAsset.ref,
                         instanceId: blockInstance.id

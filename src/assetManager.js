@@ -57,9 +57,8 @@ class AssetManager {
      * @returns {{path: *, ref: string, data: *, editable: boolean, kind: *, exists: boolean}[]}
      */
     getAssets(assetKinds) {
-        const blockTypeProviders = ClusterConfiguration.getDefinitions('core/block-type');
-
         if (!assetKinds) {
+            const blockTypeProviders = ClusterConfiguration.getDefinitions('core/block-type');
             assetKinds = blockTypeProviders.map(p => {
                 return `${p.definition.metadata.name}:${p.version}`
             });
