@@ -8,7 +8,6 @@ const socketManager = require('./socketManager');
 const serviceManager = require('./serviceManager');
 const assetManager = require('./assetManager');
 const containerManager = require('./containerManager');
-const {parseBlockwareUri} = require("@blockware/local-cluster-executor/src/utils");
 
 const CHECK_INTERVAL = 10000;
 const DEFAULT_HEALTH_PORT_TYPE = 'rest';
@@ -146,6 +145,17 @@ class InstanceManager {
     }
 
     /**
+     * Get instance information
+     *
+     * @param {string} systemId
+     * @param {string} instanceId
+     * @return {*}
+     */
+    getInstance(systemId, instanceId) {
+        return _.find(this._instances, {systemId, instanceId});
+    }
+
+    /**
      *
      * @param {string} systemId
      * @param {string} instanceId
@@ -153,7 +163,7 @@ class InstanceManager {
      * @return {Promise<void>}
      */
     async registerInstance(systemId, instanceId, info) {
-        let instance = _.find(this._instances, {systemId, instanceId});
+        let instance = this.getInstance(systemId, instanceId);
 
         //Get target address
         let address = await serviceManager.getProviderAddress(
@@ -260,8 +270,7 @@ class InstanceManager {
                 await container.stop();
                 return;
             }
-            //TODO: Handle for windows
-            process.kill(instance.pid, 'SIGKILL');
+            process.kill(instance.pid, 'SIGTERM');
         } catch (e) {
             console.error('Failed to stop process', e);
         }
@@ -327,6 +336,19 @@ class InstanceManager {
 
         process.output.on('exit', (exitCode) => {
             const timeRunning = Date.now() - startTime;
+            const instance = this.getInstance(planRef, instanceId);
+            if (instance.status === STATUS_READY) {
+                //It's already been running
+                return;
+            }
+
+            if (exitCode === 143 ||
+                exitCode === 137) {
+                //Process got SIGTERM (143) or SIGKILL (137)
+                //TODO: Windows?
+                return;
+            }
+
             if (exitCode !== 0 || timeRunning < MIN_TIME_RUNNING) {
                 this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, {
                     error: "Failed to start instance",
