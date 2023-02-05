@@ -60,9 +60,9 @@ router.post('/create', async (req, res) => {
     const content = parseBody(req);
 
     try {
-        const asset = await assetManager.createAsset(req.query.path, content);
+        const assets = await assetManager.createAsset(req.query.path, content);
 
-        res.status(200).send(asset);
+        res.status(200).send(assets);
     } catch(err) {
         console.log('Failed while creating asset', req.query.path, err.message);
         res.status(400).send({error: err.message});
@@ -122,9 +122,9 @@ router.put('/import', async (req, res) => {
     }
 
     try {
-        const asset = await assetManager.importFile(req.query.ref);
+        const assets = await assetManager.importFile(req.query.ref);
 
-        res.status(200).send(asset);
+        res.status(200).send(assets);
     } catch(err) {
         res.status(400).send({error: err.message});
     }
