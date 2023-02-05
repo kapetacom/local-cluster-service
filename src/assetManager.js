@@ -4,6 +4,7 @@ const FSExtra = require('fs-extra');
 const YAML = require('yaml');
 const ClusterConfiguration = require('@blockware/local-cluster-config');
 const codeGeneratorManager = require('./codeGeneratorManager');
+const socketManager = require('./socketManager');
 
 function makeSymLink(directory, versionTarget) {
     FSExtra.mkdirpSync(Path.dirname(versionTarget));
@@ -47,7 +48,28 @@ function parseRef(ref) {
 class AssetManager {
 
     constructor() {
+        this.watcher = null;
+        this.listenForChanges();
+    }
 
+    listenForChanges() {
+        const baseDir = ClusterConfiguration.getRepositoryBasedir();
+        if (!FS.existsSync(baseDir)) {
+            FSExtra.mkdirpSync(baseDir);
+        }
+
+        console.log('Watching local repository for changes: %s', baseDir);
+        this.watcher = FS.watch(baseDir, {recursive: true});
+        this.watcher.on('change', (eventType, filename) => {
+            const [handle, name, version] = filename.split(/\//g);
+            const payload = {eventType, asset: {handle, name, version} };
+            socketManager.emit(`assets`, 'changed', payload);
+        });
+    }
+
+    stopListening() {
+        this.watcher.close();
+        this.watcher = null;
     }
 
 

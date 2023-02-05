@@ -1,5 +1,4 @@
 const request = require('request');
-const Path = require('path');
 const _ = require('lodash');
 
 const networkManager = require('../../networkManager');
