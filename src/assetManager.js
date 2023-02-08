@@ -66,6 +66,10 @@ class AssetManager {
         this.watcher = FS.watch(baseDir, {recursive: true});
         this.watcher.on('change', (eventType, filename) => {
             const [handle, name, version] = filename.split(/\//g);
+            if (!name || !version) {
+                return;
+            }
+
             const ymlPath = Path.join(baseDir, handle, name, version, 'blockware.yml');
             const newWebDefinitions = ClusterConfiguration
                 .getProviderDefinitions()
@@ -154,6 +158,11 @@ class AssetManager {
     async createAsset(path, yaml) {
         if (FS.existsSync(path)) {
             throw new Error('File already exists: ' + path);
+        }
+
+        const dirName = Path.dirname(path);
+        if (!FS.existsSync(dirName)) {
+            FSExtra.mkdirpSync(dirName);
         }
 
         FS.writeFileSync(path, YAML.stringify(yaml));

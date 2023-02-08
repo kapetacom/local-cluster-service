@@ -1,3 +1,4 @@
+const stringBodyMiddleware = require('../middleware/stringBody');
 const { Router } = require('express');
 const fileManager = require('../filesystemManager');
 
@@ -9,8 +10,16 @@ router.get('/root', (req, res) => {
   res.send(fileManager.getRootFolder());
 });
 
+router.get('/project/root', (req, res) => {
+  res.send(fileManager.getProjectRootFolder());
+});
 
-router.use('/writefile', require('../middleware/stringBody'));
+router.use('/project/root', stringBodyMiddleware);
+router.post('/project/root', (req, res) => {
+  fileManager.setProjectRootFolder(req.stringBody);
+  res.sendStatus(204);
+});
+
 
 router.use("/",(req,res,next)=>{
   if (!req.query.path) {
@@ -51,6 +60,7 @@ router.put('/mkdir', async (req, res) => {
   }
 });
 
+router.use('/writefile', stringBodyMiddleware);
 router.post('/writefile', async (req, res) => {
   let pathArg = req.query.path;
   try {
