@@ -58,11 +58,47 @@ class AssetManager {
             FSExtra.mkdirpSync(baseDir);
         }
 
-        console.log('Watching local repository for changes: %s', baseDir);
+        let currentWebDefinitions = ClusterConfiguration
+            .getProviderDefinitions()
+            .filter(d => d.hasWeb);
+
+        console.log('Watching local repository for provider changes: %s', baseDir);
         this.watcher = FS.watch(baseDir, {recursive: true});
         this.watcher.on('change', (eventType, filename) => {
             const [handle, name, version] = filename.split(/\//g);
-            const payload = {eventType, asset: {handle, name, version} };
+            const ymlPath = Path.join(baseDir, handle, name, version, 'blockware.yml');
+            const newWebDefinitions = ClusterConfiguration
+                .getProviderDefinitions()
+                .filter(d => d.hasWeb);
+
+            const newWebDefinition = newWebDefinitions.find(d => d.ymlPath === ymlPath);
+            let currentWebDefinition = currentWebDefinitions.find(d => d.ymlPath === ymlPath);
+            const ymlExists = FS.existsSync(ymlPath);
+            let type;
+            if (ymlExists) {
+                if (currentWebDefinition) {
+                    type = 'updated';
+                } else if (newWebDefinition) {
+                    type = 'added';
+                    currentWebDefinition = newWebDefinition;
+                } else {
+                    //Other definition was added / updated - ignore
+                    return;
+                }
+            } else {
+                if (currentWebDefinition) {
+                    //Something was removed
+                    type = 'removed';
+                } else {
+                    //Other definition was removed - ignore
+                    return;
+                }
+            }
+
+            const payload = {type, definition: currentWebDefinition?.definition, asset: {handle, name, version} };
+
+            currentWebDefinitions = newWebDefinitions
+
             socketManager.emit(`assets`, 'changed', payload);
         });
     }
