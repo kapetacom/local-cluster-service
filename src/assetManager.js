@@ -63,7 +63,14 @@ class AssetManager {
             .filter(d => d.hasWeb);
 
         console.log('Watching local repository for provider changes: %s', baseDir);
-        this.watcher = FS.watch(baseDir, {recursive: true});
+        try {
+            this.watcher = FS.watch(baseDir, { recursive: true });
+        } catch (e) {
+            // Fallback to run without watch mode due to potential platform issues.
+            // https://nodejs.org/docs/latest/api/fs.html#caveats
+            console.log('Unable to watch for changes. Changes to assets will not update automatically.');
+            return;
+        }
         this.watcher.on('change', (eventType, filename) => {
             const [handle, name, version] = filename.split(/\//g);
             if (!name || !version) {
