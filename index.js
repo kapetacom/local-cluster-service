@@ -15,6 +15,7 @@ function createServer() {
     app.use('/proxy', require('./src/proxy/routes'));
     app.use('/config', require('./src/config/routes'));
     app.use('/instances', require('./src/instances/routes'));
+    app.use('/identities', require('./src/identities/routes'));
     app.use('/files', require('./src/filesystem/routes'));
     app.use('/assets', require('./src/assets/routes'));
     app.use('/providers', require('./src/providers/routes'));
