@@ -1,4 +1,4 @@
-const {Router} = require('express');
+const Router = require('express-promise-router').default;
 const {BlockwareAPI} = require('@blockware/nodejs-api-client');
 
 const instanceManager = require('../instanceManager');
