@@ -1,5 +1,5 @@
+const Router = require('express-promise-router').default;
 const stringBodyMiddleware = require('../middleware/stringBody');
-const { Router } = require('express');
 const fileManager = require('../filesystemManager');
 
 let router = new Router();

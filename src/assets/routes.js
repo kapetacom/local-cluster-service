@@ -1,4 +1,4 @@
-const {Router} = require('express');
+const Router = require('express-promise-router').default;
 const YAML = require('yaml');
 const assetManager = require('../assetManager');
 

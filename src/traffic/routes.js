@@ -1,4 +1,4 @@
-const {Router} = require('express');
+const Router = require('express-promise-router').default;
 const router = new Router();
 const networkManager = require('../networkManager');
 
