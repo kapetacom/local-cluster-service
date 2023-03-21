@@ -1,4 +1,4 @@
-## Local cluster service for Blockware
+## Local cluster service for Kapeta
 
 This service is a multi-functional service for simulating a "real" cluster - specifically during
 local development.
