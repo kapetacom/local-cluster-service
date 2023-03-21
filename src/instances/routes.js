@@ -86,7 +86,7 @@ router.get('/:systemId/:instanceId/logs', (req, res) => {
 router.use('/', require('../middleware/stringBody'));
 
 
-router.use('/', require('../middleware/blockware'));
+router.use('/', require('../middleware/kapeta'));
 
 /**
  * Updates the full configuration for a given service.
@@ -96,8 +96,8 @@ router.put('/', async (req, res) => {
     let instance = JSON.parse(req.stringBody);
 
     await instanceManager.registerInstance(
-        req.blockware.systemId,
-        req.blockware.instanceId,
+        req.kapeta.systemId,
+        req.kapeta.instanceId,
         instance
     );
 
@@ -108,7 +108,7 @@ router.put('/', async (req, res) => {
  * Delete instance
  */
 router.delete('/', async (req, res) => {
-    await instanceManager.setInstanceAsStopped(req.blockware.systemId, req.blockware.instanceId);
+    await instanceManager.setInstanceAsStopped(req.kapeta.systemId, req.kapeta.instanceId);
 
     res.status(202).send({ok:true});
 });

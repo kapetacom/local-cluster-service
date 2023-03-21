@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const request = require('request');
 
-const {BlockInstanceRunner} = require('@blockware/local-cluster-executor');
+const {BlockInstanceRunner} = require('@kapeta/local-cluster-executor');
 
 const storageService = require('./storageService');
 const socketManager = require('./socketManager');
@@ -29,7 +29,7 @@ class InstanceManager {
         this._interval = setInterval(() => this._checkInstances(), CHECK_INTERVAL);
         /**
          * Contains an array of running instances that have self-registered with this
-         * cluster service. This is done by the Blockware SDKs
+         * cluster service. This is done by the Kapeta SDKs
          *
          * @type {any[]}
          * @private

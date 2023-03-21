@@ -2,7 +2,7 @@ const _ = require('lodash');
 const FS = require('fs');
 const mkdirp = require('mkdirp');
 const YAML = require('yaml');
-const ClusterConfiguration = require('@blockware/local-cluster-config');
+const ClusterConfiguration = require('@kapeta/local-cluster-config');
 
 /**
  * Class that handles reading and writing from local configuration file.
@@ -13,8 +13,8 @@ class StorageService {
         this._data = this._readConfig();
     }
 
-    getBlockwareBasedir() {
-        return ClusterConfiguration.getBlockwareBasedir();
+    getKapetaBasedir() {
+        return ClusterConfiguration.getKapetaBasedir();
     }
 
     _readConfig() {
@@ -24,7 +24,7 @@ class StorageService {
     _writeConfig() {
         const configFile = ClusterConfiguration.getClusterConfigFile();
 
-        mkdirp.sync(this.getBlockwareBasedir());
+        mkdirp.sync(this.getKapetaBasedir());
 
         FS.writeFileSync(configFile, YAML.stringify(this._data));
     }

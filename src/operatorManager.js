@@ -1,4 +1,4 @@
-const ClusterConfiguration = require('@blockware/local-cluster-config');
+const ClusterConfiguration = require('@kapeta/local-cluster-config');
 const serviceManager = require('./serviceManager');
 const storageService = require('./storageService');
 const containerManager = require('./containerManager');
@@ -26,7 +26,7 @@ class Operator {
 class OperatorManager {
 
     constructor() {
-        this._mountDir = Path.join(storageService.getBlockwareBasedir(), 'mounts');
+        this._mountDir = Path.join(storageService.getKapetaBasedir(), 'mounts');
 
         mkdirp.sync(this._mountDir);
     }
@@ -115,7 +115,7 @@ class OperatorManager {
 
         portTypes.sort();
 
-        const containerBaseName = 'blockware-resource';
+        const containerBaseName = 'kapeta-resource';
 
         const nameParts = [resourceType.toLowerCase()];
 

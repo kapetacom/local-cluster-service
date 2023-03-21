@@ -22,7 +22,7 @@ jobs:
         uses: 'google-github-actions/setup-gcloud@v1'
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-      - run: echo '@blockware:registry=${{ secrets.GCP_ARTIFACT_NPM_URL }}' > .npmrc
+      - run: echo '@kapeta:registry=${{ secrets.GCP_ARTIFACT_NPM_URL }}' > .npmrc
       - run: npm install
       - run: npx google-artifactregistry-auth .npmrc
       - run: npm publish --registry ${{ secrets.GCP_ARTIFACT_NPM_URL }}

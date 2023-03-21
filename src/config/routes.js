@@ -6,7 +6,7 @@ const operatorManager = require('../operatorManager');
 
 const router = new Router();
 
-router.use('/', require('../middleware/blockware'));
+router.use('/', require('../middleware/kapeta'));
 router.use('/', require('../middleware/stringBody'));
 
 /**
@@ -14,7 +14,7 @@ router.use('/', require('../middleware/stringBody'));
  */
 router.get('/', (req, res) => {
     //Get service YAML config
-    const config = configManager.getConfigForService(req.blockware.systemId, req.blockware.instanceId);
+    const config = configManager.getConfigForService(req.kapeta.systemId, req.kapeta.instanceId);
 
     res.send(YAML.stringify(config));
 });
@@ -30,8 +30,8 @@ router.put('/', (req, res) => {
     }
     //Get service YAML config
     configManager.setConfigForService(
-        req.blockware.systemId,
-        req.blockware.instanceId,
+        req.kapeta.systemId,
+        req.kapeta.instanceId,
         config
     );
     res.status(202).send({ok:true});
@@ -45,19 +45,19 @@ router.get('/identity', async (req, res) => {
 
 
     const identity = {
-        systemId: req.blockware.systemId,
-        instanceId: req.blockware.instanceId
+        systemId: req.kapeta.systemId,
+        instanceId: req.kapeta.instanceId
     };
 
     try {
 
         if (!identity.systemId ||
             !identity.instanceId) {
-            const {systemId, instanceId} = await configManager.resolveIdentity(req.blockware.blockRef, identity.systemId);
+            const {systemId, instanceId} = await configManager.resolveIdentity(req.kapeta.blockRef, identity.systemId);
             identity.systemId = systemId;
             identity.instanceId = instanceId;
         } else {
-            await configManager.verifyIdentity(req.blockware.blockRef, identity.systemId, identity.instanceId);
+            await configManager.verifyIdentity(req.kapeta.blockRef, identity.systemId, identity.instanceId);
         }
 
         res.send(identity);
@@ -75,8 +75,8 @@ router.get('/identity', async (req, res) => {
 router.get('/provides/:type', async (req, res) => {
     //Get service port
     res.send('' + await serviceManager.ensureServicePort(
-        req.blockware.systemId,
-        req.blockware.instanceId,
+        req.kapeta.systemId,
+        req.kapeta.instanceId,
         req.params.type
     ));
 });
@@ -89,8 +89,8 @@ router.get('/provides/:type', async (req, res) => {
  */
 router.get('/consumes/resource/:resourceType/:portType/:name', async (req, res) => {
     const operatorInfo = await operatorManager.getResourceInfo(
-        req.blockware.systemId,
-        req.blockware.instanceId,
+        req.kapeta.systemId,
+        req.kapeta.instanceId,
         req.params.resourceType,
         req.params.portType,
         req.params.name
@@ -108,8 +108,8 @@ router.get('/consumes/resource/:resourceType/:portType/:name', async (req, res) 
 router.get('/consumes/:resourceName/:type', (req, res) => {
 
     res.send(serviceManager.getConsumerAddress(
-        req.blockware.systemId,
-        req.blockware.instanceId,
+        req.kapeta.systemId,
+        req.kapeta.instanceId,
         req.params.resourceName,
         req.params.type
     ));

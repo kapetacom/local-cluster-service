@@ -3,7 +3,7 @@ const FS = require('fs');
 const Path = require('path');
 const Glob = require("glob");
 
-const ClusterConfiguration = require('@blockware/local-cluster-config');
+const ClusterConfiguration = require('@kapeta/local-cluster-config');
 
 class ProviderManager {
 
@@ -55,7 +55,7 @@ class ProviderManager {
             return `${ClusterConfiguration.getClusterServiceAddress()}/providers/asset/${assetId}`
         });
 
-        return `Blockware.setPluginPaths(${JSON.stringify(includes)});`
+        return `Kapeta.setPluginPaths(${JSON.stringify(includes)});`
     }
 
     getAsset(id) {

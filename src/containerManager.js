@@ -1,7 +1,7 @@
 const {Docker} = require('node-docker-api');
 const _  = require('lodash');
 
-const LABEL_PORT_PREFIX = 'blockware_port-';
+const LABEL_PORT_PREFIX = 'kapeta_port-';
 
 const NANO_SECOND = 1000000;
 const HEALTH_CHECK_INTERVAL = 1000;
@@ -50,7 +50,7 @@ class ContainerManager {
         const PortBindings = {};
         const Env = [];
         const Labels = {
-            'blockware':'true'
+            'kapeta':'true'
         };
 
         console.log('Pulling image: %s', image);

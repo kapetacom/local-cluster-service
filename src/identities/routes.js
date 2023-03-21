@@ -1,10 +1,10 @@
 const Router = require('express-promise-router').default;
-const {BlockwareAPI} = require('@blockware/nodejs-api-client');
+const {KapetaAPI} = require('@kapeta/nodejs-api-client');
 
 const instanceManager = require('../instanceManager');
 
 const router = new Router();
-const api = new BlockwareAPI();
+const api = new KapetaAPI();
 
 router.use('/', require('../middleware/cors'));
 

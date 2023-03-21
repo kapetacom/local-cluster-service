@@ -1,7 +1,7 @@
 const Path = require('path');
 
-const {registry:Targets, BlockCodeGenerator, CodeWriter} = require('@blockware/codegen');
-const ClusterConfiguration = require('@blockware/local-cluster-config');
+const {registry:Targets, BlockCodeGenerator, CodeWriter} = require('@kapeta/codegen');
+const ClusterConfiguration = require('@kapeta/local-cluster-config');
 const TARGET_KIND = 'core/language-target';
 const BLOCK_TYPE_KIND = 'core/block-type';
 

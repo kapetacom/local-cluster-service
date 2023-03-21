@@ -2,7 +2,7 @@ const Path = require("node:path");
 const FS = require('node:fs');
 const FSExtra = require('fs-extra');
 const YAML = require('yaml');
-const ClusterConfiguration = require('@blockware/local-cluster-config');
+const ClusterConfiguration = require('@kapeta/local-cluster-config');
 const codeGeneratorManager = require('./codeGeneratorManager');
 const socketManager = require('./socketManager');
 
@@ -13,7 +13,7 @@ function makeSymLink(directory, versionTarget) {
 
 function enrichAsset(asset) {
     return {
-        ref: `blockware://${asset.definition.metadata.name}:${asset.version}`,
+        ref: `kapeta://${asset.definition.metadata.name}:${asset.version}`,
         editable: asset.version === 'local', //Only local versions are editable
         exists: true,
         version: asset.version,
@@ -35,7 +35,7 @@ function parseRef(ref) {
 
     if (out.length === 1) {
         return [
-            'blockware',
+            'kapeta',
             ref.toLowerCase()
         ]
     }
@@ -77,7 +77,7 @@ class AssetManager {
                 return;
             }
 
-            const ymlPath = Path.join(baseDir, handle, name, version, 'blockware.yml');
+            const ymlPath = Path.join(baseDir, handle, name, version, 'kapeta.yml');
             const newWebDefinitions = ClusterConfiguration
                 .getProviderDefinitions()
                 .filter(d => d.hasWeb);
@@ -231,7 +231,7 @@ class AssetManager {
             makeSymLink(Path.dirname(filePath), target);
         }
 
-        const refs = assetInfos.map(assetInfo => `blockware://${assetInfo.metadata.name}:${version}`);
+        const refs = assetInfos.map(assetInfo => `kapeta://${assetInfo.metadata.name}:${version}`);
 
         return this.getAssets().filter(a => refs.some(ref => compareRefs(ref, a.ref)));
     }

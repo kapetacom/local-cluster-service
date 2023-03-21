@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const storageService = require('./storageService');
 const assetManager = require('./assetManager');
-const {parseBlockwareUri} = require("@blockware/nodejs-utils");
+const {parseKapetaUri} = require("@kapeta/nodejs-utils");
 
 class ConfigManager {
 
@@ -31,8 +31,8 @@ class ConfigManager {
             systemConfig[serviceId] = {};
         }
 
-        if (!systemConfig[serviceId].blockware) {
-            systemConfig[serviceId].blockware = {};
+        if (!systemConfig[serviceId].kapeta) {
+            systemConfig[serviceId].kapeta = {};
         }
 
         return systemConfig[serviceId];
@@ -57,7 +57,7 @@ class ConfigManager {
     async resolveIdentity(blockRef, systemId) {
         const planAssets = assetManager.getPlans();
 
-        const blockUri = parseBlockwareUri(blockRef);
+        const blockUri = parseKapetaUri(blockRef);
 
         let matchingIdentities = [];
         planAssets.forEach((planAsset) => {
@@ -71,7 +71,7 @@ class ConfigManager {
             }
 
             planAsset.data.spec.blocks.forEach((blockInstance) => {
-                const refUri = parseBlockwareUri(blockInstance.block.ref);
+                const refUri = parseKapetaUri(blockInstance.block.ref);
                 if (refUri.equals(blockUri)) {
                     matchingIdentities.push({
                         systemId: planAsset.ref,
