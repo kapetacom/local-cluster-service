@@ -35,7 +35,7 @@
     "mkdirp": "0.5.1",
     "node-docker-api": "1.1.22",
     "node-uuid": "^1.4.8",
-    "request": "2.88.0",
+    "request": "2.88.2",
     "socket.io": "^4.5.2",
     "yaml": "^1.6.0"
   },
