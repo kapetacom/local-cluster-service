@@ -13,7 +13,6 @@ jobs:
         with:
           node-version: 18
           registry-url: https://registry.npmjs.org/
-      - run: echo '@kapeta:registry=${{ secrets.GCP_ARTIFACT_NPM_URL }}' > .npmrc
       - run: npm install
         env:
           CI: true

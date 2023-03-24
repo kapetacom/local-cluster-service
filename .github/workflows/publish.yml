@@ -1,4 +1,4 @@
-name: Publish to Blockware Public NPM
+name: Publish to Kapeta Public NPM
 on:
   push:
     branches:
@@ -12,17 +12,9 @@ jobs:
         with:
           node-version: 18
           registry-url: https://registry.npmjs.org/
+          scope: '@kapeta'
 
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v1'
-        with:
-          credentials_json: '${{ secrets.GCP_ARTIFACTORY_SERVICE_ACCOUNT }}'
-
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-      - run: echo '@kapeta:registry=${{ secrets.GCP_ARTIFACT_NPM_URL }}' > .npmrc
       - run: npm install
-      - run: npx google-artifactregistry-auth .npmrc
-      - run: npm publish --registry ${{ secrets.GCP_ARTIFACT_NPM_URL }}
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
