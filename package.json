@@ -5,7 +5,7 @@
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/blockwarecom/local-cluster-service.git"
+    "url": "git+https://github.com/kapetacom/local-cluster-service.git"
   },
   "keywords": [
     "kapeta"
@@ -13,12 +13,12 @@
   "author": "Henrik Hofmeister <hh@kapeta.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/blockwarecom/local-cluster-service/issues"
+    "url": "https://github.com/kapetacom/local-cluster-service/issues"
   },
   "scripts": {
     "start": "nodemon start.js"
   },
-  "homepage": "https://github.com/blockwarecom/local-cluster-service#readme",
+  "homepage": "https://github.com/kapetacom/local-cluster-service#readme",
   "dependencies": {
     "@kapeta/codegen": "<2",
     "@kapeta/local-cluster-config": "<2",
