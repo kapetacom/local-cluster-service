@@ -1,5 +1,4 @@
 const Router = require('express-promise-router').default;
-const YAML = require('yaml');
 const configManager = require('../configManager');
 const serviceManager = require('../serviceManager');
 const operatorManager = require('../operatorManager');
@@ -15,7 +14,6 @@ router.use('/', require('../middleware/stringBody'));
  * Returns the full configuration for a given service.
  */
 router.get('/instance', (req, res) => {
-    //Get service YAML config
     const config = configManager.getConfigForSection(req.kapeta.systemId, req.kapeta.instanceId);
 
     res.send(config);
@@ -26,11 +24,11 @@ router.get('/instance', (req, res) => {
  */
 router.put('/instance', (req, res) => {
 
-    let config = YAML.parse(req.stringBody);
+    let config = JSON.parse(req.stringBody);
     if (!config) {
         config = {};
     }
-    //Get service YAML config
+
     configManager.setConfigForSection(
         req.kapeta.systemId,
         req.kapeta.instanceId,
@@ -43,7 +41,6 @@ router.put('/instance', (req, res) => {
  * Returns the full configuration for a given service.
  */
 router.get('/system', (req, res) => {
-    //Get service YAML config
     const config = configManager.getConfigForSection(req.kapeta.systemId, SYSTEM_ID);
 
     res.send(config);
@@ -54,11 +51,10 @@ router.get('/system', (req, res) => {
  */
 router.put('/system', (req, res) => {
 
-    let config = YAML.parse(req.stringBody);
+    let config = JSON.parse(req.stringBody);
     if (!config) {
         config = {};
     }
-    //Get service YAML config
     configManager.setConfigForSection(
         req.kapeta.systemId,
         SYSTEM_ID,
