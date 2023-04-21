@@ -1,35 +1,35 @@
 const Router = require('express-promise-router').default;
-const YAML = require('yaml');
 const configManager = require('../configManager');
 const serviceManager = require('../serviceManager');
 const operatorManager = require('../operatorManager');
 
 const router = new Router();
+const SYSTEM_ID = '$system';
 
+router.use('/', require('../middleware/cors'));
 router.use('/', require('../middleware/kapeta'));
 router.use('/', require('../middleware/stringBody'));
 
 /**
  * Returns the full configuration for a given service.
  */
-router.get('/', (req, res) => {
-    //Get service YAML config
-    const config = configManager.getConfigForService(req.kapeta.systemId, req.kapeta.instanceId);
+router.get('/instance', (req, res) => {
+    const config = configManager.getConfigForSection(req.kapeta.systemId, req.kapeta.instanceId);
 
-    res.send(YAML.stringify(config));
+    res.send(config);
 });
 
 /**
  * Updates the full configuration for a given service.
  */
-router.put('/', (req, res) => {
+router.put('/instance', (req, res) => {
 
-    let config = YAML.parse(req.stringBody);
+    let config = JSON.parse(req.stringBody);
     if (!config) {
         config = {};
     }
-    //Get service YAML config
-    configManager.setConfigForService(
+
+    configManager.setConfigForSection(
         req.kapeta.systemId,
         req.kapeta.instanceId,
         config
@@ -37,9 +37,35 @@ router.put('/', (req, res) => {
     res.status(202).send({ok:true});
 });
 
+/**
+ * Returns the full configuration for a given service.
+ */
+router.get('/system', (req, res) => {
+    const config = configManager.getConfigForSection(req.kapeta.systemId, SYSTEM_ID);
+
+    res.send(config);
+});
 
 /**
- * Resolves and checks the identify of a block instance
+ * Updates the full configuration for a given service.
+ */
+router.put('/system', (req, res) => {
+
+    let config = JSON.parse(req.stringBody);
+    if (!config) {
+        config = {};
+    }
+    configManager.setConfigForSection(
+        req.kapeta.systemId,
+        SYSTEM_ID,
+        config
+    );
+    res.status(202).send({ok:true});
+});
+
+
+/**
+ * Resolves and checks the identity of a block instance
  */
 router.get('/identity', async (req, res) => {
 

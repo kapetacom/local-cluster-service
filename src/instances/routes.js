@@ -84,9 +84,14 @@ router.get('/:systemId/:instanceId/logs', (req, res) => {
 });
 
 router.use('/', require('../middleware/stringBody'));
-
-
 router.use('/', require('../middleware/kapeta'));
+router.use('/', (req, res, next) => {
+    if (!req.kapeta.blockRef) {
+        res.status(400).send({error: 'Missing X-Kapeta-Block header.'});
+        return;
+    }
+    next();
+})
 
 /**
  * Updates the full configuration for a given service.

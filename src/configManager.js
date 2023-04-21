@@ -17,25 +17,21 @@ class ConfigManager {
         return this._config[systemId];
     }
 
-    setConfigForService(systemId, serviceId, config) {
+    setConfigForSection(systemId, sectionId, config) {
         const systemConfig = this._forSystem(systemId);
-        systemConfig[serviceId] = config || {};
+        systemConfig[sectionId] = config || {};
 
         storageService.put('config', systemId, systemConfig);
     }
 
-    getConfigForService(systemId, serviceId) {
+    getConfigForSection(systemId, sectionId) {
         const systemConfig = this._forSystem(systemId);
 
-        if (!systemConfig[serviceId]) {
-            systemConfig[serviceId] = {};
+        if (!systemConfig[sectionId]) {
+            systemConfig[sectionId] = {};
         }
 
-        if (!systemConfig[serviceId].kapeta) {
-            systemConfig[serviceId].kapeta = {};
-        }
-
-        return systemConfig[serviceId];
+        return systemConfig[sectionId];
     }
 
     /**
