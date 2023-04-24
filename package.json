@@ -36,6 +36,7 @@
     "node-docker-api": "1.1.22",
     "node-uuid": "^1.4.8",
     "request": "2.88.2",
+    "request-promise": "4.2.6",
     "socket.io": "^4.5.2",
     "yaml": "^1.6.0"
   },

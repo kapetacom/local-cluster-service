@@ -154,7 +154,9 @@ class AssetManager {
     }
 
     getAsset(ref) {
-        const asset = this.getAssets().find(a => compareRefs(a.ref,ref));
+        const asset = ClusterConfiguration.getDefinitions()
+            .map(enrichAsset)
+            .find(a => compareRefs(a.ref,ref));
         if (!asset) {
             throw new Error('Asset not found: ' + ref);
         }

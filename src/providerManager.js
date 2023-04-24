@@ -2,13 +2,34 @@ const _ = require('lodash');
 const FS = require('fs');
 const Path = require('path');
 const Glob = require("glob");
+const request = require('request-promise');
 
 const ClusterConfiguration = require('@kapeta/local-cluster-config');
+
+async function readFile(path) {
+    return new Promise((resolve, reject) => {
+        FS.readFile(path, (err, data) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(data.toString());
+            }
+        });
+    });
+}
+
+async function fileExists(path) {
+    return new Promise((resolve) => {
+        FS.access(path, FS.constants.F_OK, (err) => {
+            resolve(!err);
+        });
+    })
+}
 
 class ProviderManager {
 
     constructor() {
-        this._assetCache = {};
+        this._webAssetCache = {};
     }
 
     getWebProviders() {
@@ -32,40 +53,59 @@ class ProviderManager {
         return providerFiles;
     }
 
-    loadAssets() {
-        this.getWebAssets().forEach((asset) => {
-            const providerId = asset.webProvider.definition.metadata.name;
-            const file = asset.file;
-            const assetId = `${providerId}/${asset.webProvider.version}/${file}`;
-            this._assetCache[assetId] = Path.join(asset.webProvider.path, file);
-        })
+    async _downloadWebJSForAsset(handle, name, version) {
+        const baseUrl = 'http://localhost:5018/files';
+
+        let authHeader = undefined
+        const authPath = ClusterConfiguration.getAuthenticationPath();
+        if (FS.existsSync(authPath)) {
+            const authFile = JSON.parse(FS.readFileSync(authPath));
+            if (authFile.access_token) {
+                authHeader = `Bearer ${authFile.access_token}`
+            }
+        }
+
+        try {
+            return await request({
+                url: `${baseUrl}/files/${handle}/${name}/${version}/-/web/${handle}/${name}.js${sourceMap ? '.map' : ''}`,
+                headers: {
+                    'Authorization': authHeader
+                }
+            });
+        } catch (e) {
+            return null;
+        }
     }
 
+    async getAsset(handle, name, version, sourceMap = false) {
+        const fullName = `${handle}/${name}`;
+        const id = `${handle}/${name}/${version}/web.js${sourceMap ? '.map' : ''}`;
+        
+        if (this._webAssetCache[id]) {
+            return readFile(this._webAssetCache[id]);
+        }
 
-    /**
-     * Returns all public (web) javascript for available providers.
-     *
-     * Provides frontend / applications with the implementation of the frontends for the
-     * providers.
-     *
-     */
-    getPublicJS() {
-        this.loadAssets();
-        const includes = Object.keys(this._assetCache).map((assetId) => {
-            return `${ClusterConfiguration.getClusterServiceAddress()}/providers/asset/${assetId}`
+        const localProvider = this.getWebProviders().find((providerDefinition) => {
+            return providerDefinition.definition.metadata.name === fullName &&
+                    providerDefinition.version === version;
         });
 
-        return `Kapeta.setPluginPaths(${JSON.stringify(includes)});`
-    }
+        if (localProvider) {
+            //Check locally installed providers
+            const path = Path.join(localProvider.path, 'web', handle, `${name}.js${sourceMap ? '.map' : ''}`);
+            if (await fileExists(path)) {
+                this._webAssetCache[id] = path;
 
-    getAsset(id) {
-        if (_.isEmpty(this._assetCache)) {
-            this.loadAssets();
+                return readFile(path);
+            }
         }
-        if (this._assetCache[id]) {
-            return FS.readFileSync(this._assetCache[id]).toString();
+
+        if (version === 'local') {
+            //No other place to get this from
+            return null;
         }
-        return null;
+
+        return this._downloadWebJSForAsset(handle, name, version, sourceMap);
     }
 }
 
