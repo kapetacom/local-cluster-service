@@ -22,6 +22,11 @@ class CodeGeneratorManager {
     }
 
     canGenerateCode(yamlContent) {
+        if (!yamlContent.spec.target?.kind) {
+            //Not all block types have targets
+            return false;
+        }
+
         const blockTypes = ClusterConfiguration.getDefinitions(BLOCK_TYPE_KIND);
         const blockTypeKinds = blockTypes.map(blockType => blockType.definition.metadata.name.toLowerCase() + ':' + blockType.version);
         return yamlContent && yamlContent.kind && blockTypeKinds.indexOf(yamlContent.kind.toLowerCase()) > -1;
