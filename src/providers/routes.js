@@ -20,7 +20,6 @@ router.get('/asset/:handle/:name/:version/web.js', async (req, res) => {
         res.setHeader('Cache-Control', 'max-age=31536000, immutable');
     }
 
-
     if (!result) {
         res.status(404).send('');
     } else {

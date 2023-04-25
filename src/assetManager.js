@@ -3,13 +3,11 @@ const FS = require('node:fs');
 const FSExtra = require('fs-extra');
 const YAML = require('yaml');
 const ClusterConfiguration = require('@kapeta/local-cluster-config');
+const {Actions} = require('@kapeta/nodejs-registry-utils');
 const codeGeneratorManager = require('./codeGeneratorManager');
-const socketManager = require('./socketManager');
-
-function makeSymLink(directory, versionTarget) {
-    FSExtra.mkdirpSync(Path.dirname(versionTarget));
-    FSExtra.createSymlinkSync(directory, versionTarget);
-}
+const progressListener = require('./progressListener');
+const {parseKapetaUri} = require("@kapeta/nodejs-utils");
+const repositoryManager = require("./repositoryManager");
 
 function enrichAsset(asset) {
     return {
@@ -47,77 +45,6 @@ function parseRef(ref) {
 
 class AssetManager {
 
-    constructor() {
-        this.watcher = null;
-        this.listenForChanges();
-    }
-
-    listenForChanges() {
-        const baseDir = ClusterConfiguration.getRepositoryBasedir();
-        if (!FS.existsSync(baseDir)) {
-            FSExtra.mkdirpSync(baseDir);
-        }
-
-        let currentWebDefinitions = ClusterConfiguration
-            .getProviderDefinitions()
-            .filter(d => d.hasWeb);
-
-        console.log('Watching local repository for provider changes: %s', baseDir);
-        try {
-            this.watcher = FS.watch(baseDir, { recursive: true });
-        } catch (e) {
-            // Fallback to run without watch mode due to potential platform issues.
-            // https://nodejs.org/docs/latest/api/fs.html#caveats
-            console.log('Unable to watch for changes. Changes to assets will not update automatically.');
-            return;
-        }
-        this.watcher.on('change', (eventType, filename) => {
-            const [handle, name, version] = filename.split(/\//g);
-            if (!name || !version) {
-                return;
-            }
-
-            const ymlPath = Path.join(baseDir, handle, name, version, 'kapeta.yml');
-            const newWebDefinitions = ClusterConfiguration
-                .getProviderDefinitions()
-                .filter(d => d.hasWeb);
-
-            const newWebDefinition = newWebDefinitions.find(d => d.ymlPath === ymlPath);
-            let currentWebDefinition = currentWebDefinitions.find(d => d.ymlPath === ymlPath);
-            const ymlExists = FS.existsSync(ymlPath);
-            let type;
-            if (ymlExists) {
-                if (currentWebDefinition) {
-                    type = 'updated';
-                } else if (newWebDefinition) {
-                    type = 'added';
-                    currentWebDefinition = newWebDefinition;
-                } else {
-                    //Other definition was added / updated - ignore
-                    return;
-                }
-            } else {
-                if (currentWebDefinition) {
-                    //Something was removed
-                    type = 'removed';
-                } else {
-                    //Other definition was removed - ignore
-                    return;
-                }
-            }
-
-            const payload = {type, definition: currentWebDefinition?.definition, asset: {handle, name, version} };
-
-            currentWebDefinitions = newWebDefinitions
-
-            socketManager.emit(`assets`, 'changed', payload);
-        });
-    }
-
-    stopListening() {
-        this.watcher.close();
-        this.watcher = null;
-    }
 
 
     /**
@@ -143,8 +70,8 @@ class AssetManager {
         return this.getAssets(['core/plan']);
     }
 
-    getPlan(ref) {
-        const asset = this.getAsset(ref);
+    async getPlan(ref) {
+        const asset = await this.getAsset(ref);
 
         if ('core/plan' !== asset.kind) {
             throw new Error('Asset was not a plan: ' + ref);
@@ -153,10 +80,15 @@ class AssetManager {
         return asset.data;
     }
 
-    getAsset(ref) {
-        const asset = ClusterConfiguration.getDefinitions()
+    async getAsset(ref) {
+        const uri = parseKapetaUri(ref);
+
+        await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version);
+
+        let asset = ClusterConfiguration.getDefinitions()
             .map(enrichAsset)
-            .find(a => compareRefs(a.ref,ref));
+            .find(a => parseKapetaUri(a.ref).equals(uri));
+
         if (!asset) {
             throw new Error('Asset not found: ' + ref);
         }
@@ -186,7 +118,8 @@ class AssetManager {
     }
 
     async updateAsset(ref, yaml) {
-        const asset = this.getAsset(ref);
+        const asset = await this.getAsset(ref);
+        console.log('update asset', asset);
         if (!asset) {
             throw new Error('Attempted to update unknown asset: ' + ref);
         }
@@ -208,10 +141,6 @@ class AssetManager {
         }
     }
 
-    hasAsset(ref) {
-        return !!this.getAsset(ref);
-    }
-
     async importFile(filePath) {
         if (filePath.startsWith('file://')) {
             filePath = filePath.substring('file://'.length);
@@ -224,27 +153,21 @@ class AssetManager {
         const assetInfos = YAML.parseAllDocuments(FS.readFileSync(filePath).toString())
             .map(doc => doc.toJSON());
 
-        const assetInfo = assetInfos[0];
+        await Actions.link(progressListener, Path.dirname(filePath));
+
         const version = 'local';
-        const [handle, name] = assetInfo.metadata.name.split('/');
-
-        const target = ClusterConfiguration.getRepositoryAssetPath(handle, name, version);
-        if (!FS.existsSync(target)) {
-            makeSymLink(Path.dirname(filePath), target);
-        }
-
         const refs = assetInfos.map(assetInfo => `kapeta://${assetInfo.metadata.name}:${version}`);
 
         return this.getAssets().filter(a => refs.some(ref => compareRefs(ref, a.ref)));
     }
 
-    unregisterAsset(ref) {
-        const asset = this.getAsset(ref);
+    async unregisterAsset(ref) {
+        const asset = await this.getAsset(ref);
         if (!asset) {
             throw new Error('Asset does not exists: ' + ref);
         }
-        //Remove from repository. If its local it is just a symlink - so no unchecked code is removed.
-        FSExtra.removeSync(asset.path);
+
+        await Actions.uninstall(progressListener, asset.path);
     }
 }
 

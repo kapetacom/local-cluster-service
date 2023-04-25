@@ -24,6 +24,7 @@
     "@kapeta/local-cluster-config": "<2",
     "@kapeta/local-cluster-executor": "<2",
     "@kapeta/nodejs-api-client": "<2",
+    "@kapeta/nodejs-registry-utils": "^0.0.2",
     "@kapeta/nodejs-utils": "<2",
     "@kapeta/sdk-config": "<2",
     "express": "4.17.1",
