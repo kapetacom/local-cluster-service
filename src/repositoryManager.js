@@ -117,7 +117,6 @@ class RepositoryManager {
                             //We change to a temp dir to avoid issues with the current working directory
                             process.chdir(os.tmpdir());
                             //Disable change events while installing
-                            console.log('Started installing assets');
                             this.setChangeEventsEnabled(false);
                             socketManager.emit(`install`, 'install:action', {type: 'start', refs});
                             await Actions.install(progressListener, normalizedRefs, {});
@@ -125,7 +124,6 @@ class RepositoryManager {
                         } catch (e) {
                             socketManager.emit(`install`, 'install:action', {type: 'failed', refs, error: e.message});
                         } finally {
-                            console.log('Finished installing assets');
                             this.setChangeEventsEnabled(true);
                         }
                     }

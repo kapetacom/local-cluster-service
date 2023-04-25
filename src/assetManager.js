@@ -119,7 +119,6 @@ class AssetManager {
 
     async updateAsset(ref, yaml) {
         const asset = await this.getAsset(ref);
-        console.log('update asset', asset);
         if (!asset) {
             throw new Error('Attempted to update unknown asset: ' + ref);
         }
