@@ -23,7 +23,7 @@ router.get('/asset/:handle/:name/:version/web.js', async (req, res) => {
     if (!result) {
         res.status(404).send('');
     } else {
-        res.send(result
+        res.send(result.toString()
             .replace(`${name}.js.map`, 'web.js.map')
         );
     }
