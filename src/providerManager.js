@@ -1,14 +1,13 @@
-const _ = require('lodash');
 const FS = require('fs');
 const Path = require('path');
-const Glob = require("glob");
-
+const FSExtra = require('fs-extra');
+const repositoryManager = require('./repositoryManager')
 const ClusterConfiguration = require('@kapeta/local-cluster-config');
 
 class ProviderManager {
 
     constructor() {
-        this._assetCache = {};
+        this._webAssetCache = {};
     }
 
     getWebProviders() {
@@ -17,54 +16,32 @@ class ProviderManager {
             .filter((providerDefinition) => providerDefinition.hasWeb)
     }
 
-    getWebAssets() {
-        const webProviders = this.getWebProviders();
+    async getAsset(handle, name, version, sourceMap = false) {
+        const fullName = `${handle}/${name}`;
+        const id = `${handle}/${name}/${version}/web.js${sourceMap ? '.map' : ''}`;
+        
+        if (this._webAssetCache[id] &&
+            await FSExtra.exists(this._webAssetCache[id])) {
+            return FSExtra.read(this._webAssetCache[id]);
+        }
 
-        let providerFiles = [];
-        webProviders.map((webProvider) => {
-            return Glob.sync('web/**/*.js', {cwd: webProvider.path}).map((file) => {
-                return {webProvider, file};
-            });
-        }).forEach((webFiles) => {
-            providerFiles.push(...webFiles);
-        });
+        await repositoryManager.ensureAsset(handle, name, version);
 
-        return providerFiles;
-    }
-
-    loadAssets() {
-        this.getWebAssets().forEach((asset) => {
-            const providerId = asset.webProvider.definition.metadata.name;
-            const file = asset.file;
-            const assetId = `${providerId}/${asset.webProvider.version}/${file}`;
-            this._assetCache[assetId] = Path.join(asset.webProvider.path, file);
+        const installedProvider = this.getWebProviders().find((providerDefinition) => {
+            return providerDefinition.definition.metadata.name === fullName &&
+                providerDefinition.version === version;
         })
-    }
 
+        if (installedProvider) {
+            //Check locally installed providers
+            const path = Path.join(installedProvider.path, 'web', handle, `${name}.js${sourceMap ? '.map' : ''}`);
+            if (await FSExtra.exists(path)) {
+                this._webAssetCache[id] = path;
 
-    /**
-     * Returns all public (web) javascript for available providers.
-     *
-     * Provides frontend / applications with the implementation of the frontends for the
-     * providers.
-     *
-     */
-    getPublicJS() {
-        this.loadAssets();
-        const includes = Object.keys(this._assetCache).map((assetId) => {
-            return `${ClusterConfiguration.getClusterServiceAddress()}/providers/asset/${assetId}`
-        });
-
-        return `Kapeta.setPluginPaths(${JSON.stringify(includes)});`
-    }
-
-    getAsset(id) {
-        if (_.isEmpty(this._assetCache)) {
-            this.loadAssets();
+                return FSExtra.read(path);
+            }
         }
-        if (this._assetCache[id]) {
-            return FS.readFileSync(this._assetCache[id]).toString();
-        }
+
         return null;
     }
 }

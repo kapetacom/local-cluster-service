@@ -5,16 +5,38 @@ const router = new Router();
 
 router.use('/', require('../middleware/cors'));
 
-/**
- * Get all local assets available
- */
-router.get('/all.js', (req, res) => {
-    res.send(providerManager.getPublicJS());
+router.get('/', async (req, res) => {
+    const result = await providerManager.getWebProviders();
+
+    res.send(result);
 });
 
-router.get('/asset/*', (req, res) => {
-    const assetId = req.params[0];
-    const result = providerManager.getAsset(assetId)
+router.get('/asset/:handle/:name/:version/web.js', async (req, res) => {
+
+    const {handle, name, version} = req.params;
+    let result = await providerManager.getAsset(handle, name, version);
+
+    if (version !== 'local') {
+        res.setHeader('Cache-Control', 'max-age=31536000, immutable');
+    }
+
+    if (!result) {
+        res.status(404).send('');
+    } else {
+        res.send(result
+            .replace(`${name}.js.map`, 'web.js.map')
+        );
+    }
+});
+
+router.get('/asset/:handle/:name/:version/web.js.map', async (req, res) => {
+
+    const {handle, name, version} = req.params;
+    const result = await providerManager.getAsset(handle, name, version, true);
+    if (version !== 'local') {
+        res.setHeader('Cache-Control', 'max-age=31536000, immutable');
+    }
+
     if (!result) {
         res.status(404).send('');
     } else {

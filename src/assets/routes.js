@@ -34,14 +34,14 @@ router.get('/', (req, res) => {
 /**
  * Get single asset
  */
-router.get('/read', (req, res) => {
+router.get('/read', async (req, res) => {
     if (!req.query.ref) {
         res.status(400).send({error:'Query parameter "ref" is missing'});
         return;
     }
 
     try {
-        res.send(assetManager.getAsset(req.query.ref));
+        res.send(await assetManager.getAsset(req.query.ref));
     } catch(err) {
         res.status(400).send({error: err.message});
     }
