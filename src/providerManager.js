@@ -1,27 +1,8 @@
 const FS = require('fs');
 const Path = require('path');
+const FSExtra = require('fs-extra');
 const repositoryManager = require('./repositoryManager')
 const ClusterConfiguration = require('@kapeta/local-cluster-config');
-
-async function readFile(path) {
-    return new Promise((resolve, reject) => {
-        FS.readFile(path, (err, data) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(data.toString());
-            }
-        });
-    });
-}
-
-async function fileExists(path) {
-    return new Promise((resolve) => {
-        FS.access(path, FS.constants.F_OK, (err) => {
-            resolve(!err);
-        });
-    })
-}
 
 class ProviderManager {
 
@@ -40,8 +21,8 @@ class ProviderManager {
         const id = `${handle}/${name}/${version}/web.js${sourceMap ? '.map' : ''}`;
         
         if (this._webAssetCache[id] &&
-            await fileExists(this._webAssetCache[id])) {
-            return readFile(this._webAssetCache[id]);
+            await FSExtra.exists(this._webAssetCache[id])) {
+            return FSExtra.read(this._webAssetCache[id]);
         }
 
         await repositoryManager.ensureAsset(handle, name, version);
@@ -54,10 +35,10 @@ class ProviderManager {
         if (installedProvider) {
             //Check locally installed providers
             const path = Path.join(installedProvider.path, 'web', handle, `${name}.js${sourceMap ? '.map' : ''}`);
-            if (await fileExists(path)) {
+            if (await FSExtra.exists(path)) {
                 this._webAssetCache[id] = path;
 
-                return readFile(path);
+                return FSExtra.read(path);
             }
         }
 
