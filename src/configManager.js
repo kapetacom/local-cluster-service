@@ -18,14 +18,23 @@ class ConfigManager {
     }
 
     setConfigForSection(systemId, sectionId, config) {
-        const systemConfig = this._forSystem(systemId);
-        systemConfig[sectionId] = config || {};
+        let systemConfig;
+        if (sectionId) {
+            systemConfig = this._forSystem(systemId);
+            systemConfig[sectionId] = config || {};
+        } else {
+            systemConfig = config || {};
+        }
 
         storageService.put('config', systemId, systemConfig);
     }
 
     getConfigForSection(systemId, sectionId) {
         const systemConfig = this._forSystem(systemId);
+
+        if (!sectionId) {
+            return systemConfig;
+        }
 
         if (!systemConfig[sectionId]) {
             systemConfig[sectionId] = {};

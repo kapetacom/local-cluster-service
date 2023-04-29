@@ -4,7 +4,7 @@ const serviceManager = require('../serviceManager');
 const operatorManager = require('../operatorManager');
 
 const router = new Router();
-const SYSTEM_ID = '$system';
+const SYSTEM_ID = '$plan';
 
 router.use('/', require('../middleware/cors'));
 router.use('/', require('../middleware/kapeta'));
@@ -38,7 +38,7 @@ router.put('/instance', (req, res) => {
 });
 
 /**
- * Returns the full configuration for a given service.
+ * Returns the full configuration for a plan
  */
 router.get('/system', (req, res) => {
     const config = configManager.getConfigForSection(req.kapeta.systemId, SYSTEM_ID);
@@ -47,7 +47,7 @@ router.get('/system', (req, res) => {
 });
 
 /**
- * Updates the full configuration for a given service.
+ * Updates the full configuration for a plan
  */
 router.put('/system', (req, res) => {
 
