@@ -4,7 +4,7 @@ const serviceManager = require('../serviceManager');
 const operatorManager = require('../operatorManager');
 
 const router = new Router();
-const SYSTEM_ID = '$system';
+const SYSTEM_ID = '$plan';
 
 router.use('/', require('../middleware/cors'));
 router.use('/', require('../middleware/kapeta'));
@@ -14,7 +14,10 @@ router.use('/', require('../middleware/stringBody'));
  * Returns the full configuration for a given service.
  */
 router.get('/instance', (req, res) => {
-    const config = configManager.getConfigForSection(req.kapeta.systemId, req.kapeta.instanceId);
+
+    const config = req.kapeta.instanceId ?
+        configManager.getConfigForSection(req.kapeta.systemId, req.kapeta.instanceId) :
+        configManager.getConfigForSystem(req.kapeta.systemId);
 
     res.send(config);
 });
@@ -29,16 +32,24 @@ router.put('/instance', (req, res) => {
         config = {};
     }
 
-    configManager.setConfigForSection(
-        req.kapeta.systemId,
-        req.kapeta.instanceId,
-        config
-    );
+    if (req.kapeta.instanceId) {
+        configManager.setConfigForSection(
+            req.kapeta.systemId,
+            req.kapeta.instanceId,
+            config
+        );
+    } else {
+        configManager.setConfigForSystem(
+            req.kapeta.systemId,
+            config
+        );
+    }
+
     res.status(202).send({ok:true});
 });
 
 /**
- * Returns the full configuration for a given service.
+ * Returns the full configuration for a plan
  */
 router.get('/system', (req, res) => {
     const config = configManager.getConfigForSection(req.kapeta.systemId, SYSTEM_ID);
@@ -47,7 +58,7 @@ router.get('/system', (req, res) => {
 });
 
 /**
- * Updates the full configuration for a given service.
+ * Updates the full configuration for a plan
  */
 router.put('/system', (req, res) => {
 
