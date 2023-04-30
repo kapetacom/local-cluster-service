@@ -41,7 +41,7 @@ class CodeGeneratorManager {
         const writer = new CodeWriter(baseDir, {});
         const assets = writer.write(output);
 
-        await codeGenerator.postprocess(assets);
+        await codeGenerator.postprocess(baseDir, assets);
 
         console.log('Code generated for path: %s', baseDir);
     }
