@@ -63,7 +63,7 @@ module.exports = {
         }
 
         try {
-            await containerManager.ping()
+            await containerManager.initialize()
         } catch (e) {
             throw new Error('Could not ping docker runtime: ' + e.toString() + '. Make sure docker is running and working.');
         }
