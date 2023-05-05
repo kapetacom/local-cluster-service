@@ -8,6 +8,7 @@ const socketManager = require('./socketManager');
 const serviceManager = require('./serviceManager');
 const assetManager = require('./assetManager');
 const containerManager = require('./containerManager');
+const configManager = require("./configManager");
 
 const CHECK_INTERVAL = 10000;
 const DEFAULT_HEALTH_PORT_TYPE = 'rest';
@@ -314,6 +315,7 @@ class InstanceManager {
         const blockRef = blockInstance.block.ref;
 
         const blockAsset = await assetManager.getAsset(blockRef);
+        const instanceConfig = await configManager.getConfigForSection(planRef, instanceId);
 
         if (!blockAsset) {
             throw new Error('Block not found: ' + blockRef);
@@ -324,47 +326,85 @@ class InstanceManager {
         }
 
         await this.stopProcess(planRef, instanceId);
+        const type = blockAsset.version === 'local' ? 'local' : 'docker';
 
         const runner = new BlockInstanceRunner(planRef);
+
         const startTime = Date.now();
-        const process = await runner.start(blockRef, instanceId);
-        //emit stdout/stderr via sockets
-        process.output.on("data", (data) => {
-            const payload = {source: "stdout", level: "INFO", message: data.toString(), time: Date.now()};
-            this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
-        });
+        try {
+            const process = await runner.start(blockRef, instanceId, instanceConfig);
+            //emit stdout/stderr via sockets
+            process.output.on("data", (data) => {
+                const payload = {
+                    source: "stdout",
+                    level: "INFO",
+                    message: data.toString(),
+                    time: Date.now()
+                };
+                this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
+            });
 
-        process.output.on('exit', (exitCode) => {
-            const timeRunning = Date.now() - startTime;
-            const instance = this.getInstance(planRef, instanceId);
-            if (instance.status === STATUS_READY) {
-                //It's already been running
-                return;
-            }
+            process.output.on('exit', (exitCode) => {
+                const timeRunning = Date.now() - startTime;
+                const instance = this.getInstance(planRef, instanceId);
+                if (instance.status === STATUS_READY) {
+                    //It's already been running
+                    return;
+                }
 
-            if (exitCode === 143 ||
-                exitCode === 137) {
-                //Process got SIGTERM (143) or SIGKILL (137)
-                //TODO: Windows?
-                return;
-            }
+                if (exitCode === 143 ||
+                    exitCode === 137) {
+                    //Process got SIGTERM (143) or SIGKILL (137)
+                    //TODO: Windows?
+                    return;
+                }
 
-            if (exitCode !== 0 || timeRunning < MIN_TIME_RUNNING) {
-                this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, {
-                    error: "Failed to start instance",
-                    status: EVENT_INSTANCE_EXITED,
-                    instanceId: blockInstance.id
-                })
-            }
-        });
+                if (exitCode !== 0 || timeRunning < MIN_TIME_RUNNING) {
+                    this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, {
+                        error: "Failed to start instance",
+                        status: EVENT_INSTANCE_EXITED,
+                        instanceId: blockInstance.id
+                    });
+                }
+            });
 
-        await this.registerInstance(planRef, instanceId, {
-            type: process.type,
-            pid: process.pid,
-            health: null
-        });
+            await this.registerInstance(planRef, instanceId, {
+                type: process.type,
+                pid: process.pid,
+                health: null
+            });
 
-        return this._processes[planRef][instanceId] = process;
+            return this._processes[planRef][instanceId] = process;
+        } catch (e) {
+            const logs = [
+                {
+                    source: "stdout",
+                    level: "ERROR",
+                    message: e.message,
+                    time: Date.now()
+                }
+            ]
+            await this.registerInstance(planRef, instanceId, {
+                type: 'local',
+                pid: null,
+                health: null
+            });
+
+            this._emit(instanceId, EVENT_INSTANCE_LOG, logs[0]);
+
+            this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, {
+                error: `Failed to start instance: ${e.message}`,
+                status: EVENT_INSTANCE_EXITED,
+                instanceId: blockInstance.id
+            });
+
+            return this._processes[planRef][instanceId] = {
+                pid: -1,
+                type,
+                logs: () => logs
+            };
+        }
+
     }
 
     /**

@@ -21,14 +21,20 @@ class ServiceManager {
         });
     }
 
-    _forLocal(port, path) {
+    _forLocal(port, path, environmentType) {
         if (!path) {
             path = '';
         }
-        const host = clusterService.getClusterServiceHost();
+        let host;
+        if (environmentType === 'docker') {
+            //We're inside a docker container, so we can use this special host name to access the host machine
+            host = 'host.docker.internal';
+        } else {
+            host = clusterService.getClusterServiceHost();
+        }
 
         if (path.startsWith('/')) {
-            path = path.substr(1);
+            path = path.substring(1);
         }
         return `http://${host}:${port}/${path}`;
     }
@@ -84,12 +90,13 @@ class ServiceManager {
      * @param {string} consumerInstanceId
      * @param {string} consumerResourceName
      * @param {string} portType
+     * @param {'docker'|'process'} environmentType
      * @return {string}
      */
-    getConsumerAddress(systemId, consumerInstanceId, consumerResourceName, portType) {
+    getConsumerAddress(systemId, consumerInstanceId, consumerResourceName, portType, environmentType) {
         const port = clusterService.getClusterServicePort();
         const path = clusterService.getProxyPath(systemId, consumerInstanceId, consumerResourceName, portType);
-        return this._forLocal(port, path);
+        return this._forLocal(port, path, environmentType);
     }
 
     /**

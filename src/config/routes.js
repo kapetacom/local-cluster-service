@@ -143,12 +143,12 @@ router.get('/consumes/resource/:resourceType/:portType/:name', async (req, res) 
  * to handle clients for services that hasn't started yet.
  */
 router.get('/consumes/:resourceName/:type', (req, res) => {
-
     res.send(serviceManager.getConsumerAddress(
         req.kapeta.systemId,
         req.kapeta.instanceId,
         req.params.resourceName,
-        req.params.type
+        req.params.type,
+        req.kapeta.environment,
     ));
 });
 

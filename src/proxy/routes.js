@@ -105,7 +105,7 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
         );
 
         while(address.endsWith('/')) {
-            address = address.substr(0, address.length - 1);
+            address = address.substring(0, address.length - 1);
         }
 
         typeHandler(req, res, {
