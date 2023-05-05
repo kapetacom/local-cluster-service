@@ -55,7 +55,7 @@ module.exports = {
 
     /**
      * Starts the local cluster service.
-     * @return {Promise<Integer>} resolves when listening is done with port number. Rejects if listening failed.
+     * @return {Promise<{ host: string, port: nubmer, dockerStatus: boolean}>} resolves when listening is done with port number. Rejects if listening failed.
      */
     start: async function() {
         if (currentServer) {
@@ -65,7 +65,7 @@ module.exports = {
         try {
             await containerManager.initialize()
         } catch (e) {
-            throw new Error('Could not ping docker runtime: ' + e.toString() + '. Make sure docker is running and working.');
+            console.error('Could not ping docker runtime: ' + e.toString() + '. Make sure docker is running and working.');
         }
 
         const clusterPort = storageService.get('cluster','port');
@@ -102,7 +102,7 @@ module.exports = {
                 reject(err);
             });
 
-            currentServer.listen(port, host, () => resolve({host,port}));
+            currentServer.listen(port, host, () => resolve({host,port, dockerStatus: containerManager._alive}));
             currentServer.host = host;
             currentServer.port = port;
         });
