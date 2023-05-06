@@ -44,6 +44,7 @@ class ContainerManager {
                 const client = new Docker(opts);
                 await client.ping();
                 this._docker = client;
+                this._alive = true;
                 return;
             } catch (err) {
                 // silently ignore bad configs
@@ -53,37 +54,25 @@ class ContainerManager {
     }
 
     async ping() {
-        await this._docker.ping();
-        this._alive = true;
-    }
-
-    async ping() {
 
         try {
-            const pingResult = await this._docker.ping();
+            const pingResult = await this.docker().ping();
             if (pingResult !== 'OK') {
                 throw new Error(`Ping failed: ${pingResult}`);
             }
         } catch (e) {
             throw new Error(`Docker not running. Please start the docker daemon before running this command. Error: ${e.message}`);
         }
-
-        this._alive = true;
     }
-
-    async ensureAlive() {
-        if (!this._alive) {
-            await this.ping();
+    docker() {
+        if (!this._docker) {
+            throw new Error(`Docker not running`);
         }
-    }
-
-    async docker() {
-        await this.ensureAlive();
         return this._docker;
     }
 
     async getContainerByName(containerName) {
-        const containers = await this._docker.container.list({all: true});
+        const containers = await this.docker().container.list({all: true});
         return containers.find(container => {
             return container.data.Names.indexOf(`/${containerName}`) > -1;
         });
@@ -95,7 +84,7 @@ class ContainerManager {
             tag = 'latest';
         }
 
-        await this._docker.image
+        await this.docker().image
             .create(
                 {},
                 {
@@ -190,7 +179,7 @@ class ContainerManager {
     }
 
     async startContainer(opts) {
-        const dockerContainer = await this._docker.container.create(opts);
+        const dockerContainer = await this.docker().container.create(opts);
 
         await dockerContainer.start();
 
@@ -235,7 +224,7 @@ class ContainerManager {
         let dockerContainer = null;
 
         try {
-            dockerContainer = await this._docker.container.get(name);
+            dockerContainer = await this.docker().container.get(name);
             await dockerContainer.status();
         } catch (err) {
             //Ignore
