@@ -1,3 +1,10 @@
+## [0.1.1](https://github.com/kapetacom/local-cluster-service/compare/v0.1.0...v0.1.1) (2023-05-06)
+
+
+### Bug Fixes
+
+* Add missing import ([54a570c](https://github.com/kapetacom/local-cluster-service/commit/54a570c8c0746ae014fbf9411c85dbf255bf8cea))
+
 # [0.1.0](https://github.com/kapetacom/local-cluster-service/compare/v0.0.76...v0.1.0) (2023-05-06)
 
 
