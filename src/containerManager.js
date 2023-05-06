@@ -2,7 +2,7 @@ const {Docker} = require("node-docker-api");
 const path = require("path");
 const _ = require('lodash');
 const FS = require("node:fs");
-
+const os = require("os");
 const LABEL_PORT_PREFIX = "kapeta_port-";
 
 const NANO_SECOND = 1000000;
