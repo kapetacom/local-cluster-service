@@ -1,3 +1,10 @@
+# [0.1.0](https://github.com/kapetacom/local-cluster-service/compare/v0.0.76...v0.1.0) (2023-05-06)
+
+
+### Features
+
+* Allow running docker block operators ([0a3992c](https://github.com/kapetacom/local-cluster-service/commit/0a3992c359a119a623ed7d0423e6f7ad814aa8d3))
+
 ## [0.0.76](https://github.com/kapetacom/local-cluster-service/compare/v0.0.75...v0.0.76) (2023-05-06)
 
 
