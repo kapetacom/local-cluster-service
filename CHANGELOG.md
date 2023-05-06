@@ -1,3 +1,10 @@
+## [0.1.2](https://github.com/kapetacom/local-cluster-service/compare/v0.1.1...v0.1.2) (2023-05-06)
+
+
+### Bug Fixes
+
+* Moved all docker init things into init - and rely on that ([9a012c3](https://github.com/kapetacom/local-cluster-service/commit/9a012c3a40a6b4e4ef55757a4b8454d48bd3987c))
+
 ## [0.1.1](https://github.com/kapetacom/local-cluster-service/compare/v0.1.0...v0.1.1) (2023-05-06)
 
 
