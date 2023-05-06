@@ -166,7 +166,8 @@ class RepositoryManager {
             return null;
         }
 
-        const installedAsset = ClusterConfiguration.getDefinitions().find(d =>
+        const definitions = ClusterConfiguration.getDefinitions();
+        const installedAsset = definitions.find(d =>
                         d.definition.metadata.name === fullName &&
                         d.version === version);
 
@@ -179,18 +180,28 @@ class RepositoryManager {
             return;
         }
 
-        const assetVersion = await this._registryService.getVersion(fullName, version);
-        if (!assetVersion) {
-            this._cache[ref] = false;
-            return;
+        try {
+            const assetVersion = await this._registryService.getVersion(fullName, version);
+            if (!assetVersion) {
+                this._cache[ref] = false;
+                return;
+            }
+        } catch (e) {
+            console.warn(`Unable to resolve asset: ${ref}`, e);
+            if (installedAsset) {
+                return;
+            }
+            throw e;
         }
 
         this._cache[ref] = true;
         if (!installedAsset) {
+            console.log(`Auto-installing missing asset: ${ref}`);
             await this._install([ref]);
         } else {
             //Ensure dependencies are installed
             const refs = assetVersion.dependencies.map((dep) => dep.name);
+            console.log(`Auto-installing dependencies: ${refs.join(', ')}`);
             await this._install(refs);
         }
 

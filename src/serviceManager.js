@@ -73,7 +73,6 @@ class ServiceManager {
 
         const portTypeSection = service[portType];
 
-
         return portTypeSection.port;
     }
 

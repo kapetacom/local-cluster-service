@@ -12,7 +12,7 @@ const socketManager = require('../../socketManager');
  */
 module.exports = function proxyRestRequest(req, res, opts) {
 
-    console.log('Route to provider: %s => %s', opts.consumerPath, opts.address);
+    console.log('Proxy request to provider: %s => %s [web]', opts.consumerPath, opts.address);
 
     const requestHeaders = _.clone(req.headers);
 
@@ -22,8 +22,8 @@ module.exports = function proxyRestRequest(req, res, opts) {
     delete requestHeaders['host'];
     delete requestHeaders['origin'];
 
-    const sourceBasePath = opts.fromResource.spec.path;
-    const targetBasePath = opts.toResource.spec.path;
+    const sourceBasePath = opts.providerResource.spec.path;
+    const targetBasePath = opts.consumerResource.spec.path;
     let path = opts.consumerPath;
     if (opts.consumerPath.startsWith(sourceBasePath)) {
         path = path.replace(sourceBasePath, targetBasePath);
@@ -36,8 +36,6 @@ module.exports = function proxyRestRequest(req, res, opts) {
         headers: requestHeaders,
         body: req.stringBody
     };
-
-    console.log('reqOpts', reqOpts);
 
     const traffic = networkManager.addRequest(
         req.params.systemId,

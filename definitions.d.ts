@@ -23,8 +23,8 @@ declare function ProxyRequestHandler(req:Request, res:Response, info:ProxyReques
 
 interface Connection {
     mapping: any
-    from: ResourceRef
-    to: ResourceRef
+    provider: ResourceRef
+    consumer: ResourceRef
 }
 
 interface ResourceInfo {
@@ -36,7 +36,7 @@ interface ResourceInfo {
 interface ProxyRequestInfo {
     address: string
     connection:Connection
-    fromResource:ResourceInfo
-    toResource:ResourceInfo
+    providerResource:ResourceInfo
+    consumerResource:ResourceInfo
     consumerPath:string
 }

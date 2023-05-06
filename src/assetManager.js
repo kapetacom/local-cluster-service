@@ -54,7 +54,10 @@ class AssetManager {
      */
     getAssets(assetKinds) {
         if (!assetKinds) {
-            const blockTypeProviders = ClusterConfiguration.getDefinitions('core/block-type');
+            const blockTypeProviders = ClusterConfiguration.getDefinitions([
+                'core/block-type',
+                'core/block-type-operator'
+            ]);
             assetKinds = blockTypeProviders.map(p => {
                 return `${p.definition.metadata.name}:${p.version}`
             });
@@ -82,7 +85,6 @@ class AssetManager {
 
     async getAsset(ref) {
         const uri = parseKapetaUri(ref);
-
         await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version);
 
         let asset = ClusterConfiguration.getDefinitions()

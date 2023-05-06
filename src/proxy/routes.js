@@ -34,11 +34,12 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
 
         const plan = await assetManager.getPlan(req.params.systemId);
 
+
         // We can find the connection by the consumer information alone since
         // only 1 provider can be connected to a consumer resource at a time
         const connection = _.find(plan.spec.connections, (connection) => {
-            return connection.to.blockId.toLowerCase() === req.params.consumerInstanceId.toLowerCase() &&
-                connection.to.resourceName.toLowerCase() === req.params.consumerResourceName.toLowerCase();
+            return connection.consumer.blockId.toLowerCase() === req.params.consumerInstanceId.toLowerCase() &&
+                connection.consumer.resourceName.toLowerCase() === req.params.consumerResourceName.toLowerCase();
         });
 
         if (!connection) {
@@ -47,7 +48,7 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
         }
 
         const toBlockInstance = _.find(plan.spec.blocks, (blockInstance) => {
-            return blockInstance.id.toLowerCase() === connection.to.blockId.toLowerCase();
+            return blockInstance.id.toLowerCase() === connection.consumer.blockId.toLowerCase();
         });
 
         if (!toBlockInstance) {
@@ -57,9 +58,9 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
 
         const toBlockAsset = await assetManager.getAsset(toBlockInstance.block.ref);
 
-        const toResource = getResource(toBlockAsset.data.spec.consumers, req.params.consumerResourceName);
+        const consumerResource = getResource(toBlockAsset.data.spec.consumers, req.params.consumerResourceName);
 
-        if (!toResource) {
+        if (!consumerResource) {
             res.status(401).send({error:`Block resource not found "${req.params.consumerInstanceId}::${req.params.consumerResourceName}`});
             return;
         }
@@ -76,23 +77,23 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
          Note that this might not match the path the destination is expecting so we need to identify the method
          that is being called and identify the destination path from the connection.
          */
-        const consumerPath = req.originalUrl.substr(basePath.length - 1);
+        const consumerPath = req.originalUrl.substring(basePath.length - 1);
 
         const fromBlockInstance = _.find(plan.spec.blocks, (blockInstance) => {
-            return blockInstance.id.toLowerCase() === connection.from.blockId.toLowerCase();
+            return blockInstance.id.toLowerCase() === connection.provider.blockId.toLowerCase();
         });
 
         if (!fromBlockInstance) {
-            res.status(401).send({error:`Block instance not found "${connection.from.blockId}`});
+            res.status(401).send({error:`Block instance not found "${connection.provider.blockId}`});
             return;
         }
 
         const fromBlockAsset = await assetManager.getAsset(fromBlockInstance.block.ref);
 
-        const fromResource = getResource(fromBlockAsset.data.spec.providers, connection.from.resourceName);
+        const providerResource = getResource(fromBlockAsset.data.spec.providers, connection.provider.resourceName);
 
-        if (!fromResource) {
-            res.status(401).send({error:`Block resource not found "${connection.from.blockId}::${connection.from.resourceName}`});
+        if (!providerResource) {
+            res.status(401).send({error:`Block resource not found "${connection.provider.blockId}::${connection.provider.resourceName}`});
             return;
         }
 
@@ -100,7 +101,7 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
         //Get target address
         let address = await serviceManager.getProviderAddress(
             req.params.systemId,
-            connection.from.blockId,
+            connection.provider.blockId,
             req.params.type
         );
 
@@ -111,12 +112,13 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
         typeHandler(req, res, {
             consumerPath,
             address,
-            toResource,
-            fromResource,
+            consumerResource,
+            providerResource,
             connection
         });
 
     } catch(err) {
+        console.warn("Failed to process proxy request", err);
         res.status(400).send({error: err.message});
     }
 

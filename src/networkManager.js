@@ -3,10 +3,10 @@ class NetworkManager {
 
     static toConnectionId(connection) {
         return [
-            connection.from.blockId,
-            connection.from.resourceName,
-            connection.to.blockId,
-            connection.to.resourceName
+            connection.provider.blockId,
+            connection.provider.resourceName,
+            connection.consumer.blockId,
+            connection.consumer.resourceName
         ].join('_');
     }
 
@@ -65,8 +65,8 @@ class NetworkManager {
         const traffic = new Traffic(connection, request, consumerMethodId, providerMethodId);
 
         this._ensureConnection(systemId, traffic.connectionId).push(traffic);
-        this._ensureSource(systemId, connection.from.blockId).push(traffic);
-        this._ensureTarget(systemId, connection.to.blockId).push(traffic);
+        this._ensureSource(systemId, connection.provider.blockId).push(traffic);
+        this._ensureTarget(systemId, connection.consumer.blockId).push(traffic);
 
         return traffic;
     }

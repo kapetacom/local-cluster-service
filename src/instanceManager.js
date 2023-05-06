@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const request = require('request');
-
-const {BlockInstanceRunner} = require('@kapeta/local-cluster-executor');
+const EventEmitter = require("events");
+const BlockInstanceRunner = require('./utils/BlockInstanceRunner');
 
 const storageService = require('./storageService');
 const socketManager = require('./socketManager');
@@ -68,6 +68,10 @@ class InstanceManager {
 
             if (instance.status !== newStatus) {
                 instance.status = newStatus;
+                console.log(
+                    'Instance status changed: %s %s -> %s',
+                    instance.systemId, instance.instanceId, instance.status
+                )
                 this._emit(instance.systemId, EVENT_STATUS_CHANGED, instance);
                 changed = true;
             }
@@ -85,7 +89,11 @@ class InstanceManager {
 
         if (instance.type === 'docker') {
             const container = await containerManager.get(instance.pid);
-            return await container.isRunning()
+            if (!container) {
+                console.warn('Container not found: %s', instance.pid);
+                return false;
+            }
+            return await container.isRunning();
         }
 
         //Otherwise its just a normal process.
@@ -185,8 +193,12 @@ class InstanceManager {
         if (instance) {
             instance.status = STATUS_STARTING;
             instance.pid = info.pid;
-            instance.type = info.type;
-            instance.health = healthUrl;
+            if (info.type) {
+                instance.type = info.type;
+            }
+            if (healthUrl) {
+                instance.health = healthUrl;
+            }
             this._emit(systemId, EVENT_STATUS_CHANGED, instance);
         } else {
             instance = {
@@ -268,7 +280,9 @@ class InstanceManager {
         try {
             if (instance.type === 'docker') {
                 const container = await containerManager.get(instance.pid);
-                await container.stop();
+                if (container) {
+                    await container.stop();
+                }
                 return;
             }
             process.kill(instance.pid, 'SIGTERM');
@@ -383,7 +397,8 @@ class InstanceManager {
                     message: e.message,
                     time: Date.now()
                 }
-            ]
+            ];
+
             await this.registerInstance(planRef, instanceId, {
                 type: 'local',
                 pid: null,
@@ -401,7 +416,12 @@ class InstanceManager {
             return this._processes[planRef][instanceId] = {
                 pid: -1,
                 type,
-                logs: () => logs
+                logs: () => logs,
+                stop: () => Promise.resolve(),
+                ref: blockRef,
+                id: instanceId,
+                name: blockInstance.name,
+                output: new EventEmitter()
             };
         }
 
@@ -427,7 +447,11 @@ class InstanceManager {
         }
 
         if (this._processes[planRef][instanceId]) {
-            await this._processes[planRef][instanceId].stop();
+            try {
+                await this._processes[planRef][instanceId].stop();
+            } catch (e) {
+                console.error('Failed to stop process for instance: %s -> %s', planRef, instanceId, e);
+            }
             delete this._processes[planRef][instanceId];
         }
     }

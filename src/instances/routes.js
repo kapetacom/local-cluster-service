@@ -100,6 +100,16 @@ router.put('/', async (req, res) => {
 
     let instance = JSON.parse(req.stringBody);
 
+    if (req.kapeta.environment === 'docker') {
+        //A bit hacky but we want to avoid overwriting the docker PID with a process PID
+        const oldInstance = instanceManager.getInstance(
+            req.kapeta.systemId,
+            req.kapeta.instanceId
+        );
+        if (oldInstance) {
+            instance.pid = oldInstance.pid;
+        }
+    }
     await instanceManager.registerInstance(
         req.kapeta.systemId,
         req.kapeta.instanceId,

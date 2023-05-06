@@ -20,7 +20,7 @@ function createServer() {
     app.use('/assets', require('./src/assets/routes'));
     app.use('/providers', require('./src/providers/routes'));
     app.use('/', (err, req, res, next) => {
-        console.error('Request failed: %s %s', req.method, req.originalUrl, err.stack);
+        console.error('Request failed: %s %s', req.method, req.originalUrl, err);
         res.status(500).send({
             ok: false,
             error: err.error ?? err.message
@@ -102,7 +102,7 @@ module.exports = {
                 reject(err);
             });
 
-            currentServer.listen(port, host, () => resolve({host,port, dockerStatus: containerManager._alive}));
+            currentServer.listen(port, host, () => resolve({host,port, dockerStatus: containerManager.isAlive()}));
             currentServer.host = host;
             currentServer.port = port;
         });

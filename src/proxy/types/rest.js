@@ -35,7 +35,7 @@ function getRestMethodId(restResource, httpMethod, httpPath) {
  * @return {{consumerMethod: *, providerMethod: *}}
  */
 function resolveMethods(req, opts) {
-    const consumerMethodId = getRestMethodId(opts.toResource, req.method, opts.consumerPath);
+    const consumerMethodId = getRestMethodId(opts.consumerResource, req.method, opts.consumerPath);
 
     if (!consumerMethodId) {
         throw new Error(
@@ -43,7 +43,7 @@ function resolveMethods(req, opts) {
         );
     }
 
-    const consumerMethod = _.cloneDeep(opts.toResource.spec.methods[consumerMethodId]);
+    const consumerMethod = _.cloneDeep(opts.consumerResource.spec.methods[consumerMethodId]);
 
     if (!consumerMethod) {
         throw new Error(
@@ -61,11 +61,11 @@ function resolveMethods(req, opts) {
         throw new Error(`Connection contained no mapping for consumer method "${consumerMethodId}`);
     }
 
-    const providerMethod = _.cloneDeep(opts.fromResource.spec.methods[providerMethodId]);
+    const providerMethod = _.cloneDeep(opts.providerResource.spec.methods[providerMethodId]);
 
     if (!providerMethod) {
         throw new Error(
-            `Provider method not found "${providerMethodId}" in resource "${opts.connection.from.blockId}::${opts.connection.from.resourceName}`
+            `Provider method not found "${providerMethodId}" in resource "${opts.connection.provider.blockId}::${opts.connection.provider.resourceName}`
         );
     }
 
@@ -106,8 +106,7 @@ module.exports = function proxyRestRequest(req, res, opts) {
     delete requestHeaders['host'];
     delete requestHeaders['origin'];
 
-
-    console.log('Route to provider: %s => %s', opts.consumerPath, opts.address + providerPath);
+    console.log('Proxy request to provider: %s => %s [rest]', opts.consumerPath, opts.address + providerPath);
 
     const reqOpts = {
         method: providerMethod.method || 'GET',
