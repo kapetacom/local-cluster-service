@@ -1,3 +1,10 @@
+# [0.2.0](https://github.com/kapetacom/local-cluster-service/compare/v0.1.2...v0.2.0) (2023-05-07)
+
+
+### Features
+
+* Add support for health checks and mounts ([cac607b](https://github.com/kapetacom/local-cluster-service/commit/cac607bc8b592e27c8b6c2ff09476f90b2e4c3f3))
+
 ## [0.1.2](https://github.com/kapetacom/local-cluster-service/compare/v0.1.1...v0.1.2) (2023-05-06)
 
 
