@@ -3,10 +3,14 @@ const path = require("path");
 const _ = require('lodash');
 const FS = require("node:fs");
 const os = require("os");
+const Path = require("path");
+const storageService = require("./storageService");
+const mkdirp = require("mkdirp");
+const {parseKapetaUri} = require("@kapeta/nodejs-utils");
 const LABEL_PORT_PREFIX = "kapeta_port-";
 
 const NANO_SECOND = 1000000;
-const HEALTH_CHECK_INTERVAL = 1000;
+const HEALTH_CHECK_INTERVAL = 2000;
 const HEALTH_CHECK_MAX = 20;
 
 const promisifyStream = (stream) =>
@@ -20,10 +24,30 @@ class ContainerManager {
     constructor() {
         this._docker = null;
         this._alive = false;
+        this._mountDir = Path.join(storageService.getKapetaBasedir(), 'mounts');
+        mkdirp.sync(this._mountDir);
     }
+    
+    
 
     isAlive() {
         return this._alive;
+    }
+
+    getMountPoint(kind, mountName) {
+        const kindUri = parseKapetaUri(kind);
+        return Path.join(this._mountDir, kindUri.handle, kindUri.name, mountName);
+    }
+    
+    createMounts(kind, mountOpts) {
+        const mounts = {};
+
+        _.forEach(mountOpts, (containerPath, mountName) => {
+            const hostPath = this.getMountPoint(kind, mountName);
+            mkdirp.sync(hostPath);
+            mounts[containerPath] = hostPath;
+        });
+        return mounts;
     }
 
     async initialize() {
@@ -94,6 +118,34 @@ class ContainerManager {
             )
             .then((stream) => promisifyStream(stream));
     }
+    
+    toDockerMounts(mounts) {
+        const Mounts = []; 
+        _.forEach(mounts, (Source, Target) => {
+            Mounts.push({
+                Target,
+                Source,
+                Type: "bind",
+                ReadOnly: false,
+                Consistency: "consistent",
+            });
+        });
+        
+        return Mounts;
+    }
+    
+    toDockerHealth(health) {
+        return {
+            Test: ["CMD-SHELL", health.cmd],
+            Interval: health.interval
+                ? health.interval * NANO_SECOND
+                : 5000 * NANO_SECOND,
+            Timeout: health.timeout
+                ? health.timeout * NANO_SECOND
+                : 15000 * NANO_SECOND,
+            Retries: health.retries || 10,
+        };
+    }
 
     /**
      *
@@ -103,7 +155,7 @@ class ContainerManager {
      * @return {Promise<ContainerInfo>}
      */
     async run(image, name, opts) {
-        const Mounts = [];
+        
         const PortBindings = {};
         const Env = [];
         const Labels = {
@@ -127,15 +179,7 @@ class ContainerManager {
             Labels[LABEL_PORT_PREFIX + portInfo.hostPort] = portInfo.type;
         });
 
-        _.forEach(opts.mounts, (Source, Target) => {
-            Mounts.push({
-                Target,
-                Source,
-                Type: "bind",
-                ReadOnly: false,
-                Consistency: "consistent",
-            });
-        });
+        const Mounts = this.toDockerMounts(opts.mounts);
 
         _.forEach(opts.env, (value, name) => {
             Env.push(name + "=" + value);
@@ -144,16 +188,7 @@ class ContainerManager {
         let HealthCheck = undefined;
 
         if (opts.health) {
-            HealthCheck = {
-                Test: ["CMD-SHELL", opts.health.cmd],
-                Interval: opts.health.interval
-                    ? opts.health.interval * NANO_SECOND
-                    : 5000 * NANO_SECOND,
-                Timeout: opts.health.timeout
-                    ? opts.health.timeout * NANO_SECOND
-                    : 15000 * NANO_SECOND,
-                Retries: opts.health.retries || 10,
-            };
+            HealthCheck = this.toDockerHealth(opts.health);
 
             console.log("Adding health check", HealthCheck);
         }
@@ -172,7 +207,7 @@ class ContainerManager {
         });
 
         if (opts.health) {
-            await this._waitForHealthy(dockerContainer);
+            await this.waitForHealthy(dockerContainer);
         }
 
         return new ContainerInfo(dockerContainer);
@@ -187,31 +222,33 @@ class ContainerManager {
     }
 
 
-    async _waitForHealthy(container, attempt) {
+    async waitForHealthy(container, attempt) {
         if (!attempt) {
             attempt = 0;
         }
 
         if (attempt >= HEALTH_CHECK_MAX) {
-            throw new Error("Operator did not become healthy within the timeout");
+            throw new Error("Container did not become healthy within the timeout");
         }
 
         if (await this._isHealthy(container)) {
-            console.log("Container became healthy");
             return;
         }
 
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             setTimeout(async () => {
-                await this._waitForHealthy(container, attempt + 1);
-                resolve();
+                try {
+                    await this.waitForHealthy(container, attempt + 1);
+                    resolve();
+                } catch (err) {
+                    reject(err);
+                }
             }, HEALTH_CHECK_INTERVAL);
         });
     }
 
     async _isHealthy(container) {
         const info = await container.status();
-
         return info?.data?.State?.Health?.Status === "healthy";
     }
 

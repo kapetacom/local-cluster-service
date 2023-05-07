@@ -9,6 +9,7 @@ const serviceManager = require("../serviceManager");
 const containerManager = require("../containerManager");
 const LogData = require("./LogData");
 const EventEmitter = require("events");
+const md5 = require('md5');
 const {execSync} = require("child_process");
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
@@ -24,10 +25,6 @@ const DOCKER_ENV_VARS = [
     `KAPETA_LOCAL_CLUSTER_HOST=host.docker.internal`,
     `KAPETA_ENVIRONMENT_TYPE=docker`,
 ]
-
-function md5(data) {
-    return require('crypto').createHash('md5').update(data).digest("hex");
-}
 
 
 class BlockInstanceRunner {
@@ -386,6 +383,8 @@ class BlockInstanceRunner {
             const ExposedPorts = {};
             const addonEnv = {};
             const PortBindings = {};
+            let HealthCheck = undefined;
+            let Mounts = [];
             const promises = Object.entries(spec.local.ports)
                 .map(async ([portType, value]) => {
                     const dockerPort = `${value.port}/${value.type}`;
@@ -402,17 +401,34 @@ class BlockInstanceRunner {
 
             await Promise.all(promises);
 
+            if (spec.local?.env) {
+                Object.entries(spec.local.env).forEach(([key, value]) => {
+                    addonEnv[key] = value;
+                });
+            }
+
+            if (spec.local?.mounts) {
+                const mounts = containerManager.createMounts(blockUri.id, spec.local.mounts);
+                Mounts = containerManager.toDockerMounts(mounts);
+            }
+
+            if (spec.local?.health) {
+                HealthCheck = containerManager.toDockerHealth(spec.local?.health);
+            }
+
             logs.addLog(`Creating new container for block: ${containerName}`);
             container = await containerManager.startContainer({
                 Image: dockerImage,
                 name: containerName,
                 ExposedPorts,
+                HealthCheck,
                 HostConfig: {
                     Binds: [
                         `${kapetaYmlPath}:/kapeta.yml:ro`,
                         `${ClusterConfig.getKapetaBasedir()}:${ClusterConfig.getKapetaBasedir()}`
                     ],
-                    PortBindings
+                    PortBindings,
+                    Mounts
                 },
                 Labels: {
                     'instance': blockInstance.id
@@ -426,6 +442,10 @@ class BlockInstanceRunner {
                     }).map(([key, value]) => `${key}=${value}`)
                 ]
             });
+
+            if (HealthCheck) {
+                await containerManager.waitForHealthy(container);
+            }
         }
 
         return this._handleContainer(container, logs, true);

@@ -144,13 +144,7 @@ class OperatorManager {
             };
         }
 
-        const mounts = {};
-
-        _.forEach(operatorData.mounts, (containerPath, mountName) => {
-            const hostPath = this._getMountPoint(resourceType, mountName);
-            mkdirp.sync(hostPath);
-            mounts[containerPath] = hostPath;
-        });
+        const mounts = containerManager.createMounts(resourceType, operatorData.mounts);
 
         const containerName = containerBaseName + '-' + md5(nameParts.join('_'));
         let container = await containerManager.get(containerName);
