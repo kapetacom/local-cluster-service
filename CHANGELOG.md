@@ -1,3 +1,10 @@
+## [0.2.1](https://github.com/kapetacom/local-cluster-service/compare/v0.2.0...v0.2.1) (2023-05-07)
+
+
+### Bug Fixes
+
+* Missing semantic ([7173501](https://github.com/kapetacom/local-cluster-service/commit/7173501faf2a15caa373ef2f89c6e718deaa06f1))
+
 # [0.2.0](https://github.com/kapetacom/local-cluster-service/compare/v0.1.2...v0.2.0) (2023-05-07)
 
 
