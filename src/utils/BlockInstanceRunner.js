@@ -114,10 +114,18 @@ class BlockInstanceRunner {
         if (provider.definition.kind === KIND_BLOCK_TYPE_OPERATOR) {
             processDetails = await this._startOperatorProcess(blockInstance, blockUri, provider, env);
         } else {
+            //We need a port type to know how to connect to the block consistently
+            const portTypes = definition.definition?.spec?.providers.map(provider => {
+                return provider.spec?.port?.type
+            }).filter(t => !!t) ?? [];
             if (blockUri.version === 'local') {
                 processDetails = await this._startLocalProcess(blockInstance, blockUri, env);
             } else {
                 processDetails = await this._startDockerProcess(blockInstance, blockUri, env);
+            }
+
+            if (portTypes.length > 0) {
+                processDetails.portType = portTypes[0];
             }
         }
 
@@ -448,7 +456,13 @@ class BlockInstanceRunner {
             }
         }
 
-        return this._handleContainer(container, logs, true);
+        const out = await this._handleContainer(container, logs, true);
+        const portTypes = spec.local.ports ? Object.keys(spec.local.ports) : [];
+        if (portTypes.length > 0) {
+            out.portType = portTypes[0];
+        }
+
+        return out;
     }
 }
 

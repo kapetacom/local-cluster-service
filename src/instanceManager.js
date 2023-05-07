@@ -193,6 +193,7 @@ class InstanceManager {
         if (instance) {
             instance.status = STATUS_STARTING;
             instance.pid = info.pid;
+            instance.address = address;
             if (info.type) {
                 instance.type = info.type;
             }
@@ -207,7 +208,8 @@ class InstanceManager {
                 status: STATUS_STARTING,
                 pid: info.pid,
                 type: info.type,
-                health: healthUrl
+                health: healthUrl,
+                address
             };
 
             this._instances.push(instance);
@@ -385,7 +387,8 @@ class InstanceManager {
             await this.registerInstance(planRef, instanceId, {
                 type: process.type,
                 pid: process.pid,
-                health: null
+                health: null,
+                portType: process.portType,
             });
 
             return this._processes[planRef][instanceId] = process;
@@ -402,7 +405,8 @@ class InstanceManager {
             await this.registerInstance(planRef, instanceId, {
                 type: 'local',
                 pid: null,
-                health: null
+                health: null,
+                portType: DEFAULT_HEALTH_PORT_TYPE,
             });
 
             this._emit(instanceId, EVENT_INSTANCE_LOG, logs[0]);
