@@ -1,3 +1,10 @@
+# [0.3.0](https://github.com/kapetacom/local-cluster-service/compare/v0.2.1...v0.3.0) (2023-05-08)
+
+
+### Features
+
+* load docker config from clusterConfig if available [KAP-609] ([1ced2c1](https://github.com/kapetacom/local-cluster-service/commit/1ced2c1ed2f72bf3331e558ee2c685385c89ab1f))
+
 ## [0.2.1](https://github.com/kapetacom/local-cluster-service/compare/v0.2.0...v0.2.1) (2023-05-07)
 
 
