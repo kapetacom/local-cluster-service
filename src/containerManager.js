@@ -1,13 +1,15 @@
-const {Docker} = require("node-docker-api");
-const path = require("path");
+const { Docker } = require('node-docker-api');
+const path = require('path');
 const _ = require('lodash');
-const FS = require("node:fs");
-const os = require("os");
-const Path = require("path");
-const storageService = require("./storageService");
-const mkdirp = require("mkdirp");
-const {parseKapetaUri} = require("@kapeta/nodejs-utils");
-const LABEL_PORT_PREFIX = "kapeta_port-";
+const os = require('os');
+const Path = require('path');
+const storageService = require('./storageService');
+const mkdirp = require('mkdirp');
+const { parseKapetaUri } = require('@kapeta/nodejs-utils');
+
+const ClusterConfiguration = require('@kapeta/local-cluster-config');
+
+const LABEL_PORT_PREFIX = 'kapeta_port-';
 
 const NANO_SECOND = 1000000;
 const HEALTH_CHECK_INTERVAL = 2000;
@@ -15,9 +17,9 @@ const HEALTH_CHECK_MAX = 20;
 
 const promisifyStream = (stream) =>
     new Promise((resolve, reject) => {
-        stream.on("data", (d) => console.log(d.toString()));
-        stream.on("end", resolve);
-        stream.on("error", reject);
+        stream.on('data', (d) => console.log(d.toString()));
+        stream.on('end', resolve);
+        stream.on('error', reject);
     });
 
 class ContainerManager {
@@ -27,42 +29,29 @@ class ContainerManager {
         this._mountDir = Path.join(storageService.getKapetaBasedir(), 'mounts');
         mkdirp.sync(this._mountDir);
     }
-    
-    
-
-    isAlive() {
-        return this._alive;
-    }
-
-    getMountPoint(kind, mountName) {
-        const kindUri = parseKapetaUri(kind);
-        return Path.join(this._mountDir, kindUri.handle, kindUri.name, mountName);
-    }
-    
-    createMounts(kind, mountOpts) {
-        const mounts = {};
-
-        _.forEach(mountOpts, (containerPath, mountName) => {
-            const hostPath = this.getMountPoint(kind, mountName);
-            mkdirp.sync(hostPath);
-            mounts[containerPath] = hostPath;
-        });
-        return mounts;
-    }
 
     async initialize() {
-        // try
-        const connectOptions = [
-            // use defaults: DOCKER_HOST etc from env, if available
-            undefined,
-            // default linux
-            {socketPath: "/var/run/docker.sock"},
-            // default macOS
-            {socketPath: path.join(os.homedir(), ".docker/run/docker.sock")},
-            // Default http
-            {protocol: "http", host: "localhost", port: 2375},
-            {protocol: "https", host: "localhost", port: 2376},
-        ];
+        // Use the value from cluster-service.yml if configured
+        const dockerConfig = ClusterConfiguration.getDockerConfig();
+        const connectOptions =
+            Object.keys(dockerConfig).length > 0
+                ? [dockerConfig]
+                : [
+                      // use defaults: DOCKER_HOST etc from env, if available
+                      undefined,
+                      // default linux
+                      { socketPath: '/var/run/docker.sock' },
+                      // default macOS
+                      {
+                          socketPath: path.join(
+                              os.homedir(),
+                              '.docker/run/docker.sock'
+                          ),
+                      },
+                      // Default http
+                      { protocol: 'http', host: 'localhost', port: 2375 },
+                      { protocol: 'https', host: 'localhost', port: 2376 },
+                  ];
         for (const opts of connectOptions) {
             try {
                 const client = new Docker(opts);
@@ -74,18 +63,43 @@ class ContainerManager {
                 // silently ignore bad configs
             }
         }
-        throw new Error("Unable to connect to docker");
+    }
+
+    isAlive() {
+        return this._alive;
+    }
+
+    getMountPoint(kind, mountName) {
+        const kindUri = parseKapetaUri(kind);
+        return Path.join(
+            this._mountDir,
+            kindUri.handle,
+            kindUri.name,
+            mountName
+        );
+    }
+
+    createMounts(kind, mountOpts) {
+        const mounts = {};
+
+        _.forEach(mountOpts, (containerPath, mountName) => {
+            const hostPath = this.getMountPoint(kind, mountName);
+            mkdirp.sync(hostPath);
+            mounts[containerPath] = hostPath;
+        });
+        return mounts;
     }
 
     async ping() {
-
         try {
             const pingResult = await this.docker().ping();
             if (pingResult !== 'OK') {
                 throw new Error(`Ping failed: ${pingResult}`);
             }
         } catch (e) {
-            throw new Error(`Docker not running. Please start the docker daemon before running this command. Error: ${e.message}`);
+            throw new Error(
+                `Docker not running. Please start the docker daemon before running this command. Error: ${e.message}`
+            );
         }
     }
     docker() {
@@ -96,8 +110,8 @@ class ContainerManager {
     }
 
     async getContainerByName(containerName) {
-        const containers = await this.docker().container.list({all: true});
-        return containers.find(container => {
+        const containers = await this.docker().container.list({ all: true });
+        return containers.find((container) => {
             return container.data.Names.indexOf(`/${containerName}`) > -1;
         });
     }
@@ -108,8 +122,8 @@ class ContainerManager {
             tag = 'latest';
         }
 
-        await this.docker().image
-            .create(
+        await this.docker()
+            .image.create(
                 {},
                 {
                     fromImage: imageName,
@@ -118,25 +132,25 @@ class ContainerManager {
             )
             .then((stream) => promisifyStream(stream));
     }
-    
+
     toDockerMounts(mounts) {
-        const Mounts = []; 
+        const Mounts = [];
         _.forEach(mounts, (Source, Target) => {
             Mounts.push({
                 Target,
                 Source,
-                Type: "bind",
+                Type: 'bind',
                 ReadOnly: false,
-                Consistency: "consistent",
+                Consistency: 'consistent',
             });
         });
-        
+
         return Mounts;
     }
-    
+
     toDockerHealth(health) {
         return {
-            Test: ["CMD-SHELL", health.cmd],
+            Test: ['CMD-SHELL', health.cmd],
             Interval: health.interval
                 ? health.interval * NANO_SECOND
                 : 5000 * NANO_SECOND,
@@ -155,25 +169,24 @@ class ContainerManager {
      * @return {Promise<ContainerInfo>}
      */
     async run(image, name, opts) {
-        
         const PortBindings = {};
         const Env = [];
         const Labels = {
-            kapeta: "true",
+            kapeta: 'true',
         };
 
-        console.log("Pulling image: %s", image);
+        console.log('Pulling image: %s', image);
 
         await this.pull(image);
 
-        console.log("Image pulled: %s", image);
+        console.log('Image pulled: %s', image);
 
         _.forEach(opts.ports, (portInfo, containerPort) => {
             PortBindings['' + containerPort] = [
                 {
                     HostPort: '' + portInfo.hostPort,
-                    HostIp: '127.0.0.1'
-                }
+                    HostIp: '127.0.0.1',
+                },
             ];
 
             Labels[LABEL_PORT_PREFIX + portInfo.hostPort] = portInfo.type;
@@ -182,7 +195,7 @@ class ContainerManager {
         const Mounts = this.toDockerMounts(opts.mounts);
 
         _.forEach(opts.env, (value, name) => {
-            Env.push(name + "=" + value);
+            Env.push(name + '=' + value);
         });
 
         let HealthCheck = undefined;
@@ -190,9 +203,8 @@ class ContainerManager {
         if (opts.health) {
             HealthCheck = this.toDockerHealth(opts.health);
 
-            console.log("Adding health check", HealthCheck);
+            console.log('Adding health check', HealthCheck);
         }
-
 
         const dockerContainer = await this.startContainer({
             name: name,
@@ -202,8 +214,8 @@ class ContainerManager {
             HealthCheck,
             HostConfig: {
                 PortBindings,
-                Mounts
-            }
+                Mounts,
+            },
         });
 
         if (opts.health) {
@@ -221,14 +233,15 @@ class ContainerManager {
         return dockerContainer;
     }
 
-
     async waitForHealthy(container, attempt) {
         if (!attempt) {
             attempt = 0;
         }
 
         if (attempt >= HEALTH_CHECK_MAX) {
-            throw new Error("Container did not become healthy within the timeout");
+            throw new Error(
+                'Container did not become healthy within the timeout'
+            );
         }
 
         if (await this._isHealthy(container)) {
@@ -249,7 +262,7 @@ class ContainerManager {
 
     async _isHealthy(container) {
         const info = await container.status();
-        return info?.data?.State?.Health?.Status === "healthy";
+        return info?.data?.State?.Health?.Status === 'healthy';
     }
 
     /**
@@ -265,7 +278,7 @@ class ContainerManager {
             await dockerContainer.status();
         } catch (err) {
             //Ignore
-            console.log("Container not available - creating it: %s", name);
+            console.log('Container not available - creating it: %s', name);
             dockerContainer = null;
         }
 
@@ -314,7 +327,7 @@ class ContainerInfo {
     }
 
     async remove(opts) {
-        await this._container.delete({force: !!opts.force});
+        await this._container.delete({ force: !!opts.force });
     }
 
     async getPort(type) {

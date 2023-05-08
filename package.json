@@ -22,7 +22,7 @@
   "homepage": "https://github.com/kapetacom/local-cluster-service#readme",
   "dependencies": {
     "@kapeta/codegen": "<2",
-    "@kapeta/local-cluster-config": "<2",
+    "@kapeta/local-cluster-config": ">= 0.1.0 <2",
     "@kapeta/nodejs-api-client": "<2",
     "@kapeta/nodejs-registry-utils": "<2",
     "@kapeta/nodejs-utils": "<2",
@@ -43,6 +43,10 @@
   },
   "devDependencies": {
     "nodemon": "^2.0.2"
+  },
+  "prettier": {
+    "tabWidth": 4,
+    "singleQuote": true
   },
   "release": {
     "plugins": [
