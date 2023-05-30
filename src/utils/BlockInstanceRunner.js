@@ -86,16 +86,16 @@ class BlockInstanceRunner {
             blockUri.version = 'local';
         }
 
-        const definition = ClusterConfig.getDefinitions().find(definitions => {
+        const assetVersion = ClusterConfig.getDefinitions().find(definitions => {
             const ref = `${definitions.definition.metadata.name}:${definitions.version}`
             return parseKapetaUri(ref).id === blockUri.id;
         });
 
-        if (!definition) {
+        if (!assetVersion) {
             throw new Error(`Block definition not found: ${blockUri.id}`);
         }
 
-        const kindUri = parseKapetaUri(definition.definition.kind);
+        const kindUri = parseKapetaUri(assetVersion.definition.kind);
 
         const provider = ClusterConfig.getProviderDefinitions().find(provider => {
             const ref = `${provider.definition.metadata.name}:${provider.version}`
@@ -115,11 +115,11 @@ class BlockInstanceRunner {
             processDetails = await this._startOperatorProcess(blockInstance, blockUri, provider, env);
         } else {
             //We need a port type to know how to connect to the block consistently
-            const portTypes = definition.definition?.spec?.providers.map(provider => {
+            const portTypes = assetVersion.definition?.spec?.providers.map(provider => {
                 return provider.spec?.port?.type
             }).filter(t => !!t) ?? [];
             if (blockUri.version === 'local') {
-                processDetails = await this._startLocalProcess(blockInstance, blockUri, env);
+                processDetails = await this._startLocalProcess(blockInstance, blockUri, env, assetVersion.definition);
             } else {
                 processDetails = await this._startDockerProcess(blockInstance, blockUri, env);
             }
@@ -144,7 +144,7 @@ class BlockInstanceRunner {
      * @return {ProcessDetails}
      * @private
      */
-    _startLocalProcess(blockInstance, blockInfo, env) {
+    _startLocalProcess(blockInstance, blockInfo, env, definition) {
         const baseDir = ClusterConfig.getRepositoryAssetPath(
             blockInfo.handle,
             blockInfo.name,
