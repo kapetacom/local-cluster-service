@@ -27,6 +27,19 @@ const DOCKER_ENV_VARS = [
 ]
 
 
+function getProvider(uri) {
+    return ClusterConfig.getProviderDefinitions().find(provider => {
+        const ref = `${provider.definition.metadata.name}:${provider.version}`
+        return parseKapetaUri(ref).id === uri.id;
+    });
+}
+
+function getProviderPorts(assetVersion) {
+    return assetVersion.definition?.spec?.providers.map(provider => {
+        return provider.spec?.port?.type
+    }).filter(t => !!t) ?? [];
+}
+
 class BlockInstanceRunner {
     /**
      * @param {string} [planReference]
@@ -66,7 +79,7 @@ class BlockInstanceRunner {
      * @private
      */
     async _execute(blockInstance) {
-        const env = Object.assign({}, process.env);
+        const env = {};
 
         if (this._systemId) {
             env[KAPETA_SYSTEM_ID] = this._systemId;
@@ -97,12 +110,9 @@ class BlockInstanceRunner {
 
         const kindUri = parseKapetaUri(assetVersion.definition.kind);
 
-        const provider = ClusterConfig.getProviderDefinitions().find(provider => {
-            const ref = `${provider.definition.metadata.name}:${provider.version}`
-            return parseKapetaUri(ref).id === kindUri.id;
-        });
+        const providerVersion = getProvider(kindUri);
 
-        if (!provider) {
+        if (!providerVersion) {
             throw new Error(`Kind not found: ${kindUri.id}`);
         }
 
@@ -111,15 +121,14 @@ class BlockInstanceRunner {
          */
         let processDetails;
 
-        if (provider.definition.kind === KIND_BLOCK_TYPE_OPERATOR) {
-            processDetails = await this._startOperatorProcess(blockInstance, blockUri, provider, env);
+        if (providerVersion.definition.kind === KIND_BLOCK_TYPE_OPERATOR) {
+            processDetails = await this._startOperatorProcess(blockInstance, blockUri, providerVersion, env);
         } else {
             //We need a port type to know how to connect to the block consistently
-            const portTypes = assetVersion.definition?.spec?.providers.map(provider => {
-                return provider.spec?.port?.type
-            }).filter(t => !!t) ?? [];
+            const portTypes = getProviderPorts(assetVersion);
+
             if (blockUri.version === 'local') {
-                processDetails = await this._startLocalProcess(blockInstance, blockUri, env, assetVersion.definition);
+                processDetails = await this._startLocalProcess(blockInstance, blockUri, env, assetVersion);
             } else {
                 processDetails = await this._startDockerProcess(blockInstance, blockUri, env);
             }
@@ -141,10 +150,11 @@ class BlockInstanceRunner {
      * @param {BlockInstanceInfo} blockInstance
      * @param {BlockInfo} blockInfo
      * @param {EnvironmentVariables} env
+     * @param assetVersion
      * @return {ProcessDetails}
      * @private
      */
-    _startLocalProcess(blockInstance, blockInfo, env, definition) {
+    async _startLocalProcess(blockInstance, blockInfo, env, assetVersion) {
         const baseDir = ClusterConfig.getRepositoryAssetPath(
             blockInfo.handle,
             blockInfo.name,
@@ -158,61 +168,125 @@ class BlockInstanceRunner {
             );
         }
 
-        const startScript = Path.resolve(baseDir, 'scripts/start.sh');
-        if (!FS.existsSync(startScript)) {
-            throw new Error(
-                `Start script did not exist for local block.\n` +
-                `Expected runnable start script here: ${startScript}`
-            )
+        const kindUri = parseKapetaUri(assetVersion.definition.spec.target.kind);
+
+        const targetVersion = getProvider(kindUri);
+
+        if (!targetVersion) {
+            throw new Error(`Target not found: ${kindUri.id}`);
         }
 
+        const localContainer = targetVersion.definition.spec.local;
+
+        if (!localContainer) {
+            throw new Error(`Missing local container information from target: ${kindUri.id}`);
+        }
+
+        const dockerImage = localContainer.image;
+        if (!dockerImage) {
+            throw new Error(`Missing docker image information: ${JSON.stringify(localContainer)}`);
+        }
+
+        const containerName = `kapeta-block-instance-${blockInstance.id}`;
         const logs = new LogData();
-        const childProcess = spawn(startScript, [], {
-            cwd: baseDir,
-            env,
-            detached: true,
-            stdio: [
-                'pipe', 'pipe', 'pipe'
-            ]
-        });
+        logs.addLog(`Starting block ${blockInstance.ref}`);
+        let container = await containerManager.getContainerByName(containerName);
+        console.log('Starting dev container', containerName);
 
-        logs.addLog(`Starting block ${blockInstance.ref} using script ${startScript}`);
-        const outputEvents = new EventEmitter();
-        /**
-         *
-         * @type {ProcessDetails}
-         */
-        const out = {
-            type: 'local',
-            pid: childProcess.pid,
-            output: outputEvents,
-            stderr: childProcess.stderr,
-            logs: () => {
-                return logs.getLogs();
-            },
-            stop: () => {
-                childProcess.kill('SIGTERM');
+        if (container) {
+            console.log(`Container already exists. Deleting...`);
+            try {
+                await container.delete({
+                    force: true
+                })
+            } catch (e) {
+                throw new Error('Failed to delete existing container: ' + e.message);
             }
-        };
+            container = null;
+        }
 
-        childProcess.stdout.on('data', (data) => {
-            logs.addLog(data.toString());
-            outputEvents.emit('data', data);
+        logs.addLog(`Creating new container for block: ${containerName}`);
+        console.log('Creating new dev container', containerName, dockerImage);
+        await containerManager.pull(dockerImage);
+
+        const startCmd = localContainer.handlers?.onCreate ? localContainer.handlers.onCreate : '';
+        const dockerOpts = localContainer.options ?? {};
+        const homeDir = localContainer.homeDir ? localContainer.homeDir : '/root';
+        const workingDir = localContainer.workingDir ? localContainer.workingDir : '/workspace';
+
+        const ExposedPorts = {};
+        const addonEnv = {};
+        const PortBindings = {};
+
+        const portTypes = getProviderPorts(assetVersion);
+        let port = 80;
+        const promises = portTypes
+            .map(async (portType) => {
+                const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
+                const thisPort = port++; //TODO: Not sure how we should handle multiple ports or non-HTTP ports
+                const dockerPort = `${thisPort}/tcp`;
+                ExposedPorts[dockerPort] = {};
+                addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = thisPort;
+
+                PortBindings[dockerPort] = [
+                    {
+                        HostIp: "127.0.0.1", //No public
+                        HostPort: `${publicPort}`
+                    }
+                ];
+            });
+
+        await Promise.all(promises);
+
+        let HealthCheck = undefined;
+        if (localContainer.healthcheck) {
+            HealthCheck = containerManager.toDockerHealth({cmd: localContainer.healthcheck});
+        }
+
+        container = await containerManager.startContainer({
+            Image: dockerImage,
+            name: containerName,
+            WorkingDir: workingDir,
+            Labels: {
+                'instance': blockInstance.id
+            },
+            HealthCheck,
+            ExposedPorts,
+            Cmd: startCmd ? startCmd.split(/\s+/g) : [],
+            Env: [
+                ...DOCKER_ENV_VARS,
+                ...Object.entries({
+                    ...env,
+                    ...addonEnv
+                }).map(([key, value]) => `${key}=${value}`)
+            ],
+            HostConfig: {
+                Binds: [
+                    `${ClusterConfig.getKapetaBasedir()}:${homeDir}/.kapeta`,
+                    `${baseDir}:${workingDir}` //We mount
+                ],
+                PortBindings
+            },
+            ...dockerOpts
         });
 
-        childProcess.stderr.on('data', (data) => {
-            logs.addLog(data.toString());
-            outputEvents.emit('data', data);
-        });
+        if (HealthCheck) {
+            await containerManager.waitForHealthy(container);
+        } else {
+            await containerManager.waitForReady(container);
+        }
 
-        childProcess.on('exit', (code) => {
-            logs.addLog(`Block ${blockInstance.ref} exited with code: ${code}`);
-            outputEvents.emit('exit', code);
-        });
-
-        return out;
+        return this._handleContainer(container, logs);
     }
 
+    /**
+     *
+     * @param container
+     * @param logs
+     * @param deleteOnExit
+     * @return {Promise<ProcessDetails>}
+     * @private
+     */
     async _handleContainer(container, logs , deleteOnExit = false) {
         const logStream = await container.logs({
             follow: true,
@@ -315,22 +389,36 @@ class BlockInstanceRunner {
             container = await containerManager.startContainer({
                 Image: dockerImage,
                 name: containerName,
-                Binds: [
-                    `${ClusterConfig.getKapetaBasedir()}:${ClusterConfig.getKapetaBasedir()}`
-                ],
                 Labels: {
                     'instance': blockInstance.id
                 },
                 Env: [
                     ...DOCKER_ENV_VARS,
                     ...Object.entries(env).map(([key, value]) => `${key}=${value}`)
-                ]
+                ],
+                HostConfig: {
+                    Binds: [
+                        `${ClusterConfig.getKapetaBasedir()}:${ClusterConfig.getKapetaBasedir()}`
+                    ],
+
+                }
             });
+
+            await containerManager.waitForReady(container);
         }
 
         return this._handleContainer(container, logs);
     }
 
+    /**
+     *
+     * @param blockInstance
+     * @param blockUri
+     * @param providerDefinition
+     * @param {{[key:string]:string}} env
+     * @return {Promise<ProcessDetails>}
+     * @private
+     */
     async _startOperatorProcess(blockInstance, blockUri, providerDefinition, env) {
         const {assetFile} = ClusterConfig.getRepositoryAssetInfoPath(
             blockUri.handle,
@@ -453,6 +541,8 @@ class BlockInstanceRunner {
 
             if (HealthCheck) {
                 await containerManager.waitForHealthy(container);
+            } else {
+                await containerManager.waitForReady(container);
             }
         }
 
