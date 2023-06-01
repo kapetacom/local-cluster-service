@@ -1,6 +1,6 @@
 {
   "name": "@kapeta/local-cluster-service",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Manages configuration, ports and service discovery for locally running Kapeta systems",
   "main": "index.js",
   "repository": {

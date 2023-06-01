@@ -1,3 +1,10 @@
+# [0.4.0](https://github.com/kapetacom/local-cluster-service/compare/v0.3.0...v0.4.0) (2023-06-01)
+
+
+### Features
+
+* Change to always run local code in docker container ([#25](https://github.com/kapetacom/local-cluster-service/issues/25)) ([6e4021e](https://github.com/kapetacom/local-cluster-service/commit/6e4021e67968467555f1043f2972fc7a877aa3b7))
+
 # [0.3.0](https://github.com/kapetacom/local-cluster-service/compare/v0.2.1...v0.3.0) (2023-05-08)
 
 
