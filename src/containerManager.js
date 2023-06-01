@@ -227,10 +227,35 @@ class ContainerManager {
 
     async startContainer(opts) {
         const dockerContainer = await this.docker().container.create(opts);
-
         await dockerContainer.start();
-
         return dockerContainer;
+    }
+
+    async waitForReady(container, attempt) {
+        if (!attempt) {
+            attempt = 0;
+        }
+
+        if (attempt >= HEALTH_CHECK_MAX) {
+            throw new Error(
+                'Container did not become ready within the timeout'
+            );
+        }
+
+        if (await this._isReady(container)) {
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            setTimeout(async () => {
+                try {
+                    await this.waitForReady(container, attempt + 1);
+                    resolve();
+                } catch (err) {
+                    reject(err);
+                }
+            }, HEALTH_CHECK_INTERVAL);
+        });
     }
 
     async waitForHealthy(container, attempt) {
@@ -260,6 +285,13 @@ class ContainerManager {
         });
     }
 
+    async _isReady(container) {
+        const info = await container.status();
+        if (info?.data?.State?.Status === 'exited') {
+            throw new Error('Container exited unexpectedly');
+        }
+        return info?.data?.State?.Running;
+    }
     async _isHealthy(container) {
         const info = await container.status();
         return info?.data?.State?.Health?.Status === 'healthy';
@@ -278,7 +310,6 @@ class ContainerManager {
             await dockerContainer.status();
         } catch (err) {
             //Ignore
-            console.log('Container not available - creating it: %s', name);
             dockerContainer = null;
         }
 

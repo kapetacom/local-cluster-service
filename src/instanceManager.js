@@ -393,6 +393,7 @@ class InstanceManager {
 
             return this._processes[planRef][instanceId] = process;
         } catch (e) {
+            console.warn('Failed to start instance', e);
             const logs = [
                 {
                     source: "stdout",

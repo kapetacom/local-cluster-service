@@ -92,7 +92,7 @@ class ConfigManager {
                 throw new Error(`No uses of block "${blockRef}" was found in plan: "${systemId}"`)
             }
 
-            throw new Error(`No uses of block "${blockRef}" was found any known plan`);
+            throw new Error(`No uses of block "${blockRef}" was found in any known plan`);
         }
 
         if (matchingIdentities.length > 1) {

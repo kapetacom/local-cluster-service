@@ -99,9 +99,7 @@ router.get('/identity', async (req, res) => {
 
         res.send(identity);
     } catch(err) {
-        console.log(err);
-        
-        res.send({error: err.message});
+        res.status(400).send({error: err.message});
     }
 });
 
