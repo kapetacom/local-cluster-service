@@ -180,8 +180,9 @@ class RepositoryManager {
             return;
         }
 
+        let assetVersion;
         try {
-            const assetVersion = await this._registryService.getVersion(fullName, version);
+            assetVersion = await this._registryService.getVersion(fullName, version);
             if (!assetVersion) {
                 this._cache[ref] = false;
                 return;
