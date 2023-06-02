@@ -211,7 +211,7 @@ class BlockInstanceRunner {
 
         const startCmd = localContainer.handlers?.onCreate ? localContainer.handlers.onCreate : '';
         const dockerOpts = localContainer.options ?? {};
-        const homeDir = localContainer.homeDir ? localContainer.homeDir : '/root';
+        const homeDir = localContainer.userHome ? localContainer.userHome : '/root';
         const workingDir = localContainer.workingDir ? localContainer.workingDir : '/workspace';
 
         const ExposedPorts = {};
