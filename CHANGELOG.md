@@ -1,3 +1,10 @@
+## [0.4.1](https://github.com/kapetacom/local-cluster-service/compare/v0.4.0...v0.4.1) (2023-06-02)
+
+
+### Bug Fixes
+
+* Variable reference was invalid ([#26](https://github.com/kapetacom/local-cluster-service/issues/26)) ([28ebb9b](https://github.com/kapetacom/local-cluster-service/commit/28ebb9b3c4d4099978fc1b5b4ca9cebfd148a941))
+
 # [0.4.0](https://github.com/kapetacom/local-cluster-service/compare/v0.3.0...v0.4.0) (2023-06-01)
 
 
