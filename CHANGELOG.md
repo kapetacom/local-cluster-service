@@ -1,3 +1,10 @@
+# [0.5.0](https://github.com/kapetacom/local-cluster-service/compare/v0.4.1...v0.5.0) (2023-06-02)
+
+
+### Features
+
+* Bump deps to fix features ([d272d50](https://github.com/kapetacom/local-cluster-service/commit/d272d50e99efe6f0fc416266587a35e81aa474d1))
+
 ## [0.4.1](https://github.com/kapetacom/local-cluster-service/compare/v0.4.0...v0.4.1) (2023-06-02)
 
 
