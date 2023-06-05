@@ -253,21 +253,23 @@ class InstanceManager {
             return [];
         }
 
-        let processes = [];
+        let promises = [];
         let errors = [];
         for(let blockInstance of Object.values(plan.spec.blocks)) {
             try {
-                processes.push(await this.createProcess(planRef, blockInstance.id));
+                promises.push(this.createProcess(planRef, blockInstance.id));
             } catch (e) {
                 errors.push(e);
             }
         }
 
+        const settled = await Promise.allSettled(promises);
+
         if (errors.length > 0) {
             throw errors[0];
         }
 
-        return processes;
+        return settled.map(p => p.value);
     }
 
     async _stopInstance(instance) {
@@ -283,7 +285,11 @@ class InstanceManager {
             if (instance.type === 'docker') {
                 const container = await containerManager.get(instance.pid);
                 if (container) {
-                    await container.stop();
+                    try {
+                        await container.stop();
+                    } catch (e) {
+                        console.error('Failed to stop container', e);
+                    }
                 }
                 return;
             }
@@ -294,10 +300,15 @@ class InstanceManager {
     }
 
     async stopAllForPlan(planRef) {
+
         if (this._processes[planRef]) {
+            const promises = [];
+            console.log('Stopping all processes for plan', planRef);
             for(let instance of Object.values(this._processes[planRef])) {
-                await instance.stop();
+                promises.push(instance.stop());
             }
+
+            await Promise.all(promises);
 
             this._processes[planRef] = {};
         }
@@ -306,9 +317,12 @@ class InstanceManager {
         const instancesForPlan = this._instances
             .filter(instance => instance.systemId === planRef);
 
+        const promises = [];
         for(let instance of instancesForPlan) {
-            await this._stopInstance(instance);
+            promises.push(this._stopInstance(instance));
         }
+
+        await Promise.all(promises);
     }
 
     /**
