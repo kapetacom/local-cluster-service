@@ -218,8 +218,6 @@ class ContainerManager {
 
         if (opts.health) {
             HealthCheck = this.toDockerHealth(opts.health);
-
-            console.log('Adding health check', HealthCheck);
         }
 
         const dockerContainer = await this.startContainer({
