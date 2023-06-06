@@ -13,7 +13,7 @@ const LABEL_PORT_PREFIX = 'kapeta_port-';
 
 const NANO_SECOND = 1000000;
 const HEALTH_CHECK_INTERVAL = 2000;
-const HEALTH_CHECK_MAX = 20;
+const HEALTH_CHECK_MAX = 30;
 const IMAGE_PULL_CACHE_TTL = 30 * 60 * 1000;
 const IMAGE_PULL_CACHE = {};
 
@@ -347,6 +347,10 @@ class ContainerInfo {
          * @private
          */
         this._container = dockerContainer;
+    }
+
+    get native() {
+        return this._container;
     }
 
     async isRunning() {

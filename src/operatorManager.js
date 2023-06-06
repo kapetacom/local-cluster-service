@@ -71,7 +71,7 @@ class OperatorManager {
      * @param {string} name
      * @returns {Promise<{host: string, port: (*|string), type: *, protocol: *, credentials: *}>}
      */
-    async getResourceInfo(systemId, fromServiceId, resourceType, portType, name) {
+    async getResourceInfo(systemId, fromServiceId, resourceType, portType, name, environment) {
 
         const operator = this.getOperator(resourceType);
 
@@ -88,7 +88,7 @@ class OperatorManager {
         const dbName = name + '_' + fromServiceId.replace(/[^a-z0-9]/gi, '');
 
         return {
-            host: 'localhost',
+            host: environment === 'docker' ? 'host.docker.internal' : 'localhost',
             port: portInfo.hostPort,
             type: portType,
             protocol: portInfo.protocol,
@@ -165,6 +165,16 @@ class OperatorManager {
                     health: operatorData.health,
                     env: operatorData.env
                 });
+        }
+
+        try {
+            if (operatorData.health) {
+                await containerManager.waitForHealthy(container.native);
+            } else {
+                await containerManager.waitForReady(container.native);
+            }
+        } catch (e) {
+            console.error(e.message);
         }
 
         return container;
