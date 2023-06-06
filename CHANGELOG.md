@@ -1,3 +1,10 @@
+## [0.5.1](https://github.com/kapetacom/local-cluster-service/compare/v0.5.0...v0.5.1) (2023-06-06)
+
+
+### Bug Fixes
+
+* Improve starting and stopping local instances ([#27](https://github.com/kapetacom/local-cluster-service/issues/27)) ([83ff53a](https://github.com/kapetacom/local-cluster-service/commit/83ff53a31e98aa8984ff6a9a1e80ddb94653ce18))
+
 # [0.5.0](https://github.com/kapetacom/local-cluster-service/compare/v0.4.1...v0.5.0) (2023-06-02)
 
 
