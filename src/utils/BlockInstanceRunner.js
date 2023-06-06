@@ -274,10 +274,14 @@ class BlockInstanceRunner {
             ...dockerOpts
         });
 
-        if (HealthCheck) {
-            await containerManager.waitForHealthy(container);
-        } else {
-            await containerManager.waitForReady(container);
+        try {
+            if (HealthCheck) {
+                await containerManager.waitForHealthy(container);
+            } else {
+                await containerManager.waitForReady(container);
+            }
+        } catch (e) {
+            logs.addLog(e.message, 'ERROR');
         }
 
         return this._handleContainer(container, logs);
@@ -408,7 +412,11 @@ class BlockInstanceRunner {
                 }
             });
 
-            await containerManager.waitForReady(container);
+            try {
+                await containerManager.waitForReady(container);
+            } catch (e) {
+                logs.addLog(e.message, 'ERROR');
+            }
         }
 
         return this._handleContainer(container, logs);
@@ -543,10 +551,14 @@ class BlockInstanceRunner {
                 ]
             });
 
-            if (HealthCheck) {
-                await containerManager.waitForHealthy(container);
-            } else {
-                await containerManager.waitForReady(container);
+            try {
+                if (HealthCheck) {
+                    await containerManager.waitForHealthy(container);
+                } else {
+                    await containerManager.waitForReady(container);
+                }
+            } catch (e) {
+                logs.addLog(e.message, 'ERROR');
             }
         }
 

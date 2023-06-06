@@ -134,7 +134,8 @@ router.get('/consumes/resource/:resourceType/:portType/:name', async (req, res) 
         req.kapeta.instanceId,
         req.params.resourceType,
         req.params.portType,
-        req.params.name
+        req.params.name,
+        req.kapeta.environment
     );
 
     res.send(operatorInfo);
