@@ -35,7 +35,7 @@ function getProvider(uri) {
 }
 
 function getProviderPorts(assetVersion) {
-    return assetVersion.definition?.spec?.providers.map(provider => {
+    return assetVersion.definition?.spec?.providers?.map(provider => {
         return provider.spec?.port?.type
     }).filter(t => !!t) ?? [];
 }
@@ -168,7 +168,11 @@ class BlockInstanceRunner {
             );
         }
 
-        const kindUri = parseKapetaUri(assetVersion.definition.spec.target.kind);
+        if (!assetVersion.definition.spec?.target?.kind) {
+            throw new Error('Missing target kind in block definition');
+        }
+
+        const kindUri = parseKapetaUri(assetVersion.definition.spec?.target?.kind);
 
         const targetVersion = getProvider(kindUri);
 

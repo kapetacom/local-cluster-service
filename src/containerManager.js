@@ -14,6 +14,9 @@ const LABEL_PORT_PREFIX = 'kapeta_port-';
 const NANO_SECOND = 1000000;
 const HEALTH_CHECK_INTERVAL = 2000;
 const HEALTH_CHECK_MAX = 20;
+const IMAGE_PULL_CACHE_TTL = 30 * 60 * 1000;
+const IMAGE_PULL_CACHE = {};
+
 
 const promisifyStream = (stream) =>
     new Promise((resolve, reject) => {
@@ -63,6 +66,8 @@ class ContainerManager {
                 // silently ignore bad configs
             }
         }
+
+        throw new Error('Could not connect to docker daemon. Please make sure docker is running and working.');
     }
 
     isAlive() {
@@ -116,10 +121,19 @@ class ContainerManager {
         });
     }
 
-    async pull(image) {
+    async pull(image, cacheForMS = IMAGE_PULL_CACHE_TTL) {
         let [imageName, tag] = image.split(/:/);
         if (!tag) {
             tag = 'latest';
+        }
+
+        if (tag !== 'latest') {
+            if (IMAGE_PULL_CACHE[image]) {
+                const timeSince = Date.now() - IMAGE_PULL_CACHE[image];
+                if (timeSince < cacheForMS) {
+                    return;
+                }
+            }
         }
 
         await this.docker()
@@ -131,6 +145,8 @@ class ContainerManager {
                 }
             )
             .then((stream) => promisifyStream(stream));
+
+        IMAGE_PULL_CACHE[image] = Date.now();
     }
 
     toDockerMounts(mounts) {
@@ -202,8 +218,6 @@ class ContainerManager {
 
         if (opts.health) {
             HealthCheck = this.toDockerHealth(opts.health);
-
-            console.log('Adding health check', HealthCheck);
         }
 
         const dockerContainer = await this.startContainer({

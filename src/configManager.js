@@ -109,17 +109,19 @@ class ConfigManager {
 
     async verifyIdentity(blockRef, systemId, instanceId) {
         const planAssets = await assetManager.getPlans();
-
+        const systemUri = systemId ? parseKapetaUri(systemId) : null;
+        const blockUri = parseKapetaUri(blockRef);
         let found = false;
         planAssets.forEach((planAsset) => {
-            if (planAsset.ref !== systemId) {
+            if (systemUri &&
+                !parseKapetaUri(planAsset.ref).equals(systemUri)) {
                 //Skip plans that do not match systemid if provided
                 return;
             }
 
             planAsset.data.spec.blocks.forEach((blockInstance) => {
                 if (blockInstance.id === instanceId &&
-                    blockInstance.block.ref === blockRef) {
+                    parseKapetaUri(blockInstance.block.ref).equals(blockUri)) {
                     found = true;
                 }
             });

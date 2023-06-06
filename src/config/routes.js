@@ -86,6 +86,11 @@ router.get('/identity', async (req, res) => {
         instanceId: req.kapeta.instanceId
     };
 
+    if (!req.kapeta.blockRef) {
+        res.status(400).send({error: 'Missing required header "X-Kapeta-Block"'});
+        return;
+    }
+
     try {
 
         if (!identity.systemId ||
@@ -99,6 +104,7 @@ router.get('/identity', async (req, res) => {
 
         res.send(identity);
     } catch(err) {
+        console.warn('Failed to resolve identity', err);
         res.status(400).send({error: err.message});
     }
 });
