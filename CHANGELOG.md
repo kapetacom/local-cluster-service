@@ -1,3 +1,10 @@
+## [0.5.2](https://github.com/kapetacom/local-cluster-service/compare/v0.5.1...v0.5.2) (2023-06-06)
+
+
+### Bug Fixes
+
+* Use internal docker host when inside docker ([#28](https://github.com/kapetacom/local-cluster-service/issues/28)) ([3b0ae9d](https://github.com/kapetacom/local-cluster-service/commit/3b0ae9d7612ae54b38ec8e39f632932f8543206e))
+
 ## [0.5.1](https://github.com/kapetacom/local-cluster-service/compare/v0.5.0...v0.5.1) (2023-06-06)
 
 
