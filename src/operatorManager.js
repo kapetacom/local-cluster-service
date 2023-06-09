@@ -88,7 +88,7 @@ class OperatorManager {
         const dbName = name + '_' + fromServiceId.replace(/[^a-z0-9]/gi, '');
 
         return {
-            host: environment === 'docker' ? 'host.docker.internal' : 'localhost',
+            host: environment === 'docker' ? 'host.docker.internal' : '127.0.0.1',
             port: portInfo.hostPort,
             type: portType,
             protocol: portInfo.protocol,
@@ -163,7 +163,8 @@ class OperatorManager {
                     mounts,
                     ports,
                     health: operatorData.health,
-                    env: operatorData.env
+                    env: operatorData.env,
+                    cmd: operatorData.cmd
                 });
         }
 
