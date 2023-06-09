@@ -1,3 +1,10 @@
+## [0.5.3](https://github.com/kapetacom/local-cluster-service/compare/v0.5.2...v0.5.3) (2023-06-09)
+
+
+### Bug Fixes
+
+* Make sure bound ports are exposed and ([#29](https://github.com/kapetacom/local-cluster-service/issues/29)) ([fe088b4](https://github.com/kapetacom/local-cluster-service/commit/fe088b424fa159ca1d04e721ace4558a778c5dcd))
+
 ## [0.5.2](https://github.com/kapetacom/local-cluster-service/compare/v0.5.1...v0.5.2) (2023-06-06)
 
 
