@@ -54,6 +54,8 @@ class ContainerManager {
                       // Default http
                       { protocol: 'http', host: 'localhost', port: 2375 },
                       { protocol: 'https', host: 'localhost', port: 2376 },
+                      { protocol: 'http', host: '127.0.0.1', port: 2375 },
+                      { protocol: 'https', host: '127.0.0.1', port: 2376 },
                   ];
         for (const opts of connectOptions) {
             try {
@@ -197,7 +199,10 @@ class ContainerManager {
 
         console.log('Image pulled: %s', image);
 
+        const ExposedPorts = {};
+
         _.forEach(opts.ports, (portInfo, containerPort) => {
+            ExposedPorts['' + containerPort] = {};
             PortBindings['' + containerPort] = [
                 {
                     HostPort: '' + portInfo.hostPort,
@@ -219,11 +224,12 @@ class ContainerManager {
         if (opts.health) {
             HealthCheck = this.toDockerHealth(opts.health);
         }
-
         const dockerContainer = await this.startContainer({
             name: name,
             Image: image,
             Labels,
+            Cmd: opts.cmd,
+            ExposedPorts,
             Env,
             HealthCheck,
             HostConfig: {
