@@ -2,7 +2,7 @@ const FS = require('fs');
 const Path = require('path');
 const FSExtra = require('fs-extra');
 const repositoryManager = require('./repositoryManager')
-const ClusterConfiguration = require('@kapeta/local-cluster-config');
+const ClusterConfiguration = require('@kapeta/local-cluster-config').default;
 
 class ProviderManager {
 

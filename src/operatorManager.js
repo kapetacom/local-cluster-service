@@ -1,4 +1,4 @@
-const ClusterConfiguration = require('@kapeta/local-cluster-config');
+const ClusterConfiguration = require('@kapeta/local-cluster-config').default;
 const serviceManager = require('./serviceManager');
 const storageService = require('./storageService');
 const containerManager = require('./containerManager');
