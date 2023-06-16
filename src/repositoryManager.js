@@ -1,4 +1,4 @@
-const ClusterConfiguration = require("@kapeta/local-cluster-config");
+const ClusterConfiguration = require("@kapeta/local-cluster-config").default;
 const FS = require("node:fs");
 const FSExtra = require("fs-extra");
 const Path = require("node:path");
