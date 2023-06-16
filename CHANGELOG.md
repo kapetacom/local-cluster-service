@@ -1,3 +1,10 @@
+## [0.5.5](https://github.com/kapetacom/local-cluster-service/compare/v0.5.4...v0.5.5) (2023-06-16)
+
+
+### Bug Fixes
+
+* missed a few imports for cluster config ([6f2a491](https://github.com/kapetacom/local-cluster-service/commit/6f2a4919e2d100d2ae20a346d202eb2477282077))
+
 ## [0.5.4](https://github.com/kapetacom/local-cluster-service/compare/v0.5.3...v0.5.4) (2023-06-16)
 
 
