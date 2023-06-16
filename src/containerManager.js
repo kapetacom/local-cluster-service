@@ -7,7 +7,7 @@ const storageService = require('./storageService');
 const mkdirp = require('mkdirp');
 const { parseKapetaUri } = require('@kapeta/nodejs-utils');
 
-const ClusterConfiguration = require('@kapeta/local-cluster-config');
+const ClusterConfiguration = require('@kapeta/local-cluster-config').default;
 
 const LABEL_PORT_PREFIX = 'kapeta_port-';
 

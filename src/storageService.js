@@ -2,7 +2,7 @@ const _ = require('lodash');
 const FS = require('fs');
 const mkdirp = require('mkdirp');
 const YAML = require('yaml');
-const ClusterConfiguration = require('@kapeta/local-cluster-config');
+const ClusterConfiguration = require('@kapeta/local-cluster-config').default;
 
 /**
  * Class that handles reading and writing from local configuration file.
