@@ -1,3 +1,10 @@
+## [0.5.4](https://github.com/kapetacom/local-cluster-service/compare/v0.5.3...v0.5.4) (2023-06-16)
+
+
+### Bug Fixes
+
+* handle ESM version of local-cluster-config ([08cd97e](https://github.com/kapetacom/local-cluster-service/commit/08cd97e4fa04d666105809b92c267953cf3d646b))
+
 ## [0.5.3](https://github.com/kapetacom/local-cluster-service/compare/v0.5.2...v0.5.3) (2023-06-09)
 
 
