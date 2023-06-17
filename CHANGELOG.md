@@ -1,3 +1,10 @@
+## [0.5.6](https://github.com/kapetacom/local-cluster-service/compare/v0.5.5...v0.5.6) (2023-06-17)
+
+
+### Bug Fixes
+
+* Resolve operator versions from resources ([#31](https://github.com/kapetacom/local-cluster-service/issues/31)) ([dfd6471](https://github.com/kapetacom/local-cluster-service/commit/dfd647118ffdb5544d87743543152efd124d3310))
+
 ## [0.5.5](https://github.com/kapetacom/local-cluster-service/compare/v0.5.4...v0.5.5) (2023-06-16)
 
 
