@@ -136,8 +136,18 @@ class ContainerManager {
                     return;
                 }
             }
+
+            const imageTagList = (await this.docker().image.list())
+                .filter(image => !!image.data.RepoTags)
+                .map(image => image.data.RepoTags);
+            if (imageTagList.some((imageTags) => imageTags.indexOf(image) > -1)) {
+                console.log('Image found: %s', image);
+                return;
+            }
+            console.log('Image not found: %s', image);
         }
 
+        console.log('Pulling image: %s', image);
         await this.docker()
             .image.create(
                 {},
@@ -149,6 +159,8 @@ class ContainerManager {
             .then((stream) => promisifyStream(stream));
 
         IMAGE_PULL_CACHE[image] = Date.now();
+
+        console.log('Image pulled: %s', image);
     }
 
     toDockerMounts(mounts) {
@@ -193,11 +205,7 @@ class ContainerManager {
             kapeta: 'true',
         };
 
-        console.log('Pulling image: %s', image);
-
         await this.pull(image);
-
-        console.log('Image pulled: %s', image);
 
         const ExposedPorts = {};
 
@@ -227,8 +235,10 @@ class ContainerManager {
         const dockerContainer = await this.startContainer({
             name: name,
             Image: image,
+            Hostname: name + '.kapeta',
             Labels,
             Cmd: opts.cmd,
+
             ExposedPorts,
             Env,
             HealthCheck,

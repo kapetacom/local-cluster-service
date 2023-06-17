@@ -129,7 +129,7 @@ router.get('/provides/:type', async (req, res) => {
  * assign port numbers to it etc.
  */
 router.get('/consumes/resource/:resourceType/:portType/:name', async (req, res) => {
-    const operatorInfo = await operatorManager.getResourceInfo(
+    const operatorInfo = await operatorManager.getConsumerResourceInfo(
         req.kapeta.systemId,
         req.kapeta.instanceId,
         req.params.resourceType,

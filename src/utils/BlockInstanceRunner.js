@@ -250,6 +250,7 @@ class BlockInstanceRunner {
         container = await containerManager.startContainer({
             Image: dockerImage,
             name: containerName,
+            Hostname: containerName + '.kapeta',
             WorkingDir: workingDir,
             Labels: {
                 'instance': blockInstance.id
@@ -397,6 +398,7 @@ class BlockInstanceRunner {
             container = await containerManager.startContainer({
                 Image: dockerImage,
                 name: containerName,
+                Hostname: containerName + '.kapeta',
                 Labels: {
                     'instance': blockInstance.id
                 },
@@ -528,6 +530,7 @@ class BlockInstanceRunner {
             container = await containerManager.startContainer({
                 Image: dockerImage,
                 name: containerName,
+                Hostname: containerName + '.kapeta',
                 ExposedPorts,
                 HealthCheck,
                 HostConfig: {
