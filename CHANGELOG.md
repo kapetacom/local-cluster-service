@@ -1,3 +1,10 @@
+## [0.5.7](https://github.com/kapetacom/local-cluster-service/compare/v0.5.6...v0.5.7) (2023-06-17)
+
+
+### Bug Fixes
+
+* Register non-docker processes correctly ([#32](https://github.com/kapetacom/local-cluster-service/issues/32)) ([a6e1693](https://github.com/kapetacom/local-cluster-service/commit/a6e1693c32df233f1a16dd406ac0008f07fb3a1d))
+
 ## [0.5.6](https://github.com/kapetacom/local-cluster-service/compare/v0.5.5...v0.5.6) (2023-06-17)
 
 
