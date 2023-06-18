@@ -243,7 +243,7 @@ class InstanceManager {
     async createProcessesForPlan(planRef) {
         await this.stopAllForPlan(planRef);
 
-        const plan = await assetManager.getPlan(planRef);
+        const plan = await assetManager.getPlan(planRef, true);
         if (!plan) {
             throw new Error('Plan not found: ' + planRef);
         }
@@ -332,7 +332,7 @@ class InstanceManager {
      * @return {Promise<PromiseInfo>}
      */
     async createProcess(planRef, instanceId) {
-        const plan = await assetManager.getPlan(planRef);
+        const plan = await assetManager.getPlan(planRef, true);
         if (!plan) {
             throw new Error('Plan not found: ' + planRef);
         }
@@ -344,7 +344,7 @@ class InstanceManager {
 
         const blockRef = blockInstance.block.ref;
 
-        const blockAsset = await assetManager.getAsset(blockRef);
+        const blockAsset = await assetManager.getAsset(blockRef, true);
         const instanceConfig = await configManager.getConfigForSection(planRef, instanceId);
 
         if (!blockAsset) {

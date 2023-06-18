@@ -8,6 +8,7 @@ const codeGeneratorManager = require('./codeGeneratorManager');
 const progressListener = require('./progressListener');
 const {parseKapetaUri} = require("@kapeta/nodejs-utils");
 const repositoryManager = require("./repositoryManager");
+const NodeCache = require("node-cache");
 
 function enrichAsset(asset) {
     return {
@@ -45,6 +46,11 @@ function parseRef(ref) {
 
 class AssetManager {
 
+    constructor() {
+        this.cache = new NodeCache({
+            stdTTL: 60 * 60, // 1 hour
+        })
+    }
 
 
     /**
@@ -73,8 +79,9 @@ class AssetManager {
         return this.getAssets(['core/plan']);
     }
 
-    async getPlan(ref) {
-        const asset = await this.getAsset(ref);
+    async getPlan(ref, noCache = false) {
+
+        const asset = await this.getAsset(ref, noCache);
 
         if ('core/plan' !== asset.kind) {
             throw new Error('Asset was not a plan: ' + ref);
@@ -83,7 +90,11 @@ class AssetManager {
         return asset.data;
     }
 
-    async getAsset(ref) {
+    async getAsset(ref, noCache = false) {
+        const cacheKey = `getAsset:${ref}`;
+        if (noCache !== true && this.cache.has(cacheKey)) {
+            return this.cache.get(cacheKey);
+        }
         const uri = parseKapetaUri(ref);
         await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version);
 
@@ -94,7 +105,7 @@ class AssetManager {
         if (!asset) {
             throw new Error('Asset not found: ' + ref);
         }
-
+        this.cache.set(cacheKey, asset);
         return asset;
     }
 
@@ -115,12 +126,12 @@ class AssetManager {
         if (codeGeneratorManager.canGenerateCode(yaml)) {
             await codeGeneratorManager.generate(path, yaml);
         }
-
+        this.cache.flushAll();
         return asset;
     }
 
     async updateAsset(ref, yaml) {
-        const asset = await this.getAsset(ref);
+        const asset = await this.getAsset(ref, true);
         if (!asset) {
             throw new Error('Attempted to update unknown asset: ' + ref);
         }
@@ -134,7 +145,7 @@ class AssetManager {
         }
 
         FS.writeFileSync(asset.ymlPath, YAML.stringify(yaml));
-
+        this.cache.flushAll();
         if (codeGeneratorManager.canGenerateCode(yaml)) {
             await codeGeneratorManager.generate(asset.ymlPath, yaml);
         } else {
@@ -158,16 +169,16 @@ class AssetManager {
 
         const version = 'local';
         const refs = assetInfos.map(assetInfo => `kapeta://${assetInfo.metadata.name}:${version}`);
-
+        this.cache.flushAll();
         return this.getAssets().filter(a => refs.some(ref => compareRefs(ref, a.ref)));
     }
 
     async unregisterAsset(ref) {
-        const asset = await this.getAsset(ref);
+        const asset = await this.getAsset(ref, true);
         if (!asset) {
             throw new Error('Asset does not exists: ' + ref);
         }
-
+        this.cache.flushAll();
         await Actions.uninstall(progressListener, asset.path);
     }
 }

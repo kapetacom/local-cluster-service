@@ -10,9 +10,7 @@ const socketManager = require('../../socketManager');
  * @param res {Response}
  * @param opts {ProxyRequestInfo}
  */
-module.exports = function proxyRestRequest(req, res, opts) {
-
-    console.log('Proxy request to provider: %s => %s [web]', opts.consumerPath, opts.address);
+module.exports = function proxyWebRequest(req, res, opts) {
 
     const requestHeaders = _.clone(req.headers);
 
@@ -22,13 +20,14 @@ module.exports = function proxyRestRequest(req, res, opts) {
     delete requestHeaders['host'];
     delete requestHeaders['origin'];
 
-    const sourceBasePath = opts.providerResource.spec.path;
-    const targetBasePath = opts.consumerResource.spec.path;
+    const sourceBasePath = opts.consumerResource.spec.path;
+    const targetBasePath = opts.providerResource.spec.path;
     let path = opts.consumerPath;
     if (opts.consumerPath.startsWith(sourceBasePath)) {
         path = path.replace(sourceBasePath, targetBasePath);
     }
 
+    console.log('Proxy request to provider: %s => %s%s [web]', opts.consumerPath, opts.address, path);
 
     const reqOpts = {
         method: req.method,
@@ -44,38 +43,26 @@ module.exports = function proxyRestRequest(req, res, opts) {
     );
 
     socketManager.emit(traffic.connectionId, 'traffic_start', traffic);
+    const proxyReq = request(reqOpts);
 
-    request(reqOpts, function(err, response, responseBody) {
-        if (err) {
-            traffic.asError(err);
-            socketManager.emit(traffic.connectionId, 'traffic_end', traffic);
-
-            res.status(500).send({error: '' + err});
-            return;
-        }
-
-        const responseHeaders = _.clone(response.headers);
-
-        delete responseHeaders['content-length'];
-        delete responseHeaders['content-encoding'];
-        delete responseHeaders['connection'];
-
-        res.set(responseHeaders);
-        res.status(response.statusCode);
-
-        traffic.withResponse({
-            code: response.statusCode,
-            headers: response.headers,
-            body: responseBody
-        });
-
+    proxyReq.on('error', function(err) {
+        traffic.asError(err);
         socketManager.emit(traffic.connectionId, 'traffic_end', traffic);
-
-        if (responseBody) {
-            res.send(responseBody);
-        } else {
-            res.end();
+        if (!res.headersSent) {
+            res.status(500).send({error: '' + err});
         }
     });
 
+    proxyReq.on('response', function(response) {
+        //TODO: Include the response body in the traffic object when it is not a stream
+        traffic.withResponse({
+            code: response.statusCode,
+            headers: response.headers
+        });
+
+        socketManager.emit(traffic.connectionId, 'traffic_end', traffic);
+    });
+
+    //We need to pipe the proxy response to the client response to handle sockets and event streams
+    proxyReq.pipe(res);
 };
