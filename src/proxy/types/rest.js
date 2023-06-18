@@ -11,7 +11,7 @@ function getRestMethodId(restResource, httpMethod, httpPath) {
     return _.findKey(restResource.spec.methods, (method) => {
         let methodType = method.method ? method.method.toUpperCase() : 'GET';
 
-        if (methodType !== httpMethod.toUpperCase()) {
+        if (methodType.toUpperCase() !== httpMethod.toUpperCase()) {
             return false;
         }
 
@@ -153,10 +153,10 @@ module.exports = function proxyRestRequest(req, res, opts) {
         socketManager.emit(traffic.connectionId, 'traffic_end', traffic);
 
         if (responseBody) {
-            res.send(responseBody);
-        } else {
-            res.end();
+            res.write(responseBody);
         }
+
+        res.end();
     });
 
 };

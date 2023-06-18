@@ -41,7 +41,7 @@ router.get('/read', async (req, res) => {
     }
 
     try {
-        res.send(await assetManager.getAsset(req.query.ref));
+        res.send(await assetManager.getAsset(req.query.ref, true));
     } catch(err) {
         res.status(400).send({error: err.message});
     }

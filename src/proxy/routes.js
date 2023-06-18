@@ -34,7 +34,6 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
 
         const plan = await assetManager.getPlan(req.params.systemId);
 
-
         // We can find the connection by the consumer information alone since
         // only 1 provider can be connected to a consumer resource at a time
         const connection = _.find(plan.spec.connections, (connection) => {
@@ -72,13 +71,6 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
             req.params.type
         );
 
-        /*
-         Get the path the consumer requested.
-         Note that this might not match the path the destination is expecting so we need to identify the method
-         that is being called and identify the destination path from the connection.
-         */
-        const consumerPath = req.originalUrl.substring(basePath.length - 1);
-
         const fromBlockInstance = _.find(plan.spec.blocks, (blockInstance) => {
             return blockInstance.id.toLowerCase() === connection.provider.blockId.toLowerCase();
         });
@@ -108,6 +100,13 @@ router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async
         while(address.endsWith('/')) {
             address = address.substring(0, address.length - 1);
         }
+
+        /*
+         Get the path the consumer requested.
+         Note that this might not match the path the destination is expecting so we need to identify the method
+         that is being called and identify the destination path from the connection.
+         */
+        const consumerPath = req.originalUrl.substring(basePath.length - 1);
 
         typeHandler(req, res, {
             consumerPath,
