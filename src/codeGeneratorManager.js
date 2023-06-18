@@ -12,11 +12,15 @@ class CodeGeneratorManager {
         const languageTargets = ClusterConfiguration.getDefinitions(TARGET_KIND);
         languageTargets.forEach((languageTarget) => {
             const key = `${languageTarget.definition.metadata.name}:${languageTarget.version}`
-            const target = require(languageTarget.path);
-            if (target.default) {
-                Targets.register(key, target.default);
-            } else {
-                Targets.register(key, target);
+            try {
+                const target = require(languageTarget.path);
+                if (target.default) {
+                    Targets.register(key, target.default);
+                } else {
+                    Targets.register(key, target);
+                }
+            } catch (e) {
+                console.error('Failed to load target: %s', key, e);
             }
         });
     }
