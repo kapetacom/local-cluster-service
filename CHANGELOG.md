@@ -1,3 +1,10 @@
+## [0.5.9](https://github.com/kapetacom/local-cluster-service/compare/v0.5.8...v0.5.9) (2023-06-18)
+
+
+### Bug Fixes
+
+* Resolves various issues when proxiying HTTP requests ([#34](https://github.com/kapetacom/local-cluster-service/issues/34)) ([cb9a472](https://github.com/kapetacom/local-cluster-service/commit/cb9a472e560412a85cea20a1dc9083826797ac95))
+
 ## [0.5.8](https://github.com/kapetacom/local-cluster-service/compare/v0.5.7...v0.5.8) (2023-06-18)
 
 
