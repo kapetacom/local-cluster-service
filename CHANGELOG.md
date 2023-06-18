@@ -1,3 +1,10 @@
+## [0.5.8](https://github.com/kapetacom/local-cluster-service/compare/v0.5.7...v0.5.8) (2023-06-18)
+
+
+### Bug Fixes
+
+* Gracefully handle invalid targets ([#33](https://github.com/kapetacom/local-cluster-service/issues/33)) ([d36f58e](https://github.com/kapetacom/local-cluster-service/commit/d36f58e0e7486c36e7ce4fa6ea58fb17b683511e))
+
 ## [0.5.7](https://github.com/kapetacom/local-cluster-service/compare/v0.5.6...v0.5.7) (2023-06-17)
 
 
