@@ -1,3 +1,10 @@
+## [0.5.10](https://github.com/kapetacom/local-cluster-service/compare/v0.5.9...v0.5.10) (2023-06-19)
+
+
+### Bug Fixes
+
+* delete asset via ref ([6b5a968](https://github.com/kapetacom/local-cluster-service/commit/6b5a968a029753baea3a651a0538468086cda665))
+
 ## [0.5.9](https://github.com/kapetacom/local-cluster-service/compare/v0.5.8...v0.5.9) (2023-06-18)
 
 
