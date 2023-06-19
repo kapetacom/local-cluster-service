@@ -1,14 +1,14 @@
-const Path = require("node:path");
+const Path = require('node:path');
 const FS = require('node:fs');
 const FSExtra = require('fs-extra');
 const YAML = require('yaml');
 const ClusterConfiguration = require('@kapeta/local-cluster-config').default;
-const {Actions} = require('@kapeta/nodejs-registry-utils');
+const { Actions } = require('@kapeta/nodejs-registry-utils');
 const codeGeneratorManager = require('./codeGeneratorManager');
 const progressListener = require('./progressListener');
-const {parseKapetaUri} = require("@kapeta/nodejs-utils");
-const repositoryManager = require("./repositoryManager");
-const NodeCache = require("node-cache");
+const { parseKapetaUri } = require('@kapeta/nodejs-utils');
+const repositoryManager = require('./repositoryManager');
+const NodeCache = require('node-cache');
 
 function enrichAsset(asset) {
     return {
@@ -19,8 +19,8 @@ function enrichAsset(asset) {
         kind: asset.definition.kind,
         data: asset.definition,
         path: asset.path,
-        ymlPath: asset.ymlPath
-    }
+        ymlPath: asset.ymlPath,
+    };
 }
 
 function compareRefs(a, b) {
@@ -30,28 +30,20 @@ function compareRefs(a, b) {
     return aProtocol === bProtocol && aId === bId;
 }
 function parseRef(ref) {
-    let out = ref.split(/:\/\//,2);
+    let out = ref.split(/:\/\//, 2);
 
     if (out.length === 1) {
-        return [
-            'kapeta',
-            ref.toLowerCase()
-        ]
+        return ['kapeta', ref.toLowerCase()];
     }
-    return [
-        out[0].toLowerCase(),
-        out[1].toLowerCase()
-    ];
+    return [out[0].toLowerCase(), out[1].toLowerCase()];
 }
 
 class AssetManager {
-
     constructor() {
         this.cache = new NodeCache({
             stdTTL: 60 * 60, // 1 hour
-        })
+        });
     }
-
 
     /**
      *
@@ -62,10 +54,10 @@ class AssetManager {
         if (!assetKinds) {
             const blockTypeProviders = ClusterConfiguration.getDefinitions([
                 'core/block-type',
-                'core/block-type-operator'
+                'core/block-type-operator',
             ]);
-            assetKinds = blockTypeProviders.map(p => {
-                return `${p.definition.metadata.name}:${p.version}`
+            assetKinds = blockTypeProviders.map((p) => {
+                return `${p.definition.metadata.name}:${p.version}`;
             });
             assetKinds.push('core/plan');
         }
@@ -80,7 +72,6 @@ class AssetManager {
     }
 
     async getPlan(ref, noCache = false) {
-
         const asset = await this.getAsset(ref, noCache);
 
         if ('core/plan' !== asset.kind) {
@@ -100,7 +91,7 @@ class AssetManager {
 
         let asset = ClusterConfiguration.getDefinitions()
             .map(enrichAsset)
-            .find(a => parseKapetaUri(a.ref).equals(uri));
+            .find((a) => parseKapetaUri(a.ref).equals(uri));
 
         if (!asset) {
             throw new Error('Asset not found: ' + ref);
@@ -149,7 +140,10 @@ class AssetManager {
         if (codeGeneratorManager.canGenerateCode(yaml)) {
             await codeGeneratorManager.generate(asset.ymlPath, yaml);
         } else {
-            console.log('Could not generate code for %s', yaml.kind ? yaml.kind : 'unknown yaml');
+            console.log(
+                'Could not generate code for %s',
+                yaml.kind ? yaml.kind : 'unknown yaml'
+            );
         }
     }
 
@@ -162,15 +156,20 @@ class AssetManager {
             throw new Error('File not found: ' + filePath);
         }
 
-        const assetInfos = YAML.parseAllDocuments(FS.readFileSync(filePath).toString())
-            .map(doc => doc.toJSON());
+        const assetInfos = YAML.parseAllDocuments(
+            FS.readFileSync(filePath).toString()
+        ).map((doc) => doc.toJSON());
 
         await Actions.link(progressListener, Path.dirname(filePath));
 
         const version = 'local';
-        const refs = assetInfos.map(assetInfo => `kapeta://${assetInfo.metadata.name}:${version}`);
+        const refs = assetInfos.map(
+            (assetInfo) => `kapeta://${assetInfo.metadata.name}:${version}`
+        );
         this.cache.flushAll();
-        return this.getAssets().filter(a => refs.some(ref => compareRefs(ref, a.ref)));
+        return this.getAssets().filter((a) =>
+            refs.some((ref) => compareRefs(ref, a.ref))
+        );
     }
 
     async unregisterAsset(ref) {
@@ -179,7 +178,7 @@ class AssetManager {
             throw new Error('Asset does not exists: ' + ref);
         }
         this.cache.flushAll();
-        await Actions.uninstall(progressListener, asset.path);
+        await Actions.uninstall(progressListener, [asset.ref]);
     }
 }
 
