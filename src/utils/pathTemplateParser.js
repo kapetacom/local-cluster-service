@@ -2,6 +2,17 @@
 const TYPE_VARIABLE = 'variable';
 const TYPE_PATH = 'path';
 
+/**
+ * A path template is a string that can be used to match a path and extract variables from it.
+ *
+ * E.g. /foo/{bar}/baz
+ *
+ * Would match /foo/123/baz and extract bar=123
+ *
+ * You can also specify a regex for the variable:
+ *  /foo/{bar:[0-9]+}/baz
+ *
+ */
 class PathTemplate {
     constructor(pathTemplate) {
         if (!pathTemplate.startsWith('/')) {
@@ -9,33 +20,41 @@ class PathTemplate {
         }
         this._path = pathTemplate;
 
-        this._parts = pathTemplate.split(/{/g).map((part) => {
-            if (part.endsWith('}')) {
-                let regex,
-                    value = part.substr(0, part.length -  1);
-
-                [value, regex] = value.split(/:/, 2);
-
-                if (regex) {
-                    regex = new RegExp('^' + regex);
-                } else {
-                    regex = /^[^\/]+/
-                }
-
-                return {
-                    type: TYPE_VARIABLE,
-                    value,
-                    regex
-                };
+        const variableRegex = /{([^}]+)}/g;
+        let match, offset = 0;
+        this._parts = [];
+        while((match = variableRegex.exec(pathTemplate)) !== null) {
+            if (match.index > offset) {
+                this._parts.push({
+                    type: TYPE_PATH,
+                    value: pathTemplate.substring(offset, match.index)
+                });
             }
 
-            return {
+            let regex;
+            let value = match[1];
+            [value, regex] = value.split(/:/, 2);
+
+            if (regex) {
+                regex = new RegExp('^' + regex);
+            } else {
+                regex = /^[^\/]+/
+            }
+
+            this._parts.push({
+                type: TYPE_VARIABLE,
+                value,
+                regex
+            });
+            offset = match.index + match[0].length;
+        }
+
+        if (offset < pathTemplate.length) {
+            this._parts.push({
                 type: TYPE_PATH,
-                value: part
-            };
-        });
-
-
+                value: pathTemplate.substring(offset)
+            });
+        }
     }
 
     get path() {
@@ -61,7 +80,7 @@ class PathTemplate {
                         return null;
                     }
 
-                    path = path.substr(part.value.length);
+                    path = path.substring(part.value.length);
                     break;
                 case TYPE_VARIABLE:
                     if (!part.regex.test(path)) {
