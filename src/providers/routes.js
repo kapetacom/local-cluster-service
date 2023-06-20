@@ -12,37 +12,32 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/asset/:handle/:name/:version/web.js', async (req, res) => {
-
-    const {handle, name, version} = req.params;
+    const { handle, name, version } = req.params;
     let result = await providerManager.getAsset(handle, name, version);
-
-    if (version !== 'local') {
-        res.setHeader('Cache-Control', 'max-age=31536000, immutable');
-    }
 
     if (!result) {
         res.status(404).send('');
     } else {
-        res.send(result.toString()
-            .replace(`${name}.js.map`, 'web.js.map')
-        );
+        if (version !== 'local') {
+            res.setHeader('Cache-Control', 'max-age=31536000, immutable');
+        }
+        res.send(result.toString().replace(`${name}.js.map`, 'web.js.map'));
     }
 });
 
 router.get('/asset/:handle/:name/:version/web.js.map', async (req, res) => {
-
-    const {handle, name, version} = req.params;
+    const { handle, name, version } = req.params;
     const result = await providerManager.getAsset(handle, name, version, true);
-    if (version !== 'local') {
-        res.setHeader('Cache-Control', 'max-age=31536000, immutable');
-    }
 
     if (!result) {
         res.status(404).send('');
     } else {
+        // Only cache successful requests
+        if (version !== 'local') {
+            res.setHeader('Cache-Control', 'max-age=31536000, immutable');
+        }
         res.send(result);
     }
 });
-
 
 module.exports = router;
