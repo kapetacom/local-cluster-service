@@ -1,3 +1,10 @@
+## [0.5.11](https://github.com/kapetacom/local-cluster-service/compare/v0.5.10...v0.5.11) (2023-06-20)
+
+
+### Bug Fixes
+
+* Improve path template parser. ([#36](https://github.com/kapetacom/local-cluster-service/issues/36)) ([b655da1](https://github.com/kapetacom/local-cluster-service/commit/b655da1e97740ff2b4fe0f2bcd7f75b04003753e))
+
 ## [0.5.10](https://github.com/kapetacom/local-cluster-service/compare/v0.5.9...v0.5.10) (2023-06-19)
 
 
