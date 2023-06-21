@@ -1,3 +1,10 @@
+## [0.5.12](https://github.com/kapetacom/local-cluster-service/compare/v0.5.11...v0.5.12) (2023-06-21)
+
+
+### Bug Fixes
+
+* await asset deletion and only cache successful web requests ([663a4a7](https://github.com/kapetacom/local-cluster-service/commit/663a4a7987385f9a0550d6149a23b7a9de08b226))
+
 ## [0.5.11](https://github.com/kapetacom/local-cluster-service/compare/v0.5.10...v0.5.11) (2023-06-20)
 
 
