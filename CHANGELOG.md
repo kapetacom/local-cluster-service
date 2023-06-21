@@ -1,3 +1,10 @@
+## [0.6.1](https://github.com/kapetacom/local-cluster-service/compare/v0.6.0...v0.6.1) (2023-06-21)
+
+
+### Bug Fixes
+
+* Automaticly restart instances when changing configuration ([#39](https://github.com/kapetacom/local-cluster-service/issues/39)) ([9f6706f](https://github.com/kapetacom/local-cluster-service/commit/9f6706f7df9fb1c7375754bc81c56ccca93bbe12))
+
 # [0.6.0](https://github.com/kapetacom/local-cluster-service/compare/v0.5.12...v0.6.0) (2023-06-21)
 
 
