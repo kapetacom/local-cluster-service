@@ -11,11 +11,13 @@ const LogData = require("./LogData");
 const EventEmitter = require("events");
 const md5 = require('md5');
 const {execSync} = require("child_process");
+const clusterService = require("../clusterService");
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = "KAPETA_SYSTEM_ID";
 const KAPETA_BLOCK_REF = "KAPETA_BLOCK_REF";
 const KAPETA_INSTANCE_ID = "KAPETA_INSTANCE_ID";
+const KAPETA_LOCAL_CLUSTER_PORT = "KAPETA_LOCAL_CLUSTER_PORT";
 /**
  * Needed when running local docker containers as part of plan
  * @type {string[]}
@@ -250,7 +252,6 @@ class BlockInstanceRunner {
         container = await containerManager.startContainer({
             Image: dockerImage,
             name: containerName,
-            Hostname: containerName + '.kapeta',
             WorkingDir: workingDir,
             Labels: {
                 'instance': blockInstance.id
@@ -260,6 +261,7 @@ class BlockInstanceRunner {
             Cmd: startCmd ? startCmd.split(/\s+/g) : [],
             Env: [
                 ...DOCKER_ENV_VARS,
+                `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
                 ...Object.entries({
                     ...env,
                     ...addonEnv
@@ -398,12 +400,12 @@ class BlockInstanceRunner {
             container = await containerManager.startContainer({
                 Image: dockerImage,
                 name: containerName,
-                Hostname: containerName + '.kapeta',
                 Labels: {
                     'instance': blockInstance.id
                 },
                 Env: [
                     ...DOCKER_ENV_VARS,
+                    `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
                     ...Object.entries(env).map(([key, value]) => `${key}=${value}`)
                 ],
                 HostConfig: {
@@ -530,7 +532,6 @@ class BlockInstanceRunner {
             container = await containerManager.startContainer({
                 Image: dockerImage,
                 name: containerName,
-                Hostname: containerName + '.kapeta',
                 ExposedPorts,
                 HealthCheck,
                 HostConfig: {
@@ -546,6 +547,7 @@ class BlockInstanceRunner {
                 },
                 Env: [
                     `KAPETA_INSTANCE_NAME=${blockInstance.ref}`,
+                    `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
                     ...DOCKER_ENV_VARS,
                     ...Object.entries({
                         ...env,
