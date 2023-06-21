@@ -1,6 +1,7 @@
 const Router = require('express-promise-router').default;
 
 const instanceManager = require('../instanceManager');
+const serviceManager = require('../serviceManager');
 
 
 const router = new Router();
@@ -27,9 +28,9 @@ router.post('/:systemId/start', async (req, res) => {
     const processes = await instanceManager.createProcessesForPlan(req.params.systemId);
 
     res.status(202).send({
-        ok:true,
+        ok: true,
         processes: processes.map(p => {
-            return {pid:p.pid, type:p.type};
+            return {pid: p.pid, type: p.type};
         })
     });
 });
@@ -41,7 +42,7 @@ router.post('/:systemId/stop', async (req, res) => {
     await instanceManager.stopAllForPlan(req.params.systemId);
 
     res.status(202).send({
-        ok:true
+        ok: true
     });
 });
 
@@ -52,7 +53,7 @@ router.post('/:systemId/:instanceId/start', async (req, res) => {
     const process = await instanceManager.createProcess(req.params.systemId, req.params.instanceId);
 
     res.status(202).send({
-        ok:true,
+        ok: true,
         pid: process.pid,
         type: process.type
     });
@@ -64,7 +65,7 @@ router.post('/:systemId/:instanceId/start', async (req, res) => {
 router.post('/:systemId/:instanceId/stop', async (req, res) => {
     await instanceManager.stopProcess(req.params.systemId, req.params.instanceId);
 
-    res.status(202).send({ok:true});
+    res.status(202).send({ok: true});
 });
 
 
@@ -74,13 +75,45 @@ router.post('/:systemId/:instanceId/stop', async (req, res) => {
 router.get('/:systemId/:instanceId/logs', (req, res) => {
     const processInfo = instanceManager.getProcessForInstance(req.params.systemId, req.params.instanceId);
     if (!processInfo) {
-        res.status(404).send({ok:false});
+        res.status(404).send({ok: false});
         return;
     }
 
     res.status(202).send({
         logs: processInfo.logs()
     });
+});
+
+
+/**
+ * Get public address for instance in a plan if available
+ */
+router.get('/:systemId/:instanceId/address/public', (req, res) => {
+    const instance = instanceManager.getInstance(req.params.systemId, req.params.instanceId);
+    if (!instance) {
+        res.status(404).send({ok: false});
+        return;
+    }
+
+    if (!instance.address) {
+        res.status(400).send({error: `Instance does not have an address. Make sure it's running.`});
+        return;
+    }
+
+    res.status(200).send(instance.address);
+});
+
+/**
+ * Get public address for particular resource on instance in a plan if available
+ */
+router.get('/:systemId/:instanceId/provider/:portType/:resourceName/address/public', (req, res) => {
+    res.send(serviceManager.getConsumerAddress(
+        req.params.systemId,
+        req.params.instanceId,
+        req.params.resourceName,
+        req.params.portType,
+        req.headers['x-kapeta-environment'],
+    ));
 });
 
 router.use('/', require('../middleware/stringBody'));
@@ -119,7 +152,7 @@ router.put('/', async (req, res) => {
         instance
     );
 
-    res.status(202).send({ok:true});
+    res.status(202).send({ok: true});
 });
 
 /**
@@ -128,7 +161,7 @@ router.put('/', async (req, res) => {
 router.delete('/', async (req, res) => {
     await instanceManager.setInstanceAsStopped(req.kapeta.systemId, req.kapeta.instanceId);
 
-    res.status(202).send({ok:true});
+    res.status(202).send({ok: true});
 });
 
 
