@@ -460,6 +460,16 @@ class InstanceManager {
         return this._processes[planRef][instanceId];
     }
 
+    async restartIfRunning(planRef, instanceId) {
+        if (!this._processes[planRef] ||
+            !this._processes[planRef][instanceId]) {
+            return;
+        }
+
+        // createProcess will stop the process first if it's running
+        return this.createProcess(planRef, instanceId);
+    }
+
     async stopProcess(planRef, instanceId) {
         if (!this._processes[planRef]) {
             return;

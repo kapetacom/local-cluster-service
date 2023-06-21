@@ -2,6 +2,7 @@ const Router = require('express-promise-router').default;
 const configManager = require('../configManager');
 const serviceManager = require('../serviceManager');
 const operatorManager = require('../operatorManager');
+const instanceManager = require('../instanceManager');
 
 const router = new Router();
 const SYSTEM_ID = '$plan';
@@ -25,24 +26,33 @@ router.get('/instance', (req, res) => {
 /**
  * Updates the full configuration for a given service.
  */
-router.put('/instance', (req, res) => {
+router.put('/instance', async (req, res) => {
 
-    let config = JSON.parse(req.stringBody);
-    if (!config) {
-        config = {};
-    }
+    try {
+        let config = JSON.parse(req.stringBody);
+        if (!config) {
+            config = {};
+        }
 
-    if (req.kapeta.instanceId) {
-        configManager.setConfigForSection(
-            req.kapeta.systemId,
-            req.kapeta.instanceId,
-            config
-        );
-    } else {
-        configManager.setConfigForSystem(
-            req.kapeta.systemId,
-            config
-        );
+        if (req.kapeta.instanceId) {
+            configManager.setConfigForSection(
+                req.kapeta.systemId,
+                req.kapeta.instanceId,
+                config
+            );
+            //Restart the instance if it is running after config change
+            await instanceManager.restartIfRunning(req.kapeta.systemId, req.kapeta.instanceId);
+        } else {
+            configManager.setConfigForSystem(
+                req.kapeta.systemId,
+                config
+            );
+        }
+
+    } catch(err) {
+        console.error('Failed to update instance config', err);
+        res.status(400).send({error: err.message});
+        return;
     }
 
     res.status(202).send({ok:true});
