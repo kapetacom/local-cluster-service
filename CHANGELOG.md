@@ -1,3 +1,10 @@
+# [0.6.0](https://github.com/kapetacom/local-cluster-service/compare/v0.5.12...v0.6.0) (2023-06-21)
+
+
+### Features
+
+* Implemented endpoints for getting public addresses ([#38](https://github.com/kapetacom/local-cluster-service/issues/38)) ([2eb96a9](https://github.com/kapetacom/local-cluster-service/commit/2eb96a97761f426e8a5aadab8703ce44f059f618))
+
 ## [0.5.12](https://github.com/kapetacom/local-cluster-service/compare/v0.5.11...v0.5.12) (2023-06-21)
 
 
