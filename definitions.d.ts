@@ -1,42 +1,24 @@
-interface Request {
-    method: string
-    stringBody: string
-    headers: {[key:string]:string}
-    params: {[key:string]:string}
+declare module '@kapeta/nodejs-api-client' {
+    export class KapetaAPI {
+        getCurrentIdentity(): Promise<any>;
+        getMemberships(identityId: string): Promise<any>;
+    }
 }
 
-interface Response {
-    headers: {[key:string]:string}
-    status: (status:number) => void
-    send: (body:any) => void
-    end: () => void
-    set: (headers:{[key:string]:string}) => void
-}
+declare module '@kapeta/nodejs-registry-utils' {
+    import {Dependency, Kind} from "@kapeta/schemas";
 
-interface ResourceRef {
-    blockId:string
-    resourceName:string
-}
+    export interface AssetVersion {
+        content: Kind
+        dependencies: Dependency[]
+    }
 
-declare function ProxyRequestHandler(req:Request, res:Response, info:ProxyRequestInfo);
+    export class RegistryService {
+        constructor(url: string);
 
+        async getVersion(fullName: string, version: string):Promise<AssetVersion>;
+    }
 
-interface Connection {
-    mapping: any
-    provider: ResourceRef
-    consumer: ResourceRef
-}
-
-interface ResourceInfo {
-    spec:any
-    metadata:any
-    kind:string
-}
-
-interface ProxyRequestInfo {
-    address: string
-    connection:Connection
-    providerResource:ResourceInfo
-    consumerResource:ResourceInfo
-    consumerPath:string
+    export const Config: any;
+    export const Actions: any
 }
