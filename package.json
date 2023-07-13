@@ -16,7 +16,7 @@
     "url": "https://github.com/kapetacom/local-cluster-service/issues"
   },
   "scripts": {
-    "start": "npx ts-node ./start.ts",
+    "start": "ts-node --transpile-only ./start.ts",
     "dev": "nodemon -e js,ts,json npm run start",
     "test": "echo its fine"
   },

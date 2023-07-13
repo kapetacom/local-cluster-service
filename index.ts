@@ -107,8 +107,6 @@ export default {
             storageService.put('cluster','host', host);
         }
 
-        console.log('Will start listening on %s:%s', host, port);
-
         return new Promise((resolve, reject) => {
             if (!currentServer) {
                 reject(new Error(`Current server wasn't set`))
