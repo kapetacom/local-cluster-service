@@ -1,3 +1,10 @@
+## [0.7.2](https://github.com/kapetacom/local-cluster-service/compare/v0.7.1...v0.7.2) (2023-07-16)
+
+
+### Bug Fixes
+
+* Removed missed module.exports from TS module ([d6d85af](https://github.com/kapetacom/local-cluster-service/commit/d6d85af4823960baa52d3a87243d2639dd4cdab4))
+
 ## [0.7.1](https://github.com/kapetacom/local-cluster-service/compare/v0.7.0...v0.7.1) (2023-07-16)
 
 
