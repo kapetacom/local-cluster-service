@@ -1,21 +1,20 @@
-import ClusterConfiguration, {DefinitionInfo} from "@kapeta/local-cluster-config";
-import _ from "lodash";
-import Path from "path";
-import md5 from "md5";
-import {parseKapetaUri} from "@kapeta/nodejs-utils";
-import {serviceManager} from "./serviceManager";
-import {storageService} from "./storageService";
-import {ContainerInfo, containerManager} from "./containerManager";
-import FSExtra from "fs-extra";
-import {AnyMap, EnvironmentType, OperatorInfo} from "./types";
-import {BlockInstance, BlockResource, Resource} from "@kapeta/schemas";
-
+import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
+import _ from 'lodash';
+import Path from 'path';
+import md5 from 'md5';
+import { parseKapetaUri } from '@kapeta/nodejs-utils';
+import { serviceManager } from './serviceManager';
+import { storageService } from './storageService';
+import { ContainerInfo, containerManager } from './containerManager';
+import FSExtra from 'fs-extra';
+import { AnyMap, EnvironmentType, OperatorInfo } from './types';
+import { BlockInstance, BlockResource, Resource } from '@kapeta/schemas';
 
 const KIND_OPERATOR = 'core/resource-type-operator';
 
 class Operator {
     private _data: any;
-    constructor(data:any) {
+    constructor(data: any) {
         this._data = data;
     }
 
@@ -37,7 +36,7 @@ class OperatorManager {
         FSExtra.mkdirpSync(this._mountDir);
     }
 
-    _getMountPoint(operatorType:string, mountName:string) {
+    _getMountPoint(operatorType: string, mountName: string) {
         return Path.join(this._mountDir, operatorType, mountName);
     }
 
@@ -48,21 +47,23 @@ class OperatorManager {
      * @param {string} version
      * @return {Operator}
      */
-    getOperator(resourceType:string, version:string) {
+    getOperator(resourceType: string, version: string) {
         const operators = ClusterConfiguration.getDefinitions(KIND_OPERATOR);
 
-        const operator:DefinitionInfo|undefined = operators.find((operator) => operator.definition &&
-            operator.definition.metadata &&
-            operator.definition.metadata.name &&
-            operator.definition.metadata.name.toLowerCase() === resourceType.toLowerCase() &&
-            operator.version === version);
+        const operator: DefinitionInfo | undefined = operators.find(
+            (operator) =>
+                operator.definition &&
+                operator.definition.metadata &&
+                operator.definition.metadata.name &&
+                operator.definition.metadata.name.toLowerCase() === resourceType.toLowerCase() &&
+                operator.version === version
+        );
 
         if (!operator) {
             throw new Error(`Unknown resource type: ${resourceType}:${version}`);
         }
 
-        if (!operator.definition.spec ||
-            !operator.definition.spec.local) {
+        if (!operator.definition.spec || !operator.definition.spec.local) {
             throw new Error(`Operator missing local definition: ${resourceType}:${version}`);
         }
 
@@ -72,32 +73,44 @@ class OperatorManager {
     /**
      * Get information about a specific consumed resource
      */
-    async getConsumerResourceInfo(systemId:string, fromServiceId:string, resourceType:string, portType:string, name:string, environment?:EnvironmentType):Promise<OperatorInfo> {
-
+    async getConsumerResourceInfo(
+        systemId: string,
+        fromServiceId: string,
+        resourceType: string,
+        portType: string,
+        name: string,
+        environment?: EnvironmentType
+    ): Promise<OperatorInfo> {
         const plans = ClusterConfiguration.getDefinitions('core/plan');
 
         const planUri = parseKapetaUri(systemId);
-        const currentPlan = plans.find(plan => plan.definition.metadata.name === planUri.fullName && plan.version === planUri.version);
+        const currentPlan = plans.find(
+            (plan) => plan.definition.metadata.name === planUri.fullName && plan.version === planUri.version
+        );
         if (!currentPlan) {
             throw new Error(`Unknown plan: ${systemId}`);
         }
 
-        const currentInstance = currentPlan.definition.spec.blocks?.find((instance:BlockInstance) => instance.id === fromServiceId);
+        const currentInstance = currentPlan.definition.spec.blocks?.find(
+            (instance: BlockInstance) => instance.id === fromServiceId
+        );
         if (!currentInstance) {
             throw new Error(`Unknown instance: ${fromServiceId} in plan ${systemId}`);
         }
 
         const blockUri = parseKapetaUri(currentInstance.block.ref);
-        const blockDefinition = ClusterConfiguration.getDefinitions().find(definition =>
-            definition.version === blockUri.version &&
-            definition.definition.metadata.name === blockUri.fullName
+        const blockDefinition = ClusterConfiguration.getDefinitions().find(
+            (definition) =>
+                definition.version === blockUri.version && definition.definition.metadata.name === blockUri.fullName
         );
 
         if (!blockDefinition) {
             throw new Error(`Unknown block: ${currentInstance.block.ref} in plan ${systemId}`);
         }
 
-        const blockResource = blockDefinition.definition.spec?.consumers?.find((resource:Resource) => resource.metadata.name === name);
+        const blockResource = blockDefinition.definition.spec?.consumers?.find(
+            (resource: Resource) => resource.metadata.name === name
+        );
         if (!blockResource) {
             throw new Error(`Unknown resource: ${name} in block ${currentInstance.block.ref} in plan ${systemId}`);
         }
@@ -120,9 +133,9 @@ class OperatorManager {
             type: portType,
             protocol: portInfo.protocol,
             options: {
-                dbName
+                dbName,
             },
-            credentials
+            credentials,
         };
     }
 
@@ -134,7 +147,7 @@ class OperatorManager {
      * @param {string} version
      * @return {Promise<ContainerInfo>}
      */
-    async ensureResource(systemId:string, resourceType:string, version:string):Promise<ContainerInfo> {
+    async ensureResource(systemId: string, resourceType: string, version: string): Promise<ContainerInfo> {
         const operator = this.getOperator(resourceType, version);
 
         const operatorData = operator.getData();
@@ -147,16 +160,15 @@ class OperatorManager {
 
         const nameParts = [resourceType.toLowerCase()];
 
-        const ports:AnyMap = {};
+        const ports: AnyMap = {};
 
-        for(let i = 0 ; i < portTypes.length; i++) {
+        for (let i = 0; i < portTypes.length; i++) {
             const portType = portTypes[i];
             let containerPortInfo = operatorData.ports[portType];
             const hostPort = await serviceManager.ensureServicePort(resourceType, portType);
 
-            if (typeof containerPortInfo === 'number' ||
-                typeof containerPortInfo === 'string') {
-                containerPortInfo = {port: containerPortInfo, type: 'tcp'};
+            if (typeof containerPortInfo === 'number' || typeof containerPortInfo === 'string') {
+                containerPortInfo = { port: containerPortInfo, type: 'tcp' };
             }
 
             if (!containerPortInfo.type) {
@@ -168,7 +180,7 @@ class OperatorManager {
 
             ports[portId] = {
                 type: portType,
-                hostPort
+                hostPort,
             };
         }
 
@@ -183,17 +195,13 @@ class OperatorManager {
         }
 
         if (!container) {
-
-            container = await containerManager.run(
-                operatorData.image,
-                containerName,
-                {
-                    mounts,
-                    ports,
-                    health: operatorData.health,
-                    env: operatorData.env,
-                    cmd: operatorData.cmd
-                });
+            container = await containerManager.run(operatorData.image, containerName, {
+                mounts,
+                ports,
+                health: operatorData.health,
+                env: operatorData.env,
+                cmd: operatorData.cmd,
+            });
         }
 
         try {
@@ -202,7 +210,7 @@ class OperatorManager {
             } else {
                 await containerManager.waitForReady(container.native);
             }
-        } catch (e:any) {
+        } catch (e: any) {
             console.error(e.message);
         }
 

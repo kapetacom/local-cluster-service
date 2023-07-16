@@ -3,24 +3,23 @@ import FS from 'node:fs';
 import FSExtra from 'fs-extra';
 import YAML from 'yaml';
 import NodeCache from 'node-cache';
-import ClusterConfiguration, {Definition, DefinitionInfo} from '@kapeta/local-cluster-config';
-import {codeGeneratorManager} from './codeGeneratorManager';
-import {progressListener} from './progressListener';
-import {parseKapetaUri} from '@kapeta/nodejs-utils';
-import {repositoryManager} from './repositoryManager';
-import {BlockDefinition} from "@kapeta/schemas";
-import {Actions} from "@kapeta/nodejs-registry-utils";
-
+import ClusterConfiguration, { Definition, DefinitionInfo } from '@kapeta/local-cluster-config';
+import { codeGeneratorManager } from './codeGeneratorManager';
+import { progressListener } from './progressListener';
+import { parseKapetaUri } from '@kapeta/nodejs-utils';
+import { repositoryManager } from './repositoryManager';
+import { BlockDefinition } from '@kapeta/schemas';
+import { Actions } from '@kapeta/nodejs-registry-utils';
 
 export interface EnrichedAsset {
-    ref: string,
-    editable: boolean
-    exists: boolean,
-    version: string,
-    kind: string,
-    data: Definition,
-    path: string,
-    ymlPath: string,
+    ref: string;
+    editable: boolean;
+    exists: boolean;
+    version: string;
+    kind: string;
+    data: Definition;
+    path: string;
+    ymlPath: string;
 }
 
 function enrichAsset(asset: DefinitionInfo): EnrichedAsset {
@@ -156,10 +155,7 @@ class AssetManager {
         if (codeGeneratorManager.canGenerateCode(yaml)) {
             await codeGeneratorManager.generate(asset.ymlPath, yaml);
         } else {
-            console.log(
-                'Could not generate code for %s',
-                yaml.kind ? yaml.kind : 'unknown yaml'
-            );
+            console.log('Could not generate code for %s', yaml.kind ? yaml.kind : 'unknown yaml');
         }
     }
 
@@ -172,20 +168,14 @@ class AssetManager {
             throw new Error('File not found: ' + filePath);
         }
 
-        const assetInfos = YAML.parseAllDocuments(
-            FS.readFileSync(filePath).toString()
-        ).map((doc) => doc.toJSON());
+        const assetInfos = YAML.parseAllDocuments(FS.readFileSync(filePath).toString()).map((doc) => doc.toJSON());
 
         await Actions.link(progressListener, Path.dirname(filePath));
 
         const version = 'local';
-        const refs = assetInfos.map(
-            (assetInfo) => `kapeta://${assetInfo.metadata.name}:${version}`
-        );
+        const refs = assetInfos.map((assetInfo) => `kapeta://${assetInfo.metadata.name}:${version}`);
         this.cache.flushAll();
-        return this.getAssets().filter((a) =>
-            refs.some((ref) => compareRefs(ref, a.ref))
-        );
+        return this.getAssets().filter((a) => refs.some((ref) => compareRefs(ref, a.ref)));
     }
 
     async unregisterAsset(ref: string) {

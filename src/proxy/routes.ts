@@ -1,142 +1,148 @@
-import Router from "express-promise-router";
-import {Request, Response} from "express";
-import {Resource} from "@kapeta/schemas";
-import {proxyRestRequest} from "./types/rest";
-import {proxyWebRequest} from "./types/web";
-import {ProxyRequestHandler} from "../types";
-import {stringBody, StringBodyRequest} from "../middleware/stringBody";
-import {serviceManager} from "../serviceManager";
-import {clusterService} from "../clusterService";
-import {assetManager} from "../assetManager";
+import Router from 'express-promise-router';
+import { Request, Response } from 'express';
+import { Resource } from '@kapeta/schemas';
+import { proxyRestRequest } from './types/rest';
+import { proxyWebRequest } from './types/web';
+import { ProxyRequestHandler } from '../types';
+import { stringBody, StringBodyRequest } from '../middleware/stringBody';
+import { serviceManager } from '../serviceManager';
+import { clusterService } from '../clusterService';
+import { assetManager } from '../assetManager';
 
-import _ from "lodash";
+import _ from 'lodash';
 
 const router = Router();
 /**
  * @var {{[key:string]:ProxyRequestHandler}}
  */
-const TYPE_HANDLERS:{[p:string]:ProxyRequestHandler} = {
+const TYPE_HANDLERS: { [p: string]: ProxyRequestHandler } = {
     rest: proxyRestRequest,
-    web: proxyWebRequest
+    web: proxyWebRequest,
 };
 
-function getResource(resources:Resource[], resourceName:string) {
+function getResource(resources: Resource[], resourceName: string) {
     return resources.find((resource) => {
-        return (resource.metadata.name.toLowerCase() === resourceName.toLowerCase());
+        return resource.metadata.name.toLowerCase() === resourceName.toLowerCase();
     });
 }
 
 router.use('/:systemId/:consumerInstanceId/:consumerResourceName', stringBody);
 
-router.all('/:systemId/:consumerInstanceId/:consumerResourceName/:type/*', async (req:StringBodyRequest, res:Response) => {
+router.all(
+    '/:systemId/:consumerInstanceId/:consumerResourceName/:type/*',
+    async (req: StringBodyRequest, res: Response) => {
+        try {
+            const typeHandler = TYPE_HANDLERS[req.params.type.toLowerCase()];
+            if (!typeHandler) {
+                res.status(401).send({ error: 'Unknown connection type: ' + req.params.type });
+                return;
+            }
 
-    try {
+            const plan = await assetManager.getPlan(req.params.systemId);
 
-        const typeHandler = TYPE_HANDLERS[req.params.type.toLowerCase()];
-        if (!typeHandler) {
-            res.status(401).send({error: 'Unknown connection type: ' + req.params.type});
-            return;
-        }
+            // We can find the connection by the consumer information alone since
+            // only 1 provider can be connected to a consumer resource at a time
+            const connection = _.find(plan.spec.connections, (connection) => {
+                return (
+                    connection.consumer.blockId.toLowerCase() === req.params.consumerInstanceId.toLowerCase() &&
+                    connection.consumer.resourceName.toLowerCase() === req.params.consumerResourceName.toLowerCase()
+                );
+            });
 
-        const plan = await assetManager.getPlan(req.params.systemId);
+            if (!connection) {
+                res.status(401).send({
+                    error: `No connection found for consumer "${req.params.consumerInstanceId}::${req.params.consumerResourceName}"`,
+                });
+                return;
+            }
 
-        // We can find the connection by the consumer information alone since
-        // only 1 provider can be connected to a consumer resource at a time
-        const connection = _.find(plan.spec.connections, (connection) => {
-            return connection.consumer.blockId.toLowerCase() === req.params.consumerInstanceId.toLowerCase() &&
-                connection.consumer.resourceName.toLowerCase() === req.params.consumerResourceName.toLowerCase();
-        });
+            const toBlockInstance = _.find(plan.spec.blocks, (blockInstance) => {
+                return blockInstance.id.toLowerCase() === connection.consumer.blockId.toLowerCase();
+            });
 
-        if (!connection) {
-            res.status(401).send({error:`No connection found for consumer "${req.params.consumerInstanceId}::${req.params.consumerResourceName}"`});
-            return;
-        }
+            if (!toBlockInstance) {
+                res.status(401).send({ error: `Block instance not found "${req.params.consumerInstanceId}` });
+                return;
+            }
 
-        const toBlockInstance = _.find(plan.spec.blocks, (blockInstance) => {
-            return blockInstance.id.toLowerCase() === connection.consumer.blockId.toLowerCase();
-        });
+            const toBlockAsset = await assetManager.getAsset(toBlockInstance.block.ref);
 
-        if (!toBlockInstance) {
-            res.status(401).send({error:`Block instance not found "${req.params.consumerInstanceId}`});
-            return;
-        }
+            if (!toBlockAsset) {
+                res.status(401).send({ error: `Block asset not found "${toBlockInstance.block.ref}` });
+                return;
+            }
 
-        const toBlockAsset = await assetManager.getAsset(toBlockInstance.block.ref);
+            const consumerResource = getResource(toBlockAsset.data.spec.consumers, req.params.consumerResourceName);
 
-        if (!toBlockAsset) {
-            res.status(401).send({error:`Block asset not found "${toBlockInstance.block.ref}`});
-            return;
-        }
+            if (!consumerResource) {
+                res.status(401).send({
+                    error: `Block resource not found "${req.params.consumerInstanceId}::${req.params.consumerResourceName}`,
+                });
+                return;
+            }
 
-        const consumerResource = getResource(toBlockAsset.data.spec.consumers, req.params.consumerResourceName);
+            const basePath = clusterService.getProxyPath(
+                req.params.systemId,
+                req.params.consumerInstanceId,
+                req.params.consumerResourceName,
+                req.params.type
+            );
 
-        if (!consumerResource) {
-            res.status(401).send({error:`Block resource not found "${req.params.consumerInstanceId}::${req.params.consumerResourceName}`});
-            return;
-        }
+            const fromBlockInstance = _.find(plan.spec.blocks, (blockInstance) => {
+                return blockInstance.id.toLowerCase() === connection.provider.blockId.toLowerCase();
+            });
 
-        const basePath = clusterService.getProxyPath(
-            req.params.systemId,
-            req.params.consumerInstanceId,
-            req.params.consumerResourceName,
-            req.params.type
-        );
+            if (!fromBlockInstance) {
+                res.status(401).send({ error: `Block instance not found "${connection.provider.blockId}` });
+                return;
+            }
 
-        const fromBlockInstance = _.find(plan.spec.blocks, (blockInstance) => {
-            return blockInstance.id.toLowerCase() === connection.provider.blockId.toLowerCase();
-        });
+            const fromBlockAsset = await assetManager.getAsset(fromBlockInstance.block.ref);
 
-        if (!fromBlockInstance) {
-            res.status(401).send({error:`Block instance not found "${connection.provider.blockId}`});
-            return;
-        }
+            if (!fromBlockAsset) {
+                res.status(401).send({ error: `Block asset not found "${fromBlockInstance.block.ref}` });
+                return;
+            }
 
-        const fromBlockAsset = await assetManager.getAsset(fromBlockInstance.block.ref);
+            const providerResource = getResource(fromBlockAsset.data.spec.providers, connection.provider.resourceName);
 
-        if (!fromBlockAsset) {
-            res.status(401).send({error:`Block asset not found "${fromBlockInstance.block.ref}`});
-            return;
-        }
+            if (!providerResource) {
+                res.status(401).send({
+                    error: `Block resource not found "${connection.provider.blockId}::${connection.provider.resourceName}`,
+                });
+                return;
+            }
 
-        const providerResource = getResource(fromBlockAsset.data.spec.providers, connection.provider.resourceName);
+            //Get target address
+            let address = await serviceManager.getProviderAddress(
+                req.params.systemId,
+                connection.provider.blockId,
+                req.params.type
+            );
 
-        if (!providerResource) {
-            res.status(401).send({error:`Block resource not found "${connection.provider.blockId}::${connection.provider.resourceName}`});
-            return;
-        }
+            while (address.endsWith('/')) {
+                address = address.substring(0, address.length - 1);
+            }
 
-
-        //Get target address
-        let address = await serviceManager.getProviderAddress(
-            req.params.systemId,
-            connection.provider.blockId,
-            req.params.type
-        );
-
-        while(address.endsWith('/')) {
-            address = address.substring(0, address.length - 1);
-        }
-
-        /*
+            /*
          Get the path the consumer requested.
          Note that this might not match the path the destination is expecting so we need to identify the method
          that is being called and identify the destination path from the connection.
          */
-        const consumerPath = req.originalUrl.substring(basePath.length - 1);
+            const consumerPath = req.originalUrl.substring(basePath.length - 1);
 
-        typeHandler(req, res, {
-            consumerPath,
-            address,
-            consumerResource,
-            providerResource,
-            connection
-        });
-
-    } catch(err:any) {
-        console.warn("Failed to process proxy request", err);
-        res.status(400).send({error: err.message});
+            typeHandler(req, res, {
+                consumerPath,
+                address,
+                consumerResource,
+                providerResource,
+                connection,
+            });
+        } catch (err: any) {
+            console.warn('Failed to process proxy request', err);
+            res.status(400).send({ error: err.message });
+        }
     }
-
-});
+);
 
 export default router;

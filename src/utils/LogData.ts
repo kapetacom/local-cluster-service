@@ -1,14 +1,11 @@
-import {LogEntry, LogLevel, LogSource} from "../types";
+import { LogEntry, LogLevel, LogSource } from '../types';
 
 const MAX_LINES = 1000;
 
 export class LogData {
-
     public static readonly MAX_LINES = MAX_LINES;
     private readonly entries: LogEntry[] = [];
-    constructor() {
-
-    }
+    constructor() {}
 
     /**
      *
@@ -16,8 +13,8 @@ export class LogData {
      * @param {string} [level]
      * @param {string} [source]
      */
-    addLog(msg:string, level:LogLevel = 'INFO', source:LogSource = 'stdout') {
-        while(this.entries.length > MAX_LINES) {
+    addLog(msg: string, level: LogLevel = 'INFO', source: LogSource = 'stdout') {
+        while (this.entries.length > MAX_LINES) {
             this.entries.shift();
         }
 
@@ -28,7 +25,7 @@ export class LogData {
             time: Date.now(),
             message: msg,
             level,
-            source
+            source,
         });
     }
 
@@ -41,10 +38,10 @@ export class LogData {
     }
 
     toString() {
-        return this.getLogs().map(entry => entry.message).join('\n');
+        return this.getLogs()
+            .map((entry) => entry.message)
+            .join('\n');
     }
 }
-
-
 
 module.exports = LogData;

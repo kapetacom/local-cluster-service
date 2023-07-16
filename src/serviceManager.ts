@@ -1,7 +1,7 @@
-import _ from "lodash";
-import {clusterService} from "./clusterService";
-import {storageService} from "./storageService";
-import {EnvironmentType} from "./types";
+import _ from 'lodash';
+import { clusterService } from './clusterService';
+import { storageService } from './storageService';
+import { EnvironmentType } from './types';
 
 const DEFAULT_PORT_TYPE = 'rest';
 
@@ -9,7 +9,7 @@ class ServiceManager {
     private _systems: any;
 
     constructor() {
-        this._systems = storageService.get("services");
+        this._systems = storageService.get('services');
         if (!this._systems) {
             this._systems = {};
         }
@@ -23,7 +23,7 @@ class ServiceManager {
         });
     }
 
-    _forLocal(port:string|number, path?:string, environmentType?:EnvironmentType) {
+    _forLocal(port: string | number, path?: string, environmentType?: EnvironmentType) {
         if (!path) {
             path = '';
         }
@@ -41,7 +41,7 @@ class ServiceManager {
         return `http://${host}:${port}/${path}`;
     }
 
-    _ensureSystem(systemId:string) {
+    _ensureSystem(systemId: string) {
         if (!this._systems[systemId]) {
             this._systems[systemId] = {};
         }
@@ -49,8 +49,7 @@ class ServiceManager {
         return this._systems[systemId];
     }
 
-    _ensureService(systemId:string, serviceId:string) {
-
+    _ensureService(systemId: string, serviceId: string) {
         const system = this._ensureSystem(systemId);
 
         if (!system[serviceId]) {
@@ -60,7 +59,7 @@ class ServiceManager {
         return system[serviceId];
     }
 
-    async ensureServicePort(systemId:string, blockInstanceId:string, portType:string = DEFAULT_PORT_TYPE) {
+    async ensureServicePort(systemId: string, blockInstanceId: string, portType: string = DEFAULT_PORT_TYPE) {
         if (!portType) {
             portType = DEFAULT_PORT_TYPE;
         }
@@ -69,7 +68,7 @@ class ServiceManager {
 
         if (!service[portType]) {
             const port = await clusterService.getNextAvailablePort();
-            service[portType] = {port};
+            service[portType] = { port };
             this._save();
         }
 
@@ -79,7 +78,7 @@ class ServiceManager {
     }
 
     _save() {
-        storageService.put("services", this._systems);
+        storageService.put('services', this._systems);
     }
 
     /**
@@ -88,7 +87,13 @@ class ServiceManager {
      * This returns a local proxy path to allow traffic inspection and control.
      *
      */
-    getConsumerAddress(systemId:string, consumerInstanceId:string, consumerResourceName:string, portType:string, environmentType?:EnvironmentType):string {
+    getConsumerAddress(
+        systemId: string,
+        consumerInstanceId: string,
+        consumerResourceName: string,
+        portType: string,
+        environmentType?: EnvironmentType
+    ): string {
         const port = clusterService.getClusterServicePort();
         const path = clusterService.getProxyPath(systemId, consumerInstanceId, consumerResourceName, portType);
         return this._forLocal(port, path, environmentType);
@@ -102,9 +107,9 @@ class ServiceManager {
      * be their remotely available address.
      *
      */
-    async getProviderAddress(systemId:string, providerInstanceId:string, portType:string):Promise<string> {
+    async getProviderAddress(systemId: string, providerInstanceId: string, portType: string): Promise<string> {
         const port = await this.ensureServicePort(systemId, providerInstanceId, portType);
-        return this._forLocal(port)
+        return this._forLocal(port);
     }
 
     getServices() {

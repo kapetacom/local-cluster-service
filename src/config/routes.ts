@@ -1,15 +1,14 @@
-import Router from "express-promise-router";
-import {configManager} from "../configManager";
-import {serviceManager} from "../serviceManager";
-import {operatorManager} from "../operatorManager";
-import {instanceManager} from "../instanceManager";
-import {StringBodyRequest} from "../middleware/stringBody";
-import {corsHandler} from "../middleware/cors";
-import {kapetaHeaders, KapetaRequest} from "../middleware/kapeta";
-import {stringBody} from "../middleware/stringBody";
-import {EnvironmentType, KapetaBodyRequest} from "../types";
-import {Response} from "express";
-
+import Router from 'express-promise-router';
+import { configManager } from '../configManager';
+import { serviceManager } from '../serviceManager';
+import { operatorManager } from '../operatorManager';
+import { instanceManager } from '../instanceManager';
+import { StringBodyRequest } from '../middleware/stringBody';
+import { corsHandler } from '../middleware/cors';
+import { kapetaHeaders, KapetaRequest } from '../middleware/kapeta';
+import { stringBody } from '../middleware/stringBody';
+import { EnvironmentType, KapetaBodyRequest } from '../types';
+import { Response } from 'express';
 
 const router = Router();
 const SYSTEM_ID = '$plan';
@@ -21,11 +20,10 @@ router.use('/', stringBody);
 /**
  * Returns the full configuration for a given service.
  */
-router.get('/instance', (req:KapetaBodyRequest, res:Response) => {
-
-    const config = req.kapeta!.instanceId ?
-        configManager.getConfigForSection(req.kapeta!.systemId, req.kapeta!.instanceId) :
-        configManager.getConfigForSystem(req.kapeta!.systemId);
+router.get('/instance', (req: KapetaBodyRequest, res: Response) => {
+    const config = req.kapeta!.instanceId
+        ? configManager.getConfigForSection(req.kapeta!.systemId, req.kapeta!.instanceId)
+        : configManager.getConfigForSystem(req.kapeta!.systemId);
 
     res.send(config);
 });
@@ -33,8 +31,7 @@ router.get('/instance', (req:KapetaBodyRequest, res:Response) => {
 /**
  * Updates the full configuration for a given service.
  */
-router.put('/instance', async (req:KapetaBodyRequest, res) => {
-
+router.put('/instance', async (req: KapetaBodyRequest, res) => {
     try {
         let config = JSON.parse(req.stringBody ?? '{}');
         if (!config) {
@@ -42,33 +39,25 @@ router.put('/instance', async (req:KapetaBodyRequest, res) => {
         }
 
         if (req.kapeta!.instanceId) {
-            configManager.setConfigForSection(
-                req.kapeta!.systemId,
-                req.kapeta!.instanceId,
-                config
-            );
+            configManager.setConfigForSection(req.kapeta!.systemId, req.kapeta!.instanceId, config);
             //Restart the instance if it is running after config change
             await instanceManager.restartIfRunning(req.kapeta!.systemId, req.kapeta!.instanceId);
         } else {
-            configManager.setConfigForSystem(
-                req.kapeta!.systemId,
-                config
-            );
+            configManager.setConfigForSystem(req.kapeta!.systemId, config);
         }
-
-    } catch(err:any) {
+    } catch (err: any) {
         console.error('Failed to update instance config', err);
-        res.status(400).send({error: err.message});
+        res.status(400).send({ error: err.message });
         return;
     }
 
-    res.status(202).send({ok:true});
+    res.status(202).send({ ok: true });
 });
 
 /**
  * Returns the full configuration for a plan
  */
-router.get('/system', (req:KapetaRequest, res) => {
+router.get('/system', (req: KapetaRequest, res) => {
     const config = configManager.getConfigForSection(req.kapeta!.systemId, SYSTEM_ID);
 
     res.send(config);
@@ -77,42 +66,35 @@ router.get('/system', (req:KapetaRequest, res) => {
 /**
  * Updates the full configuration for a plan
  */
-router.put('/system', (req:KapetaBodyRequest, res) => {
-
+router.put('/system', (req: KapetaBodyRequest, res) => {
     let config = JSON.parse(req.stringBody ?? '{}');
     if (!config) {
         config = {};
     }
-    configManager.setConfigForSection(
-        req.kapeta!.systemId,
-        SYSTEM_ID,
-        config
-    );
-    res.status(202).send({ok:true});
+    configManager.setConfigForSection(req.kapeta!.systemId, SYSTEM_ID, config);
+    res.status(202).send({ ok: true });
 });
-
 
 /**
  * Resolves and checks the identity of a block instance
  */
-router.get('/identity', async (req:KapetaRequest, res) => {
-
-
+router.get('/identity', async (req: KapetaRequest, res) => {
     const identity = {
         systemId: req.kapeta!.systemId,
-        instanceId: req.kapeta!.instanceId
+        instanceId: req.kapeta!.instanceId,
     };
 
     if (!req.kapeta!.blockRef) {
-        res.status(400).send({error: 'Missing required header "X-Kapeta-Block"'});
+        res.status(400).send({ error: 'Missing required header "X-Kapeta-Block"' });
         return;
     }
 
     try {
-
-        if (!identity.systemId ||
-            !identity.instanceId) {
-            const {systemId, instanceId} = await configManager.resolveIdentity(req.kapeta!.blockRef, identity.systemId);
+        if (!identity.systemId || !identity.instanceId) {
+            const { systemId, instanceId } = await configManager.resolveIdentity(
+                req.kapeta!.blockRef,
+                identity.systemId
+            );
             identity.systemId = systemId;
             identity.instanceId = instanceId;
         } else {
@@ -120,9 +102,9 @@ router.get('/identity', async (req:KapetaRequest, res) => {
         }
 
         res.send(identity);
-    } catch(err:any) {
+    } catch (err: any) {
         console.warn('Failed to resolve identity', err);
-        res.status(400).send({error: err.message});
+        res.status(400).send({ error: err.message });
     }
 });
 
@@ -130,13 +112,11 @@ router.get('/identity', async (req:KapetaRequest, res) => {
  * Services call this to request a free port. If a service has
  * already called the endpoint the same port is returned.
  */
-router.get('/provides/:type', async (req:KapetaRequest, res) => {
+router.get('/provides/:type', async (req: KapetaRequest, res) => {
     //Get service port
-    res.send('' + await serviceManager.ensureServicePort(
-        req.kapeta!.systemId,
-        req.kapeta!.instanceId,
-        req.params.type
-    ));
+    res.send(
+        '' + (await serviceManager.ensureServicePort(req.kapeta!.systemId, req.kapeta!.instanceId, req.params.type))
+    );
 });
 
 /**
@@ -145,7 +125,7 @@ router.get('/provides/:type', async (req:KapetaRequest, res) => {
  * If the operator resource is not already available this will cause it to start an instance and
  * assign port numbers to it etc.
  */
-router.get('/consumes/resource/:resourceType/:portType/:name', async (req:KapetaRequest, res) => {
+router.get('/consumes/resource/:resourceType/:portType/:name', async (req: KapetaRequest, res) => {
     const operatorInfo = await operatorManager.getConsumerResourceInfo(
         req.kapeta!.systemId,
         req.kapeta!.instanceId,
@@ -164,14 +144,16 @@ router.get('/consumes/resource/:resourceType/:portType/:name', async (req:Kapeta
  * If the remote service is not already registered with a port - we do that here
  * to handle clients for services that hasn't started yet.
  */
-router.get('/consumes/:resourceName/:type', (req:KapetaRequest, res) => {
-    res.send(serviceManager.getConsumerAddress(
-        req.kapeta!.systemId,
-        req.kapeta!.instanceId,
-        req.params.resourceName,
-        req.params.type,
-        req.kapeta!.environment
-    ));
+router.get('/consumes/:resourceName/:type', (req: KapetaRequest, res) => {
+    res.send(
+        serviceManager.getConsumerAddress(
+            req.kapeta!.systemId,
+            req.kapeta!.instanceId,
+            req.params.resourceName,
+            req.params.type,
+            req.kapeta!.environment
+        )
+    );
 });
 
 export default router;

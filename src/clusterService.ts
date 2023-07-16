@@ -18,7 +18,7 @@ class ClusterService {
         this._host = DEFAULT_HOST;
     }
 
-    reservePort(port:number|string) {
+    reservePort(port: number | string) {
         const intPort = parseInt(port as string);
         if (this._reservedPorts.indexOf(intPort) > -1) {
             throw new Error('Port already reserved: ' + intPort);
@@ -34,30 +34,25 @@ class ClusterService {
 
         this._initialized = true;
         await this._findClusterServicePort();
-
     }
 
     async _findClusterServicePort() {
-        while(true) {
-
+        while (true) {
             const isUsed = await this._checkIfPortIsUsed(this._port);
             if (!isUsed) {
                 break;
             }
 
             this._port++;
-
         }
     }
-
 
     /**
      * Gets next available port
      * @return {Promise<number>}
      */
     async getNextAvailablePort() {
-        while(true) {
-
+        while (true) {
             while (this._reservedPorts.indexOf(this._currentPort) > -1) {
                 this._currentPort++;
             }
@@ -70,11 +65,11 @@ class ClusterService {
         }
     }
 
-    _checkIfPortIsUsed(port:number, host:string = this._host) {
+    _checkIfPortIsUsed(port: number, host: string = this._host) {
         return new Promise((resolve, reject) => {
             const server = net.createServer();
 
-            server.once('error', function(err:any) {
+            server.once('error', function (err: any) {
                 if (err.code === 'EADDRINUSE') {
                     server.close();
                     resolve(true);
@@ -85,16 +80,14 @@ class ClusterService {
                 reject(err);
             });
 
-            server.once('listening', function() {
+            server.once('listening', function () {
                 server.close();
                 resolve(false);
             });
 
-            server.listen( port, host );
+            server.listen(port, host);
         });
-
     }
-
 
     /**
      * The port of this local cluster service itself
@@ -102,11 +95,11 @@ class ClusterService {
     getClusterServicePort() {
         return this._port;
     }
-    
-    /* 
+
+    /*
      *Gets the host name ( 127.0.0.1 ) on which Express JS is listening
      */
-     getClusterServiceHost() {
+    getClusterServiceHost() {
         return this._host;
     }
 
@@ -114,11 +107,11 @@ class ClusterService {
      * Set the port to be used for this local service
      * @param port
      */
-    setClusterServicePort(port:number) {
+    setClusterServicePort(port: number) {
         this._port = port;
     }
 
-    setClusterServiceHost(host:string) {
+    setClusterServiceHost(host: string) {
         this._host = host;
     }
 
@@ -131,8 +124,10 @@ class ClusterService {
      * @param portType
      * @return {string}
      */
-    getProxyPath(systemId:string, consumerInstanceId:string, consumerResourceName:string, portType:string) {
-        return `/proxy/${encodeURIComponent(systemId)}/${encodeURIComponent(consumerInstanceId)}/${encodeURIComponent(consumerResourceName)}/${encodeURIComponent(portType)}/`;
+    getProxyPath(systemId: string, consumerInstanceId: string, consumerResourceName: string, portType: string) {
+        return `/proxy/${encodeURIComponent(systemId)}/${encodeURIComponent(consumerInstanceId)}/${encodeURIComponent(
+            consumerResourceName
+        )}/${encodeURIComponent(portType)}/`;
     }
 }
 

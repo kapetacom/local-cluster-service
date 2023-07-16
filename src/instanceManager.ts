@@ -1,15 +1,15 @@
-import _ from "lodash";
-import request from "request";
-import EventEmitter from "events";
-import {BlockInstanceRunner} from "./utils/BlockInstanceRunner";
-import {storageService} from "./storageService";
-import {socketManager} from "./socketManager";
-import {serviceManager} from "./serviceManager";
-import {assetManager} from "./assetManager";
-import {containerManager} from "./containerManager";
-import {configManager} from "./configManager";
-import {InstanceInfo, LogEntry, ProcessInfo} from "./types";
-import {BlockInstance} from "@kapeta/schemas";
+import _ from 'lodash';
+import request from 'request';
+import EventEmitter from 'events';
+import { BlockInstanceRunner } from './utils/BlockInstanceRunner';
+import { storageService } from './storageService';
+import { socketManager } from './socketManager';
+import { serviceManager } from './serviceManager';
+import { assetManager } from './assetManager';
+import { containerManager } from './containerManager';
+import { configManager } from './configManager';
+import { InstanceInfo, LogEntry, ProcessInfo } from './types';
+import { BlockInstance } from '@kapeta/schemas';
 
 const CHECK_INTERVAL = 10000;
 const DEFAULT_HEALTH_PORT_TYPE = 'rest';
@@ -40,7 +40,7 @@ class InstanceManager {
      * so can't be relied on for knowing everything that's running.
      *
      */
-    private _processes:{[systemId:string]:{[instanceId:string]:ProcessInfo}} = {};
+    private _processes: { [systemId: string]: { [instanceId: string]: ProcessInfo } } = {};
 
     constructor() {
         this._interval = setInterval(() => this._checkInstances(), CHECK_INTERVAL);
@@ -61,8 +61,7 @@ class InstanceManager {
 
             const newStatus = await this._getInstanceStatus(instance);
 
-            if (newStatus === STATUS_UNHEALTHY &&
-                instance.status === STATUS_STARTING) {
+            if (newStatus === STATUS_UNHEALTHY && instance.status === STATUS_STARTING) {
                 // If instance is starting we consider unhealthy an indication
                 // that it is still starting
                 continue;
@@ -72,8 +71,10 @@ class InstanceManager {
                 instance.status = newStatus;
                 console.log(
                     'Instance status changed: %s %s -> %s',
-                    instance.systemId, instance.instanceId, instance.status
-                )
+                    instance.systemId,
+                    instance.instanceId,
+                    instance.status
+                );
                 this._emit(instance.systemId, EVENT_STATUS_CHANGED, instance);
                 changed = true;
             }
@@ -84,7 +85,7 @@ class InstanceManager {
         }
     }
 
-    async _isRunning(instance:InstanceInfo) {
+    async _isRunning(instance: InstanceInfo) {
         if (!instance.pid) {
             return;
         }
@@ -101,19 +102,19 @@ class InstanceManager {
         //Otherwise its just a normal process.
         //TODO: Handle for Windows
         try {
-            return process.kill(instance.pid as number, 0)
-        } catch (err:any) {
+            return process.kill(instance.pid as number, 0);
+        } catch (err: any) {
             return err.code === 'EPERM';
         }
     }
 
-    async _getInstanceStatus(instance:InstanceInfo):Promise<string> {
+    async _getInstanceStatus(instance: InstanceInfo): Promise<string> {
         if (instance.status === STATUS_STOPPED) {
             //Will only change when it reregisters
             return STATUS_STOPPED;
         }
 
-        if (!await this._isRunning(instance)) {
+        if (!(await this._isRunning(instance))) {
             return STATUS_STOPPED;
         }
 
@@ -151,12 +152,12 @@ class InstanceManager {
         return [...this._instances];
     }
 
-    getInstancesForPlan(systemId:string) {
+    getInstancesForPlan(systemId: string) {
         if (!this._instances) {
             return [];
         }
 
-        return this._instances.filter(instance => instance.systemId === systemId);
+        return this._instances.filter((instance) => instance.systemId === systemId);
     }
 
     /**
@@ -166,8 +167,8 @@ class InstanceManager {
      * @param {string} instanceId
      * @return {*}
      */
-    getInstance(systemId:string, instanceId:string) {
-        return _.find(this._instances, {systemId, instanceId});
+    getInstance(systemId: string, instanceId: string) {
+        return _.find(this._instances, { systemId, instanceId });
     }
 
     /**
@@ -177,7 +178,7 @@ class InstanceManager {
      * @param {InstanceInfo} info
      * @return {Promise<void>}
      */
-    async registerInstance(systemId:string, instanceId:string, info:Omit<InstanceInfo, 'systemId'|'instanceId'>) {
+    async registerInstance(systemId: string, instanceId: string, info: Omit<InstanceInfo, 'systemId' | 'instanceId'>) {
         let instance = this.getInstance(systemId, instanceId);
 
         //Get target address
@@ -215,7 +216,7 @@ class InstanceManager {
                 pid: info.pid,
                 type: info.type,
                 health: healthUrl,
-                address
+                address,
             };
 
             this._instances.push(instance);
@@ -226,8 +227,8 @@ class InstanceManager {
         this._save();
     }
 
-    setInstanceAsStopped(systemId:string, instanceId:string) {
-        const instance = _.find(this._instances, {systemId, instanceId});
+    setInstanceAsStopped(systemId: string, instanceId: string) {
+        const instance = _.find(this._instances, { systemId, instanceId });
         if (instance) {
             instance.status = STATUS_STOPPED;
             instance.pid = null;
@@ -237,15 +238,15 @@ class InstanceManager {
         }
     }
 
-    _emit(systemId:string, type:string, payload:any) {
+    _emit(systemId: string, type: string, payload: any) {
         try {
             socketManager.emit(`${systemId}/instances`, type, payload);
-        } catch (e:any) {
+        } catch (e: any) {
             console.warn('Failed to emit instance event: %s', e.message);
         }
     }
 
-    async createProcessesForPlan(planRef:string):Promise<ProcessInfo[]> {
+    async createProcessesForPlan(planRef: string): Promise<ProcessInfo[]> {
         await this.stopAllForPlan(planRef);
 
         const plan = await assetManager.getPlan(planRef, true);
@@ -258,9 +259,9 @@ class InstanceManager {
             return [];
         }
 
-        let promises:Promise<ProcessInfo>[] = [];
+        let promises: Promise<ProcessInfo>[] = [];
         let errors = [];
-        for(let blockInstance of Object.values(plan.spec.blocks as BlockInstance[])) {
+        for (let blockInstance of Object.values(plan.spec.blocks as BlockInstance[])) {
             try {
                 promises.push(this.createProcess(planRef, blockInstance.id));
             } catch (e) {
@@ -274,12 +275,10 @@ class InstanceManager {
             throw errors[0];
         }
 
-        return settled
-            .map(p => p.status === 'fulfilled' ? p.value : null)
-            .filter(p => !!p) as ProcessInfo[];
+        return settled.map((p) => (p.status === 'fulfilled' ? p.value : null)).filter((p) => !!p) as ProcessInfo[];
     }
 
-    async _stopInstance(instance:InstanceInfo) {
+    async _stopInstance(instance: InstanceInfo) {
         if (!instance.pid) {
             return;
         }
@@ -306,12 +305,11 @@ class InstanceManager {
         }
     }
 
-    async stopAllForPlan(planRef:string) {
-
+    async stopAllForPlan(planRef: string) {
         if (this._processes[planRef]) {
             const promises = [];
             console.log('Stopping all processes for plan', planRef);
-            for(let instance of Object.values(this._processes[planRef])) {
+            for (let instance of Object.values(this._processes[planRef])) {
                 promises.push(instance.stop());
             }
 
@@ -321,24 +319,23 @@ class InstanceManager {
         }
 
         //Also stop instances not being maintained by the cluster service
-        const instancesForPlan = this._instances
-            .filter(instance => instance.systemId === planRef);
+        const instancesForPlan = this._instances.filter((instance) => instance.systemId === planRef);
 
         const promises = [];
-        for(let instance of instancesForPlan) {
+        for (let instance of instancesForPlan) {
             promises.push(this._stopInstance(instance));
         }
 
         await Promise.all(promises);
     }
 
-    async createProcess(planRef:string, instanceId:string):Promise<ProcessInfo> {
+    async createProcess(planRef: string, instanceId: string): Promise<ProcessInfo> {
         const plan = await assetManager.getPlan(planRef, true);
         if (!plan) {
             throw new Error('Plan not found: ' + planRef);
         }
 
-        const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, {id: instanceId}) : null;
+        const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, { id: instanceId }) : null;
         if (!blockInstance) {
             throw new Error('Block instance not found: ' + instanceId);
         }
@@ -365,17 +362,17 @@ class InstanceManager {
         try {
             const process = await runner.start(blockRef, instanceId, instanceConfig);
             //emit stdout/stderr via sockets
-            process.output.on("data", (data:Buffer) => {
+            process.output.on('data', (data: Buffer) => {
                 const payload = {
-                    source: "stdout",
-                    level: "INFO",
+                    source: 'stdout',
+                    level: 'INFO',
                     message: data.toString(),
-                    time: Date.now()
+                    time: Date.now(),
                 };
                 this._emit(instanceId, EVENT_INSTANCE_LOG, payload);
             });
 
-            process.output.on('exit', (exitCode:number) => {
+            process.output.on('exit', (exitCode: number) => {
                 const timeRunning = Date.now() - startTime;
                 const instance = this.getInstance(planRef, instanceId);
                 if (instance?.status === STATUS_READY) {
@@ -383,8 +380,7 @@ class InstanceManager {
                     return;
                 }
 
-                if (exitCode === 143 ||
-                    exitCode === 137) {
+                if (exitCode === 143 || exitCode === 137) {
                     //Process got SIGTERM (143) or SIGKILL (137)
                     //TODO: Windows?
                     return;
@@ -392,9 +388,9 @@ class InstanceManager {
 
                 if (exitCode !== 0 || timeRunning < MIN_TIME_RUNNING) {
                     this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, {
-                        error: "Failed to start instance",
+                        error: 'Failed to start instance',
                         status: EVENT_INSTANCE_EXITED,
-                        instanceId: blockInstance.id
+                        instanceId: blockInstance.id,
                     });
                 }
             });
@@ -404,19 +400,19 @@ class InstanceManager {
                 pid: process.pid ?? -1,
                 health: null,
                 portType: process.portType,
-                status: STATUS_STARTING
+                status: STATUS_STARTING,
             });
 
-            return this._processes[planRef][instanceId] = process;
-        } catch (e:any) {
+            return (this._processes[planRef][instanceId] = process);
+        } catch (e: any) {
             console.warn('Failed to start instance', e);
-            const logs:LogEntry[] = [
+            const logs: LogEntry[] = [
                 {
-                    source: "stdout",
-                    level: "ERROR",
+                    source: 'stdout',
+                    level: 'ERROR',
                     message: e.message,
-                    time: Date.now()
-                }
+                    time: Date.now(),
+                },
             ];
 
             await this.registerInstance(planRef, instanceId, {
@@ -432,10 +428,10 @@ class InstanceManager {
             this._emit(blockInstance.id, EVENT_INSTANCE_EXITED, {
                 error: `Failed to start instance: ${e.message}`,
                 status: EVENT_INSTANCE_EXITED,
-                instanceId: blockInstance.id
+                instanceId: blockInstance.id,
             });
 
-            return this._processes[planRef][instanceId] = {
+            return (this._processes[planRef][instanceId] = {
                 pid: -1,
                 type,
                 logs: () => logs,
@@ -443,10 +439,9 @@ class InstanceManager {
                 ref: blockRef,
                 id: instanceId,
                 name: blockInstance.name,
-                output: new EventEmitter()
-            };
+                output: new EventEmitter(),
+            });
         }
-
     }
 
     /**
@@ -455,7 +450,7 @@ class InstanceManager {
      * @param {string} instanceId
      * @return {ProcessInfo|null}
      */
-    getProcessForInstance(planRef:string, instanceId:string) {
+    getProcessForInstance(planRef: string, instanceId: string) {
         if (!this._processes[planRef]) {
             return null;
         }
@@ -463,9 +458,8 @@ class InstanceManager {
         return this._processes[planRef][instanceId];
     }
 
-    async restartIfRunning(planRef:string, instanceId:string) {
-        if (!this._processes[planRef] ||
-            !this._processes[planRef][instanceId]) {
+    async restartIfRunning(planRef: string, instanceId: string) {
+        if (!this._processes[planRef] || !this._processes[planRef][instanceId]) {
             return;
         }
 
@@ -473,7 +467,7 @@ class InstanceManager {
         return this.createProcess(planRef, instanceId);
     }
 
-    async stopProcess(planRef:string, instanceId:string) {
+    async stopProcess(planRef: string, instanceId: string) {
         if (!this._processes[planRef]) {
             return;
         }
@@ -489,19 +483,18 @@ class InstanceManager {
     }
 
     async stopAllProcesses() {
-        for(let processesForPlan of Object.values(this._processes)) {
-            for(let processInfo of Object.values(processesForPlan)) {
+        for (let processesForPlan of Object.values(this._processes)) {
+            for (let processInfo of Object.values(processesForPlan)) {
                 await processInfo.stop();
             }
         }
         this._processes = {};
 
-        for(let instance of this._instances) {
+        for (let instance of this._instances) {
             await this._stopInstance(instance);
         }
     }
 }
-
 
 export const instanceManager = new InstanceManager();
 

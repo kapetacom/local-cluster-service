@@ -1,20 +1,20 @@
-import FS from "node:fs";
-import os from "node:os";
-import Path from "node:path";
-import FSExtra, {FSWatcher} from "fs-extra";
-import ClusterConfiguration from "@kapeta/local-cluster-config";
-import {parseKapetaUri} from "@kapeta/nodejs-utils";
-import {socketManager} from "./socketManager";
-import {progressListener} from "./progressListener";
-import {Dependency} from "@kapeta/schemas";
-import {Actions, Config, RegistryService} from "@kapeta/nodejs-registry-utils";
+import FS from 'node:fs';
+import os from 'node:os';
+import Path from 'node:path';
+import FSExtra, { FSWatcher } from 'fs-extra';
+import ClusterConfiguration from '@kapeta/local-cluster-config';
+import { parseKapetaUri } from '@kapeta/nodejs-utils';
+import { socketManager } from './socketManager';
+import { progressListener } from './progressListener';
+import { Dependency } from '@kapeta/schemas';
+import { Actions, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
 
-const INSTALL_ATTEMPTED:{[p:string]:boolean} = {};
+const INSTALL_ATTEMPTED: { [p: string]: boolean } = {};
 
 class RepositoryManager {
     private changeEventsEnabled: boolean;
     private _registryService: RegistryService;
-    private _cache: {[key:string]: boolean};
+    private _cache: { [key: string]: boolean };
     private watcher?: FSWatcher;
     private _installQueue: (() => Promise<void>)[];
     private _processing: boolean = false;
@@ -26,7 +26,7 @@ class RepositoryManager {
         this._installQueue = [];
     }
 
-    setChangeEventsEnabled(enabled:boolean) {
+    setChangeEventsEnabled(enabled: boolean) {
         this.changeEventsEnabled = enabled;
     }
 
@@ -38,18 +38,13 @@ class RepositoryManager {
 
         let allDefinitions = ClusterConfiguration.getDefinitions();
 
-        console.log(
-            'Watching local repository for provider changes: %s',
-            baseDir
-        );
+        console.log('Watching local repository for provider changes: %s', baseDir);
         try {
             this.watcher = FS.watch(baseDir, { recursive: true });
         } catch (e) {
             // Fallback to run without watch mode due to potential platform issues.
             // https://nodejs.org/docs/latest/api/fs.html#caveats
-            console.log(
-                'Unable to watch for changes. Changes to assets will not update automatically.'
-            );
+            console.log('Unable to watch for changes. Changes to assets will not update automatically.');
             return;
         }
         this.watcher.on('change', (eventType, filename) => {
@@ -62,21 +57,11 @@ class RepositoryManager {
                 return;
             }
 
-            const ymlPath = Path.join(
-                baseDir,
-                handle,
-                name,
-                version,
-                'kapeta.yml'
-            );
+            const ymlPath = Path.join(baseDir, handle, name, version, 'kapeta.yml');
             const newDefinitions = ClusterConfiguration.getDefinitions();
 
-            const newDefinition = newDefinitions.find(
-                (d) => d.ymlPath === ymlPath
-            );
-            let currentDefinition = allDefinitions.find(
-                (d) => d.ymlPath === ymlPath
-            );
+            const newDefinition = newDefinitions.find((d) => d.ymlPath === ymlPath);
+            let currentDefinition = allDefinitions.find((d) => d.ymlPath === ymlPath);
             const ymlExists = FS.existsSync(ymlPath);
             let type;
             if (ymlExists) {
@@ -122,22 +107,16 @@ class RepositoryManager {
         this.watcher = undefined;
     }
 
-    private async _install(refs:string[]):Promise<void> {
+    private async _install(refs: string[]): Promise<void> {
         //We make sure to only install one asset at a time - otherwise unexpected things might happen
         const out = new Promise<void>((resolve, reject) => {
             this._installQueue.push(async () => {
                 try {
-                    const normalizedRefs = refs.map(
-                        (ref) => parseKapetaUri(ref).id
-                    );
-                    const filteredRefs = normalizedRefs.filter(
-                        (ref) => !INSTALL_ATTEMPTED[ref]
-                    );
+                    const normalizedRefs = refs.map((ref) => parseKapetaUri(ref).id);
+                    const filteredRefs = normalizedRefs.filter((ref) => !INSTALL_ATTEMPTED[ref]);
                     console.log(filteredRefs);
                     if (filteredRefs.length > 0) {
-                        filteredRefs.forEach(
-                            (ref) => (INSTALL_ATTEMPTED[ref] = true)
-                        );
+                        filteredRefs.forEach((ref) => (INSTALL_ATTEMPTED[ref] = true));
                         //Auto-install missing asset
                         try {
                             //We change to a temp dir to avoid issues with the current working directory
@@ -148,16 +127,12 @@ class RepositoryManager {
                                 type: 'start',
                                 refs,
                             });
-                            await Actions.install(
-                                progressListener,
-                                normalizedRefs,
-                                {}
-                            );
+                            await Actions.install(progressListener, normalizedRefs, {});
                             socketManager.emit(`install`, 'install:action', {
                                 type: 'done',
                                 refs,
                             });
-                        } catch (e:any) {
+                        } catch (e: any) {
                             socketManager.emit(`install`, 'install:action', {
                                 type: 'failed',
                                 refs,
@@ -198,7 +173,7 @@ class RepositoryManager {
         }
     }
 
-    async ensureAsset(handle:string, name:string, version:string) {
+    async ensureAsset(handle: string, name: string, version: string) {
         const fullName = `${handle}/${name}`;
         const ref = `${fullName}:${version}`;
 
@@ -209,8 +184,7 @@ class RepositoryManager {
 
         const definitions = ClusterConfiguration.getDefinitions();
         const installedAsset = definitions.find(
-            (d) =>
-                d.definition.metadata.name === fullName && d.version === version
+            (d) => d.definition.metadata.name === fullName && d.version === version
         );
 
         if (installedAsset && this._cache[ref] === true) {
@@ -223,10 +197,7 @@ class RepositoryManager {
 
         let assetVersion;
         try {
-            assetVersion = await this._registryService.getVersion(
-                fullName,
-                version
-            );
+            assetVersion = await this._registryService.getVersion(fullName, version);
             if (!assetVersion) {
                 this._cache[ref] = false;
                 return;
@@ -245,7 +216,7 @@ class RepositoryManager {
             await this._install([ref]);
         } else {
             //Ensure dependencies are installed
-            const refs = assetVersion.dependencies.map((dep:Dependency) => dep.name);
+            const refs = assetVersion.dependencies.map((dep: Dependency) => dep.name);
             console.log(`Auto-installing dependencies: ${refs.join(', ')}`);
             await this._install(refs);
         }

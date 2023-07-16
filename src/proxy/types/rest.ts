@@ -1,16 +1,16 @@
-import _ from "lodash";
-import request from "request";
-import Path from "path";
-import {pathTemplateParser} from "../../utils/pathTemplateParser";
-import {networkManager} from "../../networkManager";
+import _ from 'lodash';
+import request from 'request';
+import Path from 'path';
+import { pathTemplateParser } from '../../utils/pathTemplateParser';
+import { networkManager } from '../../networkManager';
 
-import {socketManager} from "../../socketManager";
-import {Request, Response} from "express";
-import {ProxyRequestInfo, SimpleRequest, StringMap} from "../../types";
-import {StringBodyRequest} from "../../middleware/stringBody";
-import {Resource} from "@kapeta/schemas";
+import { socketManager } from '../../socketManager';
+import { Request, Response } from 'express';
+import { ProxyRequestInfo, SimpleRequest, StringMap } from '../../types';
+import { StringBodyRequest } from '../../middleware/stringBody';
+import { Resource } from '@kapeta/schemas';
 
-function getRestMethodId(restResource:Resource, httpMethod:string, httpPath:string) {
+function getRestMethodId(restResource: Resource, httpMethod: string, httpPath: string) {
     return _.findKey(restResource.spec.methods, (method) => {
         let methodType = method.method ? method.method.toUpperCase() : 'GET';
 
@@ -27,7 +27,6 @@ function getRestMethodId(restResource:Resource, httpMethod:string, httpPath:stri
         const pathTemplate = pathTemplateParser(path);
 
         return pathTemplate.matches(httpPath);
-
     });
 }
 
@@ -37,7 +36,7 @@ function getRestMethodId(restResource:Resource, httpMethod:string, httpPath:stri
  * @param opts {ProxyRequestInfo}
  * @return {{consumerMethod: *, providerMethod: *}}
  */
-function resolveMethods(req:Request, opts:ProxyRequestInfo) {
+function resolveMethods(req: Request, opts: ProxyRequestInfo) {
     const consumerMethodId = getRestMethodId(opts.consumerResource, req.method, opts.consumerPath);
 
     if (!consumerMethodId) {
@@ -76,13 +75,12 @@ function resolveMethods(req:Request, opts:ProxyRequestInfo) {
 
     return {
         consumerMethod,
-        providerMethod
+        providerMethod,
     };
 }
 
-export function proxyRestRequest(req:StringBodyRequest, res:Response, opts:ProxyRequestInfo) {
-
-    let {consumerMethod, providerMethod} = resolveMethods(req, opts);
+export function proxyRestRequest(req: StringBodyRequest, res: Response, opts: ProxyRequestInfo) {
+    let { consumerMethod, providerMethod } = resolveMethods(req, opts);
 
     const consumerPathTemplate = pathTemplateParser(consumerMethod.path);
     const providerPathTemplate = pathTemplateParser(providerMethod.path);
@@ -90,8 +88,8 @@ export function proxyRestRequest(req:StringBodyRequest, res:Response, opts:Proxy
     const pathVariables = consumerPathTemplate.parse(opts.consumerPath);
     if (!pathVariables) {
         res.status(400).send({
-            error: `Path did not match any patterns: "${opts.consumerPath}"`
-        })
+            error: `Path did not match any patterns: "${opts.consumerPath}"`,
+        });
         return;
     }
 
@@ -111,11 +109,11 @@ export function proxyRestRequest(req:StringBodyRequest, res:Response, opts:Proxy
 
     console.log('Proxy request to provider: %s => %s [rest]', opts.consumerPath, opts.address + providerPath);
 
-    const reqOpts:SimpleRequest = {
+    const reqOpts: SimpleRequest = {
         method: providerMethod.method || 'GET',
         url: opts.address + providerPath,
         body: req.stringBody,
-        headers: requestHeaders as StringMap
+        headers: requestHeaders as StringMap,
     };
 
     const traffic = networkManager.addRequest(
@@ -128,12 +126,12 @@ export function proxyRestRequest(req:StringBodyRequest, res:Response, opts:Proxy
 
     socketManager.emit(traffic.connectionId, 'traffic_start', traffic);
 
-    request(reqOpts, function(err, response, responseBody) {
+    request(reqOpts, function (err, response, responseBody) {
         if (err) {
             traffic.asError(err);
             socketManager.emit(traffic.connectionId, 'traffic_end', traffic);
 
-            res.status(500).send({error: '' + err});
+            res.status(500).send({ error: '' + err });
             return;
         }
 
@@ -150,7 +148,7 @@ export function proxyRestRequest(req:StringBodyRequest, res:Response, opts:Proxy
         traffic.withResponse({
             code: response.statusCode,
             headers: response.headers as StringMap,
-            body: responseBody
+            body: responseBody,
         });
 
         socketManager.emit(traffic.connectionId, 'traffic_end', traffic);

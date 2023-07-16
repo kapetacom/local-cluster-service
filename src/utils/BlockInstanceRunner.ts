@@ -1,26 +1,26 @@
-import {spawn} from "node:child_process";
-import FS from "node:fs";
-import Path from "node:path";
-import {Docker} from "node-docker-api";
-import ClusterConfig, {DefinitionInfo} from "@kapeta/local-cluster-config";
-import {readYML} from "./utils";
-import {KapetaURI, parseKapetaUri} from "@kapeta/nodejs-utils";
-import {serviceManager} from "../serviceManager";
-import {containerManager, DockerMounts} from "../containerManager";
-import {LogData} from "./LogData";
-import EventEmitter from "events";
-import md5 from "md5";
-import {execSync} from "child_process";
-import {clusterService} from "../clusterService";
-import {AnyMap, BlockProcessParams, ProcessDetails, ProcessInfo, StringMap} from "../types";
-import {BlockDefinition, BlockInstance, BlockInstanceConfiguration, BlockResource} from "@kapeta/schemas";
-import {Container} from "node-docker-api/lib/container";
+import { spawn } from 'node:child_process';
+import FS from 'node:fs';
+import Path from 'node:path';
+import { Docker } from 'node-docker-api';
+import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
+import { readYML } from './utils';
+import { KapetaURI, parseKapetaUri } from '@kapeta/nodejs-utils';
+import { serviceManager } from '../serviceManager';
+import { containerManager, DockerMounts } from '../containerManager';
+import { LogData } from './LogData';
+import EventEmitter from 'events';
+import md5 from 'md5';
+import { execSync } from 'child_process';
+import { clusterService } from '../clusterService';
+import { AnyMap, BlockProcessParams, ProcessDetails, ProcessInfo, StringMap } from '../types';
+import { BlockDefinition, BlockInstance, BlockInstanceConfiguration, BlockResource } from '@kapeta/schemas';
+import { Container } from 'node-docker-api/lib/container';
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
-const KAPETA_SYSTEM_ID = "KAPETA_SYSTEM_ID";
-const KAPETA_BLOCK_REF = "KAPETA_BLOCK_REF";
-const KAPETA_INSTANCE_ID = "KAPETA_INSTANCE_ID";
-const KAPETA_LOCAL_CLUSTER_PORT = "KAPETA_LOCAL_CLUSTER_PORT";
+const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
+const KAPETA_BLOCK_REF = 'KAPETA_BLOCK_REF';
+const KAPETA_INSTANCE_ID = 'KAPETA_INSTANCE_ID';
+const KAPETA_LOCAL_CLUSTER_PORT = 'KAPETA_LOCAL_CLUSTER_PORT';
 /**
  * Needed when running local docker containers as part of plan
  * @type {string[]}
@@ -29,26 +29,29 @@ const DOCKER_ENV_VARS = [
     `KAPETA_LOCAL_SERVER=0.0.0.0`,
     `KAPETA_LOCAL_CLUSTER_HOST=host.docker.internal`,
     `KAPETA_ENVIRONMENT_TYPE=docker`,
-]
+];
 
-
-function getProvider(uri:KapetaURI) {
-    return ClusterConfig.getProviderDefinitions().find(provider => {
-        const ref = `${provider.definition.metadata.name}:${provider.version}`
+function getProvider(uri: KapetaURI) {
+    return ClusterConfig.getProviderDefinitions().find((provider) => {
+        const ref = `${provider.definition.metadata.name}:${provider.version}`;
         return parseKapetaUri(ref).id === uri.id;
     });
 }
 
-function getProviderPorts(assetVersion:DefinitionInfo):string[] {
-    return assetVersion.definition?.spec?.providers?.map((provider:any) => {
-        return provider.spec?.port?.type
-    }).filter((t:any) => !!t) ?? [];
+function getProviderPorts(assetVersion: DefinitionInfo): string[] {
+    return (
+        assetVersion.definition?.spec?.providers
+            ?.map((provider: any) => {
+                return provider.spec?.port?.type;
+            })
+            .filter((t: any) => !!t) ?? []
+    );
 }
 
 export class BlockInstanceRunner {
     private readonly _systemId: string;
 
-    constructor(planReference:string) {
+    constructor(planReference: string) {
         /**
          *
          * @type {string}
@@ -57,22 +60,20 @@ export class BlockInstanceRunner {
         this._systemId = planReference ?? '';
     }
 
-
-
     /**
      * Start a block
      *
      */
-    async start(blockRef:string, instanceId:string, configuration:AnyMap):Promise<ProcessInfo> {
+    async start(blockRef: string, instanceId: string, configuration: AnyMap): Promise<ProcessInfo> {
         return this._execute({
             ref: blockRef,
             id: instanceId,
-            configuration
+            configuration,
         });
     }
 
-    private async _execute(blockInstance:BlockProcessParams):Promise<ProcessInfo> {
-        const env:StringMap = {};
+    private async _execute(blockInstance: BlockProcessParams): Promise<ProcessInfo> {
+        const env: StringMap = {};
 
         if (this._systemId) {
             env[KAPETA_SYSTEM_ID] = this._systemId;
@@ -92,8 +93,8 @@ export class BlockInstanceRunner {
             blockUri.version = 'local';
         }
 
-        const assetVersion = ClusterConfig.getDefinitions().find(definitions => {
-            const ref = `${definitions.definition.metadata.name}:${definitions.version}`
+        const assetVersion = ClusterConfig.getDefinitions().find((definitions) => {
+            const ref = `${definitions.definition.metadata.name}:${definitions.version}`;
             return parseKapetaUri(ref).id === blockUri.id;
         });
 
@@ -109,7 +110,7 @@ export class BlockInstanceRunner {
             throw new Error(`Kind not found: ${kindUri.id}`);
         }
 
-        let processDetails:ProcessDetails;
+        let processDetails: ProcessDetails;
 
         if (providerVersion.definition.kind === KIND_BLOCK_TYPE_OPERATOR) {
             processDetails = await this._startOperatorProcess(blockInstance, blockUri, providerVersion, env);
@@ -131,25 +132,25 @@ export class BlockInstanceRunner {
         return {
             name: blockUri.id,
             ...blockInstance,
-            ...processDetails
+            ...processDetails,
         };
     }
-
 
     /**
      * Starts local process
      */
-    private async _startLocalProcess(blockInstance:BlockProcessParams, blockInfo:KapetaURI, env:StringMap, assetVersion:DefinitionInfo):Promise<ProcessDetails> {
-        const baseDir = ClusterConfig.getRepositoryAssetPath(
-            blockInfo.handle,
-            blockInfo.name,
-            blockInfo.version
-        );
+    private async _startLocalProcess(
+        blockInstance: BlockProcessParams,
+        blockInfo: KapetaURI,
+        env: StringMap,
+        assetVersion: DefinitionInfo
+    ): Promise<ProcessDetails> {
+        const baseDir = ClusterConfig.getRepositoryAssetPath(blockInfo.handle, blockInfo.name, blockInfo.version);
 
         if (!FS.existsSync(baseDir)) {
             throw new Error(
                 `Local block not registered correctly - expected symlink here: ${baseDir}.\n` +
-                `Make sure you've run "blockctl registry link" in your local directory to connect it to Kapeta`
+                    `Make sure you've run "blockctl registry link" in your local directory to connect it to Kapeta`
             );
         }
 
@@ -179,16 +180,16 @@ export class BlockInstanceRunner {
         const containerName = `kapeta-block-instance-${blockInstance.id}`;
         const logs = new LogData();
         logs.addLog(`Starting block ${blockInstance.ref}`);
-        let container:Container|null = await containerManager.getContainerByName(containerName) ?? null
+        let container: Container | null = (await containerManager.getContainerByName(containerName)) ?? null;
         console.log('Starting dev container', containerName);
 
         if (container) {
             console.log(`Container already exists. Deleting...`);
             try {
                 await container.delete({
-                    force: true
-                })
-            } catch (e:any) {
+                    force: true,
+                });
+            } catch (e: any) {
                 throw new Error('Failed to delete existing container: ' + e.message);
             }
             container = null;
@@ -203,33 +204,32 @@ export class BlockInstanceRunner {
         const homeDir = localContainer.userHome ? localContainer.userHome : '/root';
         const workingDir = localContainer.workingDir ? localContainer.workingDir : '/workspace';
 
-        const ExposedPorts:AnyMap = {};
-        const addonEnv:StringMap = {};
-        const PortBindings:AnyMap = {};
+        const ExposedPorts: AnyMap = {};
+        const addonEnv: StringMap = {};
+        const PortBindings: AnyMap = {};
 
         const portTypes = getProviderPorts(assetVersion);
         let port = 80;
-        const promises = portTypes
-            .map(async (portType) => {
-                const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
-                const thisPort = port++; //TODO: Not sure how we should handle multiple ports or non-HTTP ports
-                const dockerPort = `${thisPort}/tcp`;
-                ExposedPorts[dockerPort] = {};
-                addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = '' + thisPort;
+        const promises = portTypes.map(async (portType) => {
+            const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
+            const thisPort = port++; //TODO: Not sure how we should handle multiple ports or non-HTTP ports
+            const dockerPort = `${thisPort}/tcp`;
+            ExposedPorts[dockerPort] = {};
+            addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = '' + thisPort;
 
-                PortBindings[dockerPort] = [
-                    {
-                        HostIp: "127.0.0.1", //No public
-                        HostPort: `${publicPort}`
-                    }
-                ];
-            });
+            PortBindings[dockerPort] = [
+                {
+                    HostIp: '127.0.0.1', //No public
+                    HostPort: `${publicPort}`,
+                },
+            ];
+        });
 
         await Promise.all(promises);
 
         let HealthCheck = undefined;
         if (localContainer.healthcheck) {
-            HealthCheck = containerManager.toDockerHealth({cmd: localContainer.healthcheck});
+            HealthCheck = containerManager.toDockerHealth({ cmd: localContainer.healthcheck });
         }
 
         container = await containerManager.startContainer({
@@ -237,7 +237,7 @@ export class BlockInstanceRunner {
             name: containerName,
             WorkingDir: workingDir,
             Labels: {
-                'instance': blockInstance.id
+                instance: blockInstance.id,
             },
             HealthCheck,
             ExposedPorts,
@@ -247,17 +247,17 @@ export class BlockInstanceRunner {
                 `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
                 ...Object.entries({
                     ...env,
-                    ...addonEnv
-                }).map(([key, value]) => `${key}=${value}`)
+                    ...addonEnv,
+                }).map(([key, value]) => `${key}=${value}`),
             ],
             HostConfig: {
                 Binds: [
                     `${ClusterConfig.getKapetaBasedir()}:${homeDir}/.kapeta`,
-                    `${baseDir}:${workingDir}` //We mount
+                    `${baseDir}:${workingDir}`, //We mount
                 ],
-                PortBindings
+                PortBindings,
             },
-            ...dockerOpts
+            ...dockerOpts,
         });
 
         try {
@@ -266,21 +266,25 @@ export class BlockInstanceRunner {
             } else {
                 await containerManager.waitForReady(container);
             }
-        } catch (e:any) {
+        } catch (e: any) {
             logs.addLog(e.message, 'ERROR');
         }
 
         return this._handleContainer(container, logs);
     }
 
-    private async _handleContainer(container:Container, logs:LogData , deleteOnExit:boolean = false):Promise<ProcessDetails> {
-        let localContainer:Container|null = container
-        const logStream = await container.logs({
+    private async _handleContainer(
+        container: Container,
+        logs: LogData,
+        deleteOnExit: boolean = false
+    ): Promise<ProcessDetails> {
+        let localContainer: Container | null = container;
+        const logStream = (await container.logs({
             follow: true,
             stdout: true,
             stderr: true,
-            tail: LogData.MAX_LINES
-        }) as EventEmitter
+            tail: LogData.MAX_LINES,
+        })) as EventEmitter;
 
         const outputEvents = new EventEmitter();
         logStream.on('data', (data) => {
@@ -298,8 +302,8 @@ export class BlockInstanceRunner {
             const data = status.data as any;
             if (deleteOnExit) {
                 try {
-                    await container.delete()
-                } catch (e:any) {}
+                    await container.delete();
+                } catch (e: any) {}
             }
             outputEvents.emit('exit', data?.State?.ExitCode ?? 0);
         });
@@ -323,12 +327,12 @@ export class BlockInstanceRunner {
             },
             logs: () => {
                 return logs.getLogs();
-            }
+            },
         };
     }
 
-    private async _startDockerProcess(blockInstance:BlockProcessParams, blockInfo:KapetaURI, env:StringMap) {
-        const {versionFile} = ClusterConfig.getRepositoryAssetInfoPath(
+    private async _startDockerProcess(blockInstance: BlockProcessParams, blockInfo: KapetaURI, env: StringMap) {
+        const { versionFile } = ClusterConfig.getRepositoryAssetInfoPath(
             blockInfo.handle,
             blockInfo.name,
             blockInfo.version
@@ -367,24 +371,21 @@ export class BlockInstanceRunner {
                 Image: dockerImage,
                 name: containerName,
                 Labels: {
-                    'instance': blockInstance.id
+                    instance: blockInstance.id,
                 },
                 Env: [
                     ...DOCKER_ENV_VARS,
                     `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
-                    ...Object.entries(env).map(([key, value]) => `${key}=${value}`)
+                    ...Object.entries(env).map(([key, value]) => `${key}=${value}`),
                 ],
                 HostConfig: {
-                    Binds: [
-                        `${ClusterConfig.getKapetaBasedir()}:${ClusterConfig.getKapetaBasedir()}`
-                    ],
-
-                }
+                    Binds: [`${ClusterConfig.getKapetaBasedir()}:${ClusterConfig.getKapetaBasedir()}`],
+                },
             });
 
             try {
                 await containerManager.waitForReady(container);
-            } catch (e:any) {
+            } catch (e: any) {
                 logs.addLog(e.message, 'ERROR');
             }
         }
@@ -401,8 +402,13 @@ export class BlockInstanceRunner {
      * @return {Promise<ProcessDetails>}
      * @private
      */
-    async _startOperatorProcess(blockInstance:BlockProcessParams, blockUri:KapetaURI, providerDefinition:DefinitionInfo, env:StringMap) {
-        const {assetFile} = ClusterConfig.getRepositoryAssetInfoPath(
+    async _startOperatorProcess(
+        blockInstance: BlockProcessParams,
+        blockUri: KapetaURI,
+        providerDefinition: DefinitionInfo,
+        env: StringMap
+    ) {
+        const { assetFile } = ClusterConfig.getRepositoryAssetInfoPath(
             blockUri.handle,
             blockUri.name,
             blockUri.version
@@ -430,7 +436,7 @@ export class BlockInstanceRunner {
 
         const containerName = `kapeta-block-instance-${md5(blockInstance.id)}`;
         const logs = new LogData();
-        let container:Container|null = (await containerManager.getContainerByName(containerName)) ?? null;
+        let container: Container | null = (await containerManager.getContainerByName(containerName)) ?? null;
         if (container) {
             const containerData = container.data as any;
             if (containerData.State === 'running') {
@@ -439,7 +445,7 @@ export class BlockInstanceRunner {
                 if (containerData.State?.ExitCode > 0) {
                     logs.addLog(`Container exited with code: ${containerData.State.ExitCode}. Deleting...`);
                     try {
-                        await container.delete()
+                        await container.delete();
                     } catch (e) {}
                     container = null;
                 } else {
@@ -449,7 +455,7 @@ export class BlockInstanceRunner {
                     } catch (e) {
                         console.warn('Failed to start container. Deleting...', e);
                         try {
-                            await container.delete()
+                            await container.delete();
                         } catch (e) {}
                         container = null;
                     }
@@ -458,24 +464,29 @@ export class BlockInstanceRunner {
         }
 
         if (!container) {
-            const ExposedPorts:AnyMap = {};
-            const addonEnv:StringMap = {};
-            const PortBindings:AnyMap = {};
+            const ExposedPorts: AnyMap = {};
+            const addonEnv: StringMap = {};
+            const PortBindings: AnyMap = {};
             let HealthCheck = undefined;
-            let Mounts:DockerMounts[] = [];
-            const promises = Object.entries(spec.local.ports as {[p:string]:{port:string,type:string}})
-                .map(async ([portType, value]) => {
+            let Mounts: DockerMounts[] = [];
+            const promises = Object.entries(spec.local.ports as { [p: string]: { port: string; type: string } }).map(
+                async ([portType, value]) => {
                     const dockerPort = `${value.port}/${value.type}`;
                     ExposedPorts[dockerPort] = {};
                     addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = value.port;
-                    const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
+                    const publicPort = await serviceManager.ensureServicePort(
+                        this._systemId,
+                        blockInstance.id,
+                        portType
+                    );
                     PortBindings[dockerPort] = [
                         {
-                            HostIp: "127.0.0.1", //No public
-                            HostPort: `${publicPort}`
-                        }
+                            HostIp: '127.0.0.1', //No public
+                            HostPort: `${publicPort}`,
+                        },
                     ];
-                });
+                }
+            );
 
             await Promise.all(promises);
 
@@ -503,13 +514,13 @@ export class BlockInstanceRunner {
                 HostConfig: {
                     Binds: [
                         `${kapetaYmlPath}:/kapeta.yml:ro`,
-                        `${ClusterConfig.getKapetaBasedir()}:${ClusterConfig.getKapetaBasedir()}`
+                        `${ClusterConfig.getKapetaBasedir()}:${ClusterConfig.getKapetaBasedir()}`,
                     ],
                     PortBindings,
-                    Mounts
+                    Mounts,
                 },
                 Labels: {
-                    'instance': blockInstance.id
+                    instance: blockInstance.id,
                 },
                 Env: [
                     `KAPETA_INSTANCE_NAME=${blockInstance.ref}`,
@@ -517,9 +528,9 @@ export class BlockInstanceRunner {
                     ...DOCKER_ENV_VARS,
                     ...Object.entries({
                         ...env,
-                        ...addonEnv
-                    }).map(([key, value]) => `${key}=${value}`)
-                ]
+                        ...addonEnv,
+                    }).map(([key, value]) => `${key}=${value}`),
+                ],
             });
 
             try {
@@ -528,7 +539,7 @@ export class BlockInstanceRunner {
                 } else {
                     await containerManager.waitForReady(container);
                 }
-            } catch (e:any) {
+            } catch (e: any) {
                 logs.addLog(e.message, 'ERROR');
             }
         }

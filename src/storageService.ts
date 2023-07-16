@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import FS from 'fs';
-import FSExtra from "fs-extra";
+import FSExtra from 'fs-extra';
 import YAML from 'yaml';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 
@@ -8,7 +8,7 @@ import ClusterConfiguration from '@kapeta/local-cluster-config';
  * Class that handles reading and writing from local configuration file.
  */
 class StorageService {
-    private _data: { [key:string]:any};
+    private _data: { [key: string]: any };
 
     constructor() {
         this._data = this._readConfig();
@@ -30,7 +30,7 @@ class StorageService {
         FS.writeFileSync(configFile, YAML.stringify(this._data));
     }
 
-    section<T = any>(section:string, defaultValue?:any):T {
+    section<T = any>(section: string, defaultValue?: any): T {
         if (!defaultValue) {
             defaultValue = {};
         }
@@ -42,7 +42,7 @@ class StorageService {
         return this._data[section];
     }
 
-    put(section:string, property:string|any, value?:any) {
+    put(section: string, property: string | any, value?: any) {
         if (!_.isString(property)) {
             this._data[section] = property;
             this._writeConfig();
@@ -53,7 +53,7 @@ class StorageService {
         this._writeConfig();
     }
 
-    get(section:string, property?:string):any {
+    get(section: string, property?: string): any {
         if (!property) {
             return this.section(section);
         }
@@ -61,7 +61,7 @@ class StorageService {
         return this.section(section)[property];
     }
 
-    contains(section:string, property:string) {
+    contains(section: string, property: string) {
         if (!this._data[section]) {
             return false;
         }
@@ -69,7 +69,7 @@ class StorageService {
         return this._data[section].hasOwnProperty(property);
     }
 
-    ensure(section:string, property:string, value:any) {
+    ensure(section: string, property: string, value: any) {
         if (this.contains(section, property)) {
             return this.get(section, property);
         }

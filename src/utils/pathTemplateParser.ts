@@ -1,4 +1,4 @@
-import {StringMap} from "../types";
+import { StringMap } from '../types';
 
 const TYPE_VARIABLE = 'variable';
 const TYPE_PATH = 'path';
@@ -16,22 +16,23 @@ const TYPE_PATH = 'path';
  */
 export class PathTemplate {
     private _path: string;
-    private _parts: { type:'variable'|'path', value: string, regex?:RegExp }[] = [];
+    private _parts: { type: 'variable' | 'path'; value: string; regex?: RegExp }[] = [];
 
-    constructor(pathTemplate:string) {
+    constructor(pathTemplate: string) {
         if (!pathTemplate.startsWith('/')) {
             pathTemplate = '/' + pathTemplate;
         }
         this._path = pathTemplate;
 
         const variableRegex = /{([^}]+)}/g;
-        let match, offset = 0;
+        let match,
+            offset = 0;
         this._parts = [];
-        while((match = variableRegex.exec(pathTemplate)) !== null) {
+        while ((match = variableRegex.exec(pathTemplate)) !== null) {
             if (match.index > offset) {
                 this._parts.push({
                     type: TYPE_PATH,
-                    value: pathTemplate.substring(offset, match.index)
+                    value: pathTemplate.substring(offset, match.index),
                 });
             }
 
@@ -42,13 +43,13 @@ export class PathTemplate {
             if (regex) {
                 regex = new RegExp('^' + regex);
             } else {
-                regex = /^[^\/]+/
+                regex = /^[^\/]+/;
             }
 
             this._parts.push({
                 type: TYPE_VARIABLE,
                 value,
-                regex
+                regex,
             });
             offset = match.index + match[0].length;
         }
@@ -56,7 +57,7 @@ export class PathTemplate {
         if (offset < pathTemplate.length) {
             this._parts.push({
                 type: TYPE_PATH,
-                value: pathTemplate.substring(offset)
+                value: pathTemplate.substring(offset),
             });
         }
     }
@@ -65,18 +66,18 @@ export class PathTemplate {
         return this._path;
     }
 
-    matches(path:string) {
+    matches(path: string) {
         return this.parse(path) !== null;
     }
 
-    parse(path:string) {
+    parse(path: string) {
         if (!path.startsWith('/')) {
             path = '/' + path;
         }
 
-        const values:StringMap = {};
+        const values: StringMap = {};
 
-        for(let i = 0 ; i < this._parts.length; i++) {
+        for (let i = 0; i < this._parts.length; i++) {
             const part = this._parts[i];
             switch (part.type) {
                 case TYPE_PATH:
@@ -91,7 +92,7 @@ export class PathTemplate {
                         return null;
                     }
 
-                    const newPath = path.replace(part.regex,'');
+                    const newPath = path.replace(part.regex, '');
                     const value = path.substr(0, path.length - newPath.length);
                     values[part.value] = value;
                     path = newPath;
@@ -107,30 +108,31 @@ export class PathTemplate {
         return values;
     }
 
-    create(variables:StringMap) {
-        return this._parts.map((part) => {
-            switch (part.type) {
-                case TYPE_PATH:
-                    return part.value;
-                case TYPE_VARIABLE:
-                    if (variables[part.value] === undefined ||
-                        variables[part.value] === null ) {
-                        return ''
-                    }
+    create(variables: StringMap) {
+        return this._parts
+            .map((part) => {
+                switch (part.type) {
+                    case TYPE_PATH:
+                        return part.value;
+                    case TYPE_VARIABLE:
+                        if (variables[part.value] === undefined || variables[part.value] === null) {
+                            return '';
+                        }
 
-                    return variables[part.value];
-            }
-        }).join('');
+                        return variables[part.value];
+                }
+            })
+            .join('');
     }
 
     toString() {
-        return 'tmpl: ' + this.path
+        return 'tmpl: ' + this.path;
     }
 }
 
 /**
  * Parses a path into a RESTPath
  */
-export function pathTemplateParser(path:string) {
+export function pathTemplateParser(path: string) {
     return new PathTemplate(path);
 }

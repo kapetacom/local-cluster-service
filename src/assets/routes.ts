@@ -1,13 +1,13 @@
-import Router from "express-promise-router";
-import {Request, Response} from "express";
-import YAML from "yaml";
-import {assetManager} from "../assetManager";
+import Router from 'express-promise-router';
+import { Request, Response } from 'express';
+import YAML from 'yaml';
+import { assetManager } from '../assetManager';
 
-import {corsHandler} from "../middleware/cors";
+import { corsHandler } from '../middleware/cors';
 
-import {stringBody, StringBodyRequest} from "../middleware/stringBody";
+import { stringBody, StringBodyRequest } from '../middleware/stringBody';
 
-function parseBody(req:StringBodyRequest) {
+function parseBody(req: StringBodyRequest) {
     switch (req.headers['content-type']) {
         case 'application/json':
         case 'application/x-json':
@@ -31,14 +31,14 @@ router.use('/', stringBody);
 /**
  * Get all local assets available
  */
-router.get('/', (req:Request, res:Response) => {
+router.get('/', (req: Request, res: Response) => {
     res.send(assetManager.getAssets());
 });
 
 /**
  * Get single asset
  */
-router.get('/read', async (req:Request, res:Response) => {
+router.get('/read', async (req: Request, res: Response) => {
     if (!req.query.ref) {
         res.status(400).send({ error: 'Query parameter "ref" is missing' });
         return;
@@ -46,7 +46,7 @@ router.get('/read', async (req:Request, res:Response) => {
 
     try {
         res.send(await assetManager.getAsset(req.query.ref as string, true));
-    } catch (err:any) {
+    } catch (err: any) {
         res.status(400).send({ error: err.message });
     }
 });
@@ -54,7 +54,7 @@ router.get('/read', async (req:Request, res:Response) => {
 /**
  * Creates a new local file and registers it as an asset
  */
-router.post('/create', async (req:Request, res:Response) => {
+router.post('/create', async (req: Request, res: Response) => {
     if (!req.query.path) {
         res.status(400).send({ error: 'Query parameter "path" is missing' });
         return;
@@ -66,7 +66,7 @@ router.post('/create', async (req:Request, res:Response) => {
         const assets = await assetManager.createAsset(req.query.path as string, content);
 
         res.status(200).send(assets);
-    } catch (err:any) {
+    } catch (err: any) {
         console.log('Failed while creating asset', req.query.path, err.message);
         res.status(400).send({ error: err.message });
     }
@@ -75,7 +75,7 @@ router.post('/create', async (req:Request, res:Response) => {
 /**
  * Updates reference with new content
  */
-router.put('/update', async (req:Request, res:Response) => {
+router.put('/update', async (req: Request, res: Response) => {
     if (!req.query.ref) {
         res.status(400).send({ error: 'Query parameter "ref" is missing' });
         return;
@@ -87,7 +87,7 @@ router.put('/update', async (req:Request, res:Response) => {
         await assetManager.updateAsset(req.query.ref as string, content);
 
         res.sendStatus(204);
-    } catch (err:any) {
+    } catch (err: any) {
         console.log('Failed while updating asset', req.query.ref, err.message);
         res.status(400).send({ error: err.message });
     }
@@ -96,7 +96,7 @@ router.put('/update', async (req:Request, res:Response) => {
 /**
  * Unregisters an asset (doesn't delete the asset)
  */
-router.delete('/', async (req:Request, res:Response) => {
+router.delete('/', async (req: Request, res: Response) => {
     if (!req.query.ref) {
         res.status(400).send({ error: 'Query parameter "ref" is missing' });
         return;
@@ -106,7 +106,7 @@ router.delete('/', async (req:Request, res:Response) => {
         await assetManager.unregisterAsset(req.query.ref as string);
 
         res.status(204).send();
-    } catch (err:any) {
+    } catch (err: any) {
         res.status(400).send({ error: err.message });
     }
 });
@@ -114,7 +114,7 @@ router.delete('/', async (req:Request, res:Response) => {
 /**
  * Registers an existing file as an asset
  */
-router.put('/import', async (req:Request, res:Response) => {
+router.put('/import', async (req: Request, res: Response) => {
     if (!req.query.ref) {
         res.status(400).send({ error: 'Query parameter "ref" is missing' });
         return;
@@ -124,7 +124,7 @@ router.put('/import', async (req:Request, res:Response) => {
         const assets = await assetManager.importFile(req.query.ref as string);
 
         res.status(200).send(assets);
-    } catch (err:any) {
+    } catch (err: any) {
         res.status(400).send({ error: err.message });
     }
 });

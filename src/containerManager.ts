@@ -1,37 +1,36 @@
-import Path from "path";
-import {storageService} from './storageService';
-import os from "os";
-import _ from "lodash";
-import FSExtra, {ReadStream} from "fs-extra";
-import {Docker} from "node-docker-api";
-import {parseKapetaUri} from "@kapeta/nodejs-utils";
-import ClusterConfiguration from "@kapeta/local-cluster-config";
-import {Container} from "node-docker-api/lib/container";
-
+import Path from 'path';
+import { storageService } from './storageService';
+import os from 'os';
+import _ from 'lodash';
+import FSExtra, { ReadStream } from 'fs-extra';
+import { Docker } from 'node-docker-api';
+import { parseKapetaUri } from '@kapeta/nodejs-utils';
+import ClusterConfiguration from '@kapeta/local-cluster-config';
+import { Container } from 'node-docker-api/lib/container';
 
 type StringMap = { [key: string]: string };
 
 export type PortMap = {
     [key: string]: {
-        containerPort:string,
-        protocol:string,
-        hostPort:string
-    }
-}
+        containerPort: string;
+        protocol: string;
+        hostPort: string;
+    };
+};
 
 export interface DockerMounts {
-    Target: string,
-    Source: string,
-    Type: string,
-    ReadOnly: boolean,
-    Consistency: string
+    Target: string;
+    Source: string;
+    Type: string;
+    ReadOnly: boolean;
+    Consistency: string;
 }
 
 interface Health {
-    cmd:string
-    interval?:number
-    timeout?:number
-    retries?:number
+    cmd: string;
+    interval?: number;
+    timeout?: number;
+    retries?: number;
 }
 
 const LABEL_PORT_PREFIX = 'kapeta_port-';
@@ -41,8 +40,7 @@ const HEALTH_CHECK_MAX = 30;
 const IMAGE_PULL_CACHE_TTL = 30 * 60 * 1000;
 const IMAGE_PULL_CACHE: { [key: string]: number } = {};
 
-
-const promisifyStream = (stream:ReadStream) =>
+const promisifyStream = (stream: ReadStream) =>
     new Promise((resolve, reject) => {
         stream.on('data', (d) => console.log(d.toString()));
         stream.on('end', resolve);
@@ -68,23 +66,20 @@ class ContainerManager {
             Object.keys(dockerConfig).length > 0
                 ? [dockerConfig]
                 : [
-                    // use defaults: DOCKER_HOST etc from env, if available
-                    undefined,
-                    // default linux
-                    {socketPath: '/var/run/docker.sock'},
-                    // default macOS
-                    {
-                        socketPath: Path.join(
-                            os.homedir(),
-                            '.docker/run/docker.sock'
-                        ),
-                    },
-                    // Default http
-                    {protocol: 'http', host: 'localhost', port: 2375},
-                    {protocol: 'https', host: 'localhost', port: 2376},
-                    {protocol: 'http', host: '127.0.0.1', port: 2375},
-                    {protocol: 'https', host: '127.0.0.1', port: 2376},
-                ];
+                      // use defaults: DOCKER_HOST etc from env, if available
+                      undefined,
+                      // default linux
+                      { socketPath: '/var/run/docker.sock' },
+                      // default macOS
+                      {
+                          socketPath: Path.join(os.homedir(), '.docker/run/docker.sock'),
+                      },
+                      // Default http
+                      { protocol: 'http', host: 'localhost', port: 2375 },
+                      { protocol: 'https', host: 'localhost', port: 2376 },
+                      { protocol: 'http', host: '127.0.0.1', port: 2375 },
+                      { protocol: 'https', host: '127.0.0.1', port: 2376 },
+                  ];
         for (const opts of connectOptions) {
             try {
                 const client = new Docker(opts);
@@ -106,12 +101,7 @@ class ContainerManager {
 
     getMountPoint(kind: string, mountName: string) {
         const kindUri = parseKapetaUri(kind);
-        return Path.join(
-            this._mountDir,
-            kindUri.handle,
-            kindUri.name,
-            mountName
-        );
+        return Path.join(this._mountDir, kindUri.handle, kindUri.name, mountName);
     }
 
     createMounts(kind: string, mountOpts: StringMap): StringMap {
@@ -131,7 +121,7 @@ class ContainerManager {
             if (pingResult !== 'OK') {
                 throw new Error(`Ping failed: ${pingResult}`);
             }
-        } catch (e:any) {
+        } catch (e: any) {
             throw new Error(
                 `Docker not running. Please start the docker daemon before running this command. Error: ${e.message}`
             );
@@ -145,8 +135,8 @@ class ContainerManager {
         return this._docker;
     }
 
-    async getContainerByName(containerName: string):Promise<Container|undefined> {
-        const containers = await this.docker().container.list({all: true});
+    async getContainerByName(containerName: string): Promise<Container | undefined> {
+        const containers = await this.docker().container.list({ all: true });
         return containers.find((container) => {
             return (container.data as any).Names.indexOf(`/${containerName}`) > -1;
         });
@@ -167,9 +157,9 @@ class ContainerManager {
             }
 
             const imageTagList = (await this.docker().image.list())
-                .map(image => image.data as any)
-                .filter(imageData => !!imageData.RepoTags)
-                .map(imageData => imageData.RepoTags as string[]);
+                .map((image) => image.data as any)
+                .filter((imageData) => !!imageData.RepoTags)
+                .map((imageData) => imageData.RepoTags as string[]);
 
             if (imageTagList.some((imageTags) => imageTags.indexOf(image) > -1)) {
                 console.log('Image found: %s', image);
@@ -195,7 +185,7 @@ class ContainerManager {
     }
 
     toDockerMounts(mounts: StringMap) {
-        const Mounts:DockerMounts[] = [];
+        const Mounts: DockerMounts[] = [];
         _.forEach(mounts, (Source, Target) => {
             Mounts.push({
                 Target,
@@ -209,31 +199,31 @@ class ContainerManager {
         return Mounts;
     }
 
-    toDockerHealth(health:Health) {
+    toDockerHealth(health: Health) {
         return {
             Test: ['CMD-SHELL', health.cmd],
-            Interval: health.interval
-                ? health.interval * NANO_SECOND
-                : 5000 * NANO_SECOND,
-            Timeout: health.timeout
-                ? health.timeout * NANO_SECOND
-                : 15000 * NANO_SECOND,
+            Interval: health.interval ? health.interval * NANO_SECOND : 5000 * NANO_SECOND,
+            Timeout: health.timeout ? health.timeout * NANO_SECOND : 15000 * NANO_SECOND,
             Retries: health.retries || 10,
         };
     }
 
-    async run(image:string, name:string, opts:{ports:{},mounts:{},env:{}, cmd:string,health:Health}):Promise<ContainerInfo> {
-        const PortBindings:{[key:string]:any} = {};
-        const Env:string[] = [];
-        const Labels:StringMap = {
+    async run(
+        image: string,
+        name: string,
+        opts: { ports: {}; mounts: {}; env: {}; cmd: string; health: Health }
+    ): Promise<ContainerInfo> {
+        const PortBindings: { [key: string]: any } = {};
+        const Env: string[] = [];
+        const Labels: StringMap = {
             kapeta: 'true',
         };
 
         await this.pull(image);
 
-        const ExposedPorts:{[key:string]:any} = {};
+        const ExposedPorts: { [key: string]: any } = {};
 
-        _.forEach(opts.ports, (portInfo:any, containerPort) => {
+        _.forEach(opts.ports, (portInfo: any, containerPort) => {
             ExposedPorts['' + containerPort] = {};
             PortBindings['' + containerPort] = [
                 {
@@ -279,21 +269,19 @@ class ContainerManager {
         return new ContainerInfo(dockerContainer);
     }
 
-    async startContainer(opts:any) {
+    async startContainer(opts: any) {
         const dockerContainer = await this.docker().container.create(opts);
         await dockerContainer.start();
         return dockerContainer;
     }
 
-    async waitForReady(container:Container, attempt:number = 0):Promise<void> {
+    async waitForReady(container: Container, attempt: number = 0): Promise<void> {
         if (!attempt) {
             attempt = 0;
         }
 
         if (attempt >= HEALTH_CHECK_MAX) {
-            throw new Error(
-                'Container did not become ready within the timeout'
-            );
+            throw new Error('Container did not become ready within the timeout');
         }
 
         if (await this._isReady(container)) {
@@ -312,15 +300,13 @@ class ContainerManager {
         });
     }
 
-    async waitForHealthy(container:Container, attempt?:number):Promise<void> {
+    async waitForHealthy(container: Container, attempt?: number): Promise<void> {
         if (!attempt) {
             attempt = 0;
         }
 
         if (attempt >= HEALTH_CHECK_MAX) {
-            throw new Error(
-                'Container did not become healthy within the timeout'
-            );
+            throw new Error('Container did not become healthy within the timeout');
         }
 
         if (await this._isHealthy(container)) {
@@ -339,18 +325,18 @@ class ContainerManager {
         });
     }
 
-    async _isReady(container:Container) {
-        const info:Container = await container.status();
-        const infoData:any = info?.data;
+    async _isReady(container: Container) {
+        const info: Container = await container.status();
+        const infoData: any = info?.data;
         if (infoData?.State?.Status === 'exited') {
             throw new Error('Container exited unexpectedly');
         }
         return infoData?.State?.Running ?? false;
     }
 
-    async _isHealthy(container:Container) {
+    async _isHealthy(container: Container) {
         const info = await container.status();
-        const infoData:any = info?.data;
+        const infoData: any = info?.data;
         return infoData?.State?.Health?.Status === 'healthy';
     }
 
@@ -359,7 +345,7 @@ class ContainerManager {
      * @param name
      * @return {Promise<ContainerInfo>}
      */
-    async get(name:string):Promise<ContainerInfo|null> {
+    async get(name: string): Promise<ContainerInfo | null> {
         let dockerContainer = null;
 
         try {
@@ -384,7 +370,7 @@ export class ContainerInfo {
      *
      * @param {Container} dockerContainer
      */
-    constructor(dockerContainer:Container) {
+    constructor(dockerContainer: Container) {
         /**
          *
          * @type {Container}
@@ -419,11 +405,11 @@ export class ContainerInfo {
         await this._container.stop();
     }
 
-    async remove(opts?:{force?:boolean}) {
-        await this._container.delete({force: !!opts?.force});
+    async remove(opts?: { force?: boolean }) {
+        await this._container.delete({ force: !!opts?.force });
     }
 
-    async getPort(type:string) {
+    async getPort(type: string) {
         const ports = await this.getPorts();
 
         if (ports && ports[type]) {
@@ -436,22 +422,18 @@ export class ContainerInfo {
     async getStatus() {
         const result = await this._container.status();
 
-        return result ? result.data as any : null;
+        return result ? (result.data as any) : null;
     }
 
-    async getPorts():Promise<PortMap|false> {
+    async getPorts(): Promise<PortMap | false> {
         const inspectResult = await this.getStatus();
 
-        if (
-            !inspectResult ||
-            !inspectResult.Config ||
-            !inspectResult.Config.Labels
-        ) {
+        if (!inspectResult || !inspectResult.Config || !inspectResult.Config.Labels) {
             return false;
         }
 
-        const portTypes:StringMap = {};
-        const ports:PortMap = {};
+        const portTypes: StringMap = {};
+        const ports: PortMap = {};
 
         _.forEach(inspectResult.Config.Labels, (portType, name) => {
             if (!name.startsWith(LABEL_PORT_PREFIX)) {
@@ -463,22 +445,19 @@ export class ContainerInfo {
             portTypes[hostPort] = portType;
         });
 
-        _.forEach(
-            inspectResult.HostConfig.PortBindings,
-            (portBindings, containerPortSpec) => {
-                let [containerPort, protocol] = containerPortSpec.split(/\//);
+        _.forEach(inspectResult.HostConfig.PortBindings, (portBindings, containerPortSpec) => {
+            let [containerPort, protocol] = containerPortSpec.split(/\//);
 
-                const hostPort = portBindings[0].HostPort;
+            const hostPort = portBindings[0].HostPort;
 
-                const portType = portTypes[hostPort];
+            const portType = portTypes[hostPort];
 
-                ports[portType] = {
-                    containerPort,
-                    protocol,
-                    hostPort,
-                };
-            }
-        );
+            ports[portType] = {
+                containerPort,
+                protocol,
+                hostPort,
+            };
+        });
 
         return ports;
     }
