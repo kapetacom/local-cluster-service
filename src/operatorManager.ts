@@ -1,5 +1,4 @@
 import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import _ from 'lodash';
 import Path from 'path';
 import md5 from 'md5';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
@@ -8,7 +7,7 @@ import { storageService } from './storageService';
 import { ContainerInfo, containerManager } from './containerManager';
 import FSExtra from 'fs-extra';
 import { AnyMap, EnvironmentType, OperatorInfo } from './types';
-import { BlockInstance, BlockResource, Resource } from '@kapeta/schemas';
+import { BlockInstance, Resource } from '@kapeta/schemas';
 
 const KIND_OPERATOR = 'core/resource-type-operator';
 

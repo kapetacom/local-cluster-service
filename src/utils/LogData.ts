@@ -1,7 +1,6 @@
 import { LogEntry, LogLevel, LogSource } from '../types';
 
 const MAX_LINES = 1000;
-
 export class LogData {
     public static readonly MAX_LINES = MAX_LINES;
     private readonly entries: LogEntry[] = [];
@@ -43,5 +42,3 @@ export class LogData {
             .join('\n');
     }
 }
-
-module.exports = LogData;

@@ -51,7 +51,7 @@ class RepositoryManager {
             if (!filename) {
                 return;
             }
-            
+
             const [handle, name, version] = filename.toString().split(/\//g);
             if (!name || !version) {
                 return;

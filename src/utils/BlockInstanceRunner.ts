@@ -1,7 +1,4 @@
-import { spawn } from 'node:child_process';
 import FS from 'node:fs';
-import Path from 'node:path';
-import { Docker } from 'node-docker-api';
 import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
 import { readYML } from './utils';
 import { KapetaURI, parseKapetaUri } from '@kapeta/nodejs-utils';
@@ -10,10 +7,8 @@ import { containerManager, DockerMounts } from '../containerManager';
 import { LogData } from './LogData';
 import EventEmitter from 'events';
 import md5 from 'md5';
-import { execSync } from 'child_process';
 import { clusterService } from '../clusterService';
 import { AnyMap, BlockProcessParams, ProcessDetails, ProcessInfo, StringMap } from '../types';
-import { BlockDefinition, BlockInstance, BlockInstanceConfiguration, BlockResource } from '@kapeta/schemas';
 import { Container } from 'node-docker-api/lib/container';
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
