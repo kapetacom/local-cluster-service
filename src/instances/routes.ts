@@ -9,7 +9,7 @@ import {EnvironmentType, KapetaBodyRequest} from "../types";
 
 const router = Router();
 router.use('/', corsHandler);
-
+router.use('/', kapetaHeaders);
 /**
  * Get all instances
  */
@@ -109,20 +109,17 @@ router.get('/:systemId/:instanceId/address/public', (req:Request, res:Response) 
 /**
  * Get public address for particular resource on instance in a plan if available
  */
-router.get('/:systemId/:instanceId/provider/:portType/:resourceName/address/public', (req:Request, res:Response) => {
-    const envType = req.headers['x-kapeta-environment'] as EnvironmentType|undefined;
+router.get('/:systemId/:instanceId/provider/:portType/:resourceName/address/public', (req:KapetaRequest, res:Response) => {
     res.send(serviceManager.getConsumerAddress(
         req.params.systemId,
         req.params.instanceId,
         req.params.resourceName,
         req.params.portType,
-        envType
+        req.kapeta?.environment
     ));
 });
 
 
-
-router.use('/', kapetaHeaders);
 router.use('/', stringBody);
 router.use('/', (req:KapetaBodyRequest, res:Response, next:NextFunction) => {
     if (!req.kapeta!.blockRef) {
