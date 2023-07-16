@@ -2,7 +2,21 @@
   "name": "@kapeta/local-cluster-service",
   "version": "0.6.1",
   "description": "Manages configuration, ports and service discovery for locally running Kapeta systems",
-  "main": "index.js",
+  "type": "commonjs",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.cts",
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
+  "types": "./dist/esm/index.d.ts",
+  "main": "./dist/cjs/index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kapetacom/local-cluster-service.git"
@@ -16,9 +30,16 @@
     "url": "https://github.com/kapetacom/local-cluster-service/issues"
   },
   "scripts": {
-    "start": "ts-node --transpile-only ./start.ts",
-    "dev": "nodemon -e js,ts,json npm run start",
-    "test": "echo its fine"
+    "start": "node ./dist/cjs/start.js",
+    "dev": "nodemon -e js,ts,json ts-node --transpile-only ./start.ts",
+    "test": "echo its fine",
+    "clean": "rm -rf ./dist",
+    "build:esm": "tsc --module esnext --outDir ./dist/esm && echo '{\"type\":\"module\"}' > ./dist/esm/package.json",
+    "build:cjs": "tsc --module commonjs --outDir ./dist/cjs && echo '{\"type\":\"commonjs\"}' > ./dist/cjs/package.json",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "format": "prettier --write .",
+    "lint": "tsc --noEmit && eslint src/**/*.ts",
+    "prepublishOnly": "npm run build"
   },
   "homepage": "https://github.com/kapetacom/local-cluster-service#readme",
   "dependencies": {
@@ -35,7 +56,6 @@
     "glob": "7.1.6",
     "lodash": "^4.17.15",
     "md5": "2.2.1",
-    "mkdirp": "0.5.1",
     "node-cache": "^5.1.2",
     "node-docker-api": "1.1.22",
     "node-uuid": "^1.4.8",
@@ -47,19 +67,20 @@
     "yaml": "^1.6.0"
   },
   "devDependencies": {
+    "@kapeta/prettier-config": "^0.6.0",
+    "@tsconfig/node18": "^18.2.0",
     "@types/express": "^4.17.17",
     "@types/fs-extra": "^11.0.1",
     "@types/lodash": "^4.14.195",
     "@types/md5": "^2.3.2",
-    "@types/mkdirp": "^2.0.0",
     "@types/node-uuid": "^0.0.29",
     "@types/request": "^2.48.8",
-    "nodemon": "^2.0.2"
+    "eslint": "^8.42.0",
+    "eslint-config-prettier": "^8.8.0",
+    "nodemon": "^2.0.2",
+    "prettier": "^2.8.8"
   },
-  "prettier": {
-    "tabWidth": 4,
-    "singleQuote": true
-  },
+  "prettier": "@kapeta/prettier-config",
   "release": {
     "plugins": [
       "@semantic-release/commit-analyzer",

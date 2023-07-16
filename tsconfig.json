@@ -1,29 +1,9 @@
 {
+    "extends": "@tsconfig/node18/tsconfig.json",
     "compilerOptions": {
-        "target": "ES6",
-        "lib": ["esnext", "es5", "es6", "es7", "ES2021"],
-        "skipLibCheck": true,
-        "esModuleInterop": true,
-        "strict": true,
-        "module": "Node16",
-        "resolveJsonModule": true,
-        "experimentalDecorators": true,
-        "allowJs": true,
-        "jsx": "react",
-        "moduleResolution": "node",
-        "rootDirs": ["src"],
+        "outDir": "./dist",
         "declaration": true,
-        "outDir": "dist",
-        "forceConsistentCasingInFileNames": true,
-        "noImplicitReturns": true,
-        "noImplicitThis": true,
-        "noImplicitAny": true,
-        "noEmit": true,
-        "strictNullChecks": true,
-        "noUnusedLocals": false,
-        "allowSyntheticDefaultImports": true,
-        "emitDecoratorMetadata": true,
-        "isolatedModules": true,
+        "esModuleInterop": true
     },
     "ts-node": {
         "files": true

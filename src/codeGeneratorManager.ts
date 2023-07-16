@@ -14,7 +14,7 @@ class CodeGeneratorManager {
         for (const languageTarget of languageTargets) {
             const key = `${languageTarget.definition.metadata.name}:${languageTarget.version}`
             try {
-                const target = await import(languageTarget.path);
+                const target = require(languageTarget.path);
                 if (target.default) {
                     Targets.register(key, target.default);
                 } else {
