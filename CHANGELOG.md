@@ -1,3 +1,10 @@
+# [0.7.0](https://github.com/kapetacom/local-cluster-service/compare/v0.6.1...v0.7.0) (2023-07-16)
+
+
+### Features
+
+* Rewrote service to Typescript ([#40](https://github.com/kapetacom/local-cluster-service/issues/40)) ([e9ead38](https://github.com/kapetacom/local-cluster-service/commit/e9ead38422e648cd270e32e93d240fb9a807c723))
+
 ## [0.6.1](https://github.com/kapetacom/local-cluster-service/compare/v0.6.0...v0.6.1) (2023-06-21)
 
 
