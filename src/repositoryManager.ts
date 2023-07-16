@@ -48,6 +48,10 @@ class RepositoryManager {
             return;
         }
         this.watcher.on('change', (eventType, filename) => {
+            if (!filename) {
+                return;
+            }
+            
             const [handle, name, version] = filename.toString().split(/\//g);
             if (!name || !version) {
                 return;
