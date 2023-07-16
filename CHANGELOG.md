@@ -1,3 +1,10 @@
+## [0.7.1](https://github.com/kapetacom/local-cluster-service/compare/v0.7.0...v0.7.1) (2023-07-16)
+
+
+### Bug Fixes
+
+* Do null check - filename sometimes is blank on win ([#41](https://github.com/kapetacom/local-cluster-service/issues/41)) ([5b4929f](https://github.com/kapetacom/local-cluster-service/commit/5b4929fb1fd6c209246fd7b5be6788eb0c1ae0c0))
+
 # [0.7.0](https://github.com/kapetacom/local-cluster-service/compare/v0.6.1...v0.7.0) (2023-07-16)
 
 
