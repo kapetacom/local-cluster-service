@@ -1,3 +1,10 @@
+## [0.7.3](https://github.com/kapetacom/local-cluster-service/compare/v0.7.2...v0.7.3) (2023-07-17)
+
+
+### Bug Fixes
+
+* Handle windows paths ([45eedcb](https://github.com/kapetacom/local-cluster-service/commit/45eedcb4b95a1d403d88dd63d74fa98b2c949559))
+
 ## [0.7.2](https://github.com/kapetacom/local-cluster-service/compare/v0.7.1...v0.7.2) (2023-07-16)
 
 
