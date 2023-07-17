@@ -51,10 +51,12 @@ class ContainerManager {
     private _docker: Docker | null;
     private _alive: boolean;
     private _mountDir: string;
+    private _version: string;
 
     constructor() {
         this._docker = null;
         this._alive = false;
+        this._version = '';
         this._mountDir = Path.join(storageService.getKapetaBasedir(), 'mounts');
         FSExtra.mkdirpSync(this._mountDir);
     }
@@ -85,7 +87,10 @@ class ContainerManager {
                 const client = new Docker(opts);
                 await client.ping();
                 this._docker = client;
+                const versionInfo: any = await client.version();
+                this._version = versionInfo.Server?.Version;
                 this._alive = true;
+                console.log('Connected to docker daemon with version: %s', this._version);
                 return;
             } catch (err) {
                 // silently ignore bad configs
@@ -269,6 +274,20 @@ class ContainerManager {
     }
 
     async startContainer(opts: any) {
+        const extraHosts = getExtraHosts(this._version);
+
+        if (extraHosts && extraHosts.length > 0) {
+            if (!opts.HostConfig) {
+                opts.HostConfig = {};
+            }
+
+            if (!opts.HostConfig.ExtraHosts) {
+                opts.HostConfig.ExtraHosts = [];
+            }
+
+            opts.HostConfig.ExtraHosts = opts.HostConfig.ExtraHosts.concat(extraHosts);
+        }
+
         const dockerContainer = await this.docker().container.create(opts);
         await dockerContainer.start();
         return dockerContainer;
@@ -460,6 +479,21 @@ export class ContainerInfo {
 
         return ports;
     }
+}
+
+export function getExtraHosts(dockerVersion: string): string[] | undefined {
+    if (process.platform !== 'darwin' && process.platform !== 'win32') {
+        const [major, minor] = dockerVersion.split('.');
+        if (parseInt(major) >= 20 && parseInt(minor) >= 10) {
+            // Docker 20.10+ on Linux supports adding host.docker.internal to point to host-gateway
+            return ['host.docker.internal:host-gateway'];
+        }
+        // Docker versions lower than 20.10 needs an actual IP address. We use the default network bridge which
+        // is always 172.17.0.1
+        return ['host.docker.internal:172.17.0.1'];
+    }
+
+    return undefined;
 }
 
 /**
