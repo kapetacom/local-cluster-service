@@ -248,7 +248,7 @@ export class BlockInstanceRunner {
             HostConfig: {
                 Binds: [
                     `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${homeDir}/.kapeta`,
-                    `${toLocalBindVolume(baseDir)}:${workingDir}`, //We mount
+                    `${toLocalBindVolume(baseDir)}:${workingDir}`,
                 ],
                 PortBindings,
             },
@@ -352,6 +352,9 @@ export class BlockInstanceRunner {
         const logs = new LogData();
         let container = await containerManager.getContainerByName(containerName);
 
+        // For windows we need to default to root
+        const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
+
         if (container) {
             const containerData = container.data as any;
             if (containerData.State === 'running') {
@@ -376,7 +379,7 @@ export class BlockInstanceRunner {
                 ],
                 HostConfig: {
                     Binds: [
-                        `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${ClusterConfig.getKapetaBasedir()}`,
+                        `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`,
                     ],
                 },
             });
@@ -503,6 +506,9 @@ export class BlockInstanceRunner {
                 HealthCheck = containerManager.toDockerHealth(spec.local?.health);
             }
 
+            // For windows we need to default to root
+            const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
+
             logs.addLog(`Creating new container for block: ${containerName}`);
             container = await containerManager.startContainer({
                 Image: dockerImage,
@@ -512,7 +518,7 @@ export class BlockInstanceRunner {
                 HostConfig: {
                     Binds: [
                         `${toLocalBindVolume(kapetaYmlPath)}:/kapeta.yml:ro`,
-                        `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${ClusterConfig.getKapetaBasedir()}`,
+                        `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`,
                     ],
                     PortBindings,
                     Mounts,
