@@ -1,6 +1,6 @@
 import FS from 'node:fs';
 import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import { readYML } from './utils';
+import { getBindHost, readYML } from './utils';
 import { KapetaURI, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { serviceManager } from '../serviceManager';
 import { containerManager, DockerMounts, toLocalBindVolume } from '../containerManager';
@@ -199,6 +199,8 @@ export class BlockInstanceRunner {
         const homeDir = localContainer.userHome ? localContainer.userHome : '/root';
         const workingDir = localContainer.workingDir ? localContainer.workingDir : '/workspace';
 
+        const bindHost = getBindHost();
+
         const ExposedPorts: AnyMap = {};
         const addonEnv: StringMap = {};
         const PortBindings: AnyMap = {};
@@ -214,7 +216,7 @@ export class BlockInstanceRunner {
 
             PortBindings[dockerPort] = [
                 {
-                    HostIp: '127.0.0.1', //No public
+                    HostIp: bindHost, 
                     HostPort: `${publicPort}`,
                 },
             ];
@@ -464,6 +466,8 @@ export class BlockInstanceRunner {
             }
         }
 
+        const bindHost = getBindHost();
+
         if (!container) {
             const ExposedPorts: AnyMap = {};
             const addonEnv: StringMap = {};
@@ -482,7 +486,7 @@ export class BlockInstanceRunner {
                     );
                     PortBindings[dockerPort] = [
                         {
-                            HostIp: '127.0.0.1', //No public
+                            HostIp: bindHost,
                             HostPort: `${publicPort}`,
                         },
                     ];

@@ -7,6 +7,7 @@ import { Docker } from 'node-docker-api';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { Container } from 'node-docker-api/lib/container';
+import { getBindHost } from './utils/utils';
 
 type StringMap = { [key: string]: string };
 
@@ -88,7 +89,11 @@ class ContainerManager {
                 await client.ping();
                 this._docker = client;
                 const versionInfo: any = await client.version();
-                this._version = versionInfo.Server?.Version;
+                this._version = versionInfo.Server?.Version ?? versionInfo.Version;
+                if (!this._version) {
+                    console.warn('Failed to determine version from response', versionInfo);
+                    this._version = '0.0.0';
+                }
                 this._alive = true;
                 console.log('Connected to docker daemon with version: %s', this._version);
                 return;
@@ -226,6 +231,8 @@ class ContainerManager {
 
         await this.pull(image);
 
+        const bindHost = getBindHost();
+
         const ExposedPorts: { [key: string]: any } = {};
 
         _.forEach(opts.ports, (portInfo: any, containerPort) => {
@@ -233,7 +240,7 @@ class ContainerManager {
             PortBindings['' + containerPort] = [
                 {
                     HostPort: '' + portInfo.hostPort,
-                    HostIp: '127.0.0.1',
+                    HostIp: bindHost,
                 },
             ];
 

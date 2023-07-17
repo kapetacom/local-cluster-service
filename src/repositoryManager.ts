@@ -1,6 +1,7 @@
 import FS from 'node:fs';
 import os from 'node:os';
 import Path from 'node:path';
+import watch from 'recursive-watch';
 import FSExtra, { FSWatcher } from 'fs-extra';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
@@ -15,7 +16,7 @@ class RepositoryManager {
     private changeEventsEnabled: boolean;
     private _registryService: RegistryService;
     private _cache: { [key: string]: boolean };
-    private watcher?: FSWatcher;
+    private watcher?: () => void;
     private _installQueue: (() => Promise<void>)[];
     private _processing: boolean = false;
     constructor() {
@@ -40,74 +41,73 @@ class RepositoryManager {
 
         console.log('Watching local repository for provider changes: %s', baseDir);
         try {
-            this.watcher = FS.watch(baseDir, { recursive: true });
+            this.watcher = watch(baseDir, (filename:string) => {
+                if (!filename) {
+                    return;
+                }
+    
+                const [handle, name, version] = filename.toString().split(/\//g);
+                if (!name || !version) {
+                    return;
+                }
+    
+                if (!this.changeEventsEnabled) {
+                    return;
+                }
+    
+                const ymlPath = Path.join(baseDir, handle, name, version, 'kapeta.yml');
+                const newDefinitions = ClusterConfiguration.getDefinitions();
+    
+                const newDefinition = newDefinitions.find((d) => d.ymlPath === ymlPath);
+                let currentDefinition = allDefinitions.find((d) => d.ymlPath === ymlPath);
+                const ymlExists = FS.existsSync(ymlPath);
+                let type;
+                if (ymlExists) {
+                    if (currentDefinition) {
+                        type = 'updated';
+                    } else if (newDefinition) {
+                        type = 'added';
+                        currentDefinition = newDefinition;
+                    } else {
+                        //Other definition was added / updated - ignore
+                        return;
+                    }
+                } else {
+                    if (currentDefinition) {
+                        const ref = parseKapetaUri(
+                            `${currentDefinition.definition.metadata.name}:${currentDefinition.version}`
+                        ).id;
+                        delete INSTALL_ATTEMPTED[ref];
+                        //Something was removed
+                        type = 'removed';
+                    } else {
+                        //Other definition was removed - ignore
+                        return;
+                    }
+                }
+    
+                const payload = {
+                    type,
+                    definition: currentDefinition?.definition,
+                    asset: { handle, name, version },
+                };
+    
+                allDefinitions = newDefinitions;
+                socketManager.emit(`assets`, 'changed', payload);
+            });
         } catch (e) {
             // Fallback to run without watch mode due to potential platform issues.
             // https://nodejs.org/docs/latest/api/fs.html#caveats
-            console.log('Unable to watch for changes. Changes to assets will not update automatically.');
+            console.log('Unable to watch for changes. Changes to assets will not update automatically.', e);
             return;
         }
-        this.watcher.on('change', (eventType, filename) => {
-            if (!filename) {
-                return;
-            }
-
-            const [handle, name, version] = filename.toString().split(/\//g);
-            if (!name || !version) {
-                return;
-            }
-
-            if (!this.changeEventsEnabled) {
-                return;
-            }
-
-            const ymlPath = Path.join(baseDir, handle, name, version, 'kapeta.yml');
-            const newDefinitions = ClusterConfiguration.getDefinitions();
-
-            const newDefinition = newDefinitions.find((d) => d.ymlPath === ymlPath);
-            let currentDefinition = allDefinitions.find((d) => d.ymlPath === ymlPath);
-            const ymlExists = FS.existsSync(ymlPath);
-            let type;
-            if (ymlExists) {
-                if (currentDefinition) {
-                    type = 'updated';
-                } else if (newDefinition) {
-                    type = 'added';
-                    currentDefinition = newDefinition;
-                } else {
-                    //Other definition was added / updated - ignore
-                    return;
-                }
-            } else {
-                if (currentDefinition) {
-                    const ref = parseKapetaUri(
-                        `${currentDefinition.definition.metadata.name}:${currentDefinition.version}`
-                    ).id;
-                    delete INSTALL_ATTEMPTED[ref];
-                    //Something was removed
-                    type = 'removed';
-                } else {
-                    //Other definition was removed - ignore
-                    return;
-                }
-            }
-
-            const payload = {
-                type,
-                definition: currentDefinition?.definition,
-                asset: { handle, name, version },
-            };
-
-            allDefinitions = newDefinitions;
-            socketManager.emit(`assets`, 'changed', payload);
-        });
     }
 
     stopListening() {
         if (!this.watcher) {
             return;
         }
-        this.watcher.close();
+        this.watcher();
         this.watcher = undefined;
     }
 

@@ -5,6 +5,10 @@ declare module '@kapeta/nodejs-api-client' {
     }
 }
 
+declare module 'recursive-watch' {
+    export default function watch(path:string, callback:(filename:string) => void):() => void;
+}
+
 declare module '@kapeta/nodejs-registry-utils' {
     import { Dependency, Kind } from '@kapeta/schemas';
 
@@ -16,7 +20,7 @@ declare module '@kapeta/nodejs-registry-utils' {
     export class RegistryService {
         constructor(url: string);
 
-        async getVersion(fullName: string, version: string): Promise<AssetVersion>;
+        getVersion(fullName: string, version: string): Promise<AssetVersion>;
     }
 
     export const Config: any;
