@@ -1,3 +1,10 @@
+## [0.7.5](https://github.com/kapetacom/local-cluster-service/compare/v0.7.4...v0.7.5) (2023-07-17)
+
+
+### Bug Fixes
+
+* Handle homedir on windows ([913fdd4](https://github.com/kapetacom/local-cluster-service/commit/913fdd4f853e4f79848c06afe2aaed72792e9ec5))
+
 ## [0.7.4](https://github.com/kapetacom/local-cluster-service/compare/v0.7.3...v0.7.4) (2023-07-17)
 
 
