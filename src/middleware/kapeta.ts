@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { EnvironmentType } from '../types';
+import { EnvironmentType } from '../types.js';
 
 export interface KapetaRequest extends Request {
     kapeta?: {

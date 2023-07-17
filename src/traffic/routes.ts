@@ -1,6 +1,6 @@
 import Router from 'express-promise-router';
 import { Request, Response } from 'express';
-import { networkManager } from '../networkManager';
+import { networkManager } from '../networkManager.js';
 
 const router = Router();
 router.get('/:systemId/target/:connectionId/', (req: Request, res: Response) => {

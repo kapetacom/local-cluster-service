@@ -1,4 +1,4 @@
-import localClusterService from './index';
+import localClusterService from './index.js';
 
 localClusterService
     .start()

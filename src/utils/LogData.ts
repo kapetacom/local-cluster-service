@@ -1,4 +1,4 @@
-import { LogEntry, LogLevel, LogSource } from '../types';
+import { LogEntry, LogLevel, LogSource } from '../types.js';
 
 const MAX_LINES = 1000;
 export class LogData {

@@ -1,8 +1,8 @@
+import { Request, Response } from 'express';
 import Router from 'express-promise-router';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
 
-import { corsHandler } from '../middleware/cors';
-import { Request, Response } from 'express';
+import { corsHandler } from '../middleware/cors.js';
 
 const router = Router();
 const api = new KapetaAPI();

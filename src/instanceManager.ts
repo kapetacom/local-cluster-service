@@ -1,15 +1,16 @@
 import _ from 'lodash';
 import request from 'request';
 import EventEmitter from 'events';
-import { BlockInstanceRunner } from './utils/BlockInstanceRunner';
-import { storageService } from './storageService';
-import { socketManager } from './socketManager';
-import { serviceManager } from './serviceManager';
-import { assetManager } from './assetManager';
-import { containerManager } from './containerManager';
-import { configManager } from './configManager';
-import { InstanceInfo, LogEntry, ProcessInfo } from './types';
 import { BlockInstance } from '@kapeta/schemas';
+
+import { BlockInstanceRunner } from './utils/BlockInstanceRunner.js';
+import { storageService } from './storageService.js';
+import { socketManager } from './socketManager.js';
+import { serviceManager } from './serviceManager.js';
+import { assetManager } from './assetManager.js';
+import { containerManager } from './containerManager.js';
+import { configManager } from './configManager.js';
+import { InstanceInfo, LogEntry, ProcessInfo } from './types.js';
 
 const CHECK_INTERVAL = 10000;
 const DEFAULT_HEALTH_PORT_TYPE = 'rest';

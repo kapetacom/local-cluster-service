@@ -1,8 +1,9 @@
-import { EnrichedAsset } from './assetManager';
 import { BlockInstance } from '@kapeta/schemas';
-import { storageService } from './storageService';
-import { assetManager } from './assetManager';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
+
+import { EnrichedAsset } from './assetManager.js';
+import { storageService } from './storageService.js';
+import { assetManager } from './assetManager.js';
 
 type AnyMap = { [key: string]: any };
 

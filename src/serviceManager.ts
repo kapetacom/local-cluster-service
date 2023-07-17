@@ -1,7 +1,7 @@
 import _ from 'lodash';
-import { clusterService } from './clusterService';
-import { storageService } from './storageService';
-import { EnvironmentType } from './types';
+import { clusterService } from './clusterService.js';
+import { storageService } from './storageService.js';
+import { EnvironmentType } from './types.js';
 
 const DEFAULT_PORT_TYPE = 'rest';
 

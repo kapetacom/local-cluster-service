@@ -4,12 +4,13 @@ import FSExtra from 'fs-extra';
 import YAML from 'yaml';
 import NodeCache from 'node-cache';
 import ClusterConfiguration, { Definition, DefinitionInfo } from '@kapeta/local-cluster-config';
-import { codeGeneratorManager } from './codeGeneratorManager';
-import { progressListener } from './progressListener';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
-import { repositoryManager } from './repositoryManager';
 import { BlockDefinition } from '@kapeta/schemas';
 import { Actions } from '@kapeta/nodejs-registry-utils';
+
+import { codeGeneratorManager } from './codeGeneratorManager.js';
+import { progressListener } from './progressListener.js';
+import { repositoryManager } from './repositoryManager.js';
 
 export interface EnrichedAsset {
     ref: string;
