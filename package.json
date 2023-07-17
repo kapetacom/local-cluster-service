@@ -38,7 +38,7 @@
         "build:cjs": "tsc --module commonjs --outDir ./dist/cjs && echo '{\"type\":\"commonjs\"}' > ./dist/cjs/package.json",
         "build": "npm run clean && npm run build:esm && npm run build:cjs",
         "format": "prettier --write .",
-        "lint": "tsc --noEmit && eslint src/**/*.ts",
+        "lint": "tsc --noEmit && eslint src/**/*.ts *.ts",
         "prepublishOnly": "npm run build"
     },
     "homepage": "https://github.com/kapetacom/local-cluster-service#readme",
