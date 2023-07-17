@@ -3,7 +3,7 @@ import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
 import { readYML } from './utils';
 import { KapetaURI, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { serviceManager } from '../serviceManager';
-import { containerManager, DockerMounts } from '../containerManager';
+import { containerManager, DockerMounts, toLocalBindVolume } from '../containerManager';
 import { LogData } from './LogData';
 import EventEmitter from 'events';
 import md5 from 'md5';
@@ -247,8 +247,8 @@ export class BlockInstanceRunner {
             ],
             HostConfig: {
                 Binds: [
-                    `${ClusterConfig.getKapetaBasedir()}:${homeDir}/.kapeta`,
-                    `${baseDir}:${workingDir}`, //We mount
+                    `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${homeDir}/.kapeta`,
+                    `${toLocalBindVolume(baseDir)}:${workingDir}`, //We mount
                 ],
                 PortBindings,
             },
@@ -374,7 +374,9 @@ export class BlockInstanceRunner {
                     ...Object.entries(env).map(([key, value]) => `${key}=${value}`),
                 ],
                 HostConfig: {
-                    Binds: [`${ClusterConfig.getKapetaBasedir()}:${ClusterConfig.getKapetaBasedir()}`],
+                    Binds: [
+                        `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${ClusterConfig.getKapetaBasedir()}`,
+                    ],
                 },
             });
 
@@ -508,8 +510,8 @@ export class BlockInstanceRunner {
                 HealthCheck,
                 HostConfig: {
                     Binds: [
-                        `${kapetaYmlPath}:/kapeta.yml:ro`,
-                        `${ClusterConfig.getKapetaBasedir()}:${ClusterConfig.getKapetaBasedir()}`,
+                        `${toLocalBindVolume(kapetaYmlPath)}:/kapeta.yml:ro`,
+                        `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${ClusterConfig.getKapetaBasedir()}`,
                     ],
                     PortBindings,
                     Mounts,

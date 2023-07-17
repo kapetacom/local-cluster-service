@@ -189,7 +189,7 @@ class ContainerManager {
         _.forEach(mounts, (Source, Target) => {
             Mounts.push({
                 Target,
-                Source,
+                Source: toLocalBindVolume(Source),
                 Type: 'bind',
                 ReadOnly: false,
                 Consistency: 'consistent',
@@ -252,7 +252,6 @@ class ContainerManager {
             Hostname: name + '.kapeta',
             Labels,
             Cmd: opts.cmd,
-
             ExposedPorts,
             Env,
             HealthCheck,
@@ -461,6 +460,25 @@ export class ContainerInfo {
 
         return ports;
     }
+}
+
+/**
+ * Ensure that the volume is in the correct format for the docker daemon on the host
+ *
+ * Windows: c:\path\to\volume -> /c/path/to/volume
+ * Linux: /path/to/volume -> /path/to/volume
+ * Mac: /path/to/volume -> /path/to/volume
+ */
+export function toLocalBindVolume(volume: string): string {
+    if (process.platform === 'win32') {
+        //On Windows we need to convert c:\ to /c/
+        return volume
+            .replace(/^([a-z]):\\/i, (match, drive) => {
+                return '/' + drive.toLowerCase() + '/';
+            })
+            .replace(/\\(\S)/g, '/$1');
+    }
+    return volume;
 }
 
 export const containerManager = new ContainerManager();
