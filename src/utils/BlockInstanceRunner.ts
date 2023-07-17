@@ -15,7 +15,7 @@ const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
 const KAPETA_BLOCK_REF = 'KAPETA_BLOCK_REF';
 const KAPETA_INSTANCE_ID = 'KAPETA_INSTANCE_ID';
-const KAPETA_LOCAL_CLUSTER_PORT = 'KAPETA_LOCAL_CLUSTER_PORT';
+
 /**
  * Needed when running local docker containers as part of plan
  * @type {string[]}
@@ -362,6 +362,7 @@ export class BlockInstanceRunner {
             }
         } else {
             logs.addLog(`Creating new container for block: ${containerName}`);
+
             container = await containerManager.startContainer({
                 Image: dockerImage,
                 name: containerName,
