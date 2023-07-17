@@ -1,3 +1,10 @@
+## [0.7.6](https://github.com/kapetacom/local-cluster-service/compare/v0.7.5...v0.7.6) (2023-07-17)
+
+
+### Bug Fixes
+
+* Adjustments to make docker interaction work on Linux ([#45](https://github.com/kapetacom/local-cluster-service/issues/45)) ([4c9530c](https://github.com/kapetacom/local-cluster-service/commit/4c9530c1a509c490e95cc16029202650f79e127e))
+
 ## [0.7.5](https://github.com/kapetacom/local-cluster-service/compare/v0.7.4...v0.7.5) (2023-07-17)
 
 
