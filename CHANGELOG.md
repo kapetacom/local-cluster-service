@@ -1,3 +1,10 @@
+## [0.7.4](https://github.com/kapetacom/local-cluster-service/compare/v0.7.3...v0.7.4) (2023-07-17)
+
+
+### Bug Fixes
+
+* Add host.docker.internal on Linux ([#43](https://github.com/kapetacom/local-cluster-service/issues/43)) ([f76eab1](https://github.com/kapetacom/local-cluster-service/commit/f76eab13059bc920026769303b49cf065d48f5ca))
+
 ## [0.7.3](https://github.com/kapetacom/local-cluster-service/compare/v0.7.2...v0.7.3) (2023-07-17)
 
 
