@@ -15,6 +15,7 @@ import IdentitiesRoutes from './src/identities/routes';
 import FilesystemRoutes from './src/filesystem/routes';
 import AssetsRoutes from './src/assets/routes';
 import ProviderRoutes from './src/providers/routes';
+import { getBindHost } from './src/utils/utils';
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 
@@ -32,11 +33,11 @@ function createServer() {
     app.use('/files', FilesystemRoutes);
     app.use('/assets', AssetsRoutes);
     app.use('/providers', ProviderRoutes);
-    app.use('/', (err: any, req: express.Request, res: express.Response) => {
-        console.error('Request failed: %s %s', req.method, req.originalUrl, err);
-        res.status(500).send({
+    app.use('/', (req: express.Request, res: express.Response) => {
+        console.error('Invalid request: %s %s', req.method, req.originalUrl);
+        res.status(400).send({
             ok: false,
-            error: err.error ?? err.message,
+            error: 'Unknown'
         });
     });
     const server = HTTP.createServer(app);
@@ -108,7 +109,7 @@ export default {
             storageService.put('cluster', 'host', host);
         }
 
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             if (!currentServer) {
                 reject(new Error(`Current server wasn't set`));
                 return;
@@ -121,7 +122,9 @@ export default {
                 reject(err);
             });
 
-            currentServer.listen(port, host, () => resolve({ host, port, dockerStatus: containerManager.isAlive() }));
+            const bindHost = getBindHost(host);
+
+            currentServer.listen(port, bindHost, () => resolve({ host, port, dockerStatus: containerManager.isAlive() }));
             currentServer.host = host;
             currentServer.port = port;
         });

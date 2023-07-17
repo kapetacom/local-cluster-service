@@ -59,6 +59,7 @@
         "node-cache": "^5.1.2",
         "node-docker-api": "1.1.22",
         "node-uuid": "^1.4.8",
+        "recursive-watch": "^1.1.4",
         "request": "2.88.2",
         "request-promise": "4.2.6",
         "socket.io": "^4.5.2",
