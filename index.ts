@@ -1,20 +1,21 @@
-import { clusterService } from './src/clusterService';
-import { storageService } from './src/storageService';
-import { serviceManager } from './src/serviceManager';
-import { socketManager } from './src/socketManager';
-import { containerManager } from './src/containerManager';
 import express from 'express';
 import HTTP from 'http';
 import { Server } from 'socket.io';
 
-import TrafficRoutes from './src/traffic/routes';
-import ProxyRoutes from './src/proxy/routes';
-import ConfigRoutes from './src/config/routes';
-import InstancesRoutes from './src/instances/routes';
-import IdentitiesRoutes from './src/identities/routes';
-import FilesystemRoutes from './src/filesystem/routes';
-import AssetsRoutes from './src/assets/routes';
-import ProviderRoutes from './src/providers/routes';
+import { clusterService } from './src/clusterService.js';
+import { storageService } from './src/storageService.js';
+import { serviceManager } from './src/serviceManager.js';
+import { socketManager } from './src/socketManager.js';
+import { containerManager } from './src/containerManager.js';
+
+import TrafficRoutes from './src/traffic/routes.js';
+import ProxyRoutes from './src/proxy/routes.js';
+import ConfigRoutes from './src/config/routes.js';
+import InstancesRoutes from './src/instances/routes.js';
+import IdentitiesRoutes from './src/identities/routes.js';
+import FilesystemRoutes from './src/filesystem/routes.js';
+import AssetsRoutes from './src/assets/routes.js';
+import ProviderRoutes from './src/providers/routes.js';
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 

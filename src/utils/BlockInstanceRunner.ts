@@ -1,15 +1,16 @@
 import FS from 'node:fs';
-import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import { readYML } from './utils';
-import { KapetaURI, parseKapetaUri } from '@kapeta/nodejs-utils';
-import { serviceManager } from '../serviceManager';
-import { containerManager, DockerMounts, toLocalBindVolume } from '../containerManager';
-import { LogData } from './LogData';
 import EventEmitter from 'events';
 import md5 from 'md5';
-import { clusterService } from '../clusterService';
-import { AnyMap, BlockProcessParams, ProcessDetails, ProcessInfo, StringMap } from '../types';
 import { Container } from 'node-docker-api/lib/container';
+import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
+import { KapetaURI, parseKapetaUri } from '@kapeta/nodejs-utils';
+
+import { readYML } from './utils.js';
+import { serviceManager } from '../serviceManager.js';
+import { containerManager, DockerMounts, toLocalBindVolume } from '../containerManager.js';
+import { LogData } from './LogData.js';
+import { clusterService } from '../clusterService.js';
+import { AnyMap, BlockProcessParams, ProcessDetails, ProcessInfo, StringMap } from '../types.js';
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';

@@ -4,10 +4,10 @@ import Path from 'node:path';
 import FSExtra, { FSWatcher } from 'fs-extra';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
-import { socketManager } from './socketManager';
-import { progressListener } from './progressListener';
 import { Dependency } from '@kapeta/schemas';
 import { Actions, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
+import { socketManager } from './socketManager.js';
+import { progressListener } from './progressListener.js';
 
 const INSTALL_ATTEMPTED: { [p: string]: boolean } = {};
 

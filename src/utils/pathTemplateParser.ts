@@ -1,4 +1,4 @@
-import { StringMap } from '../types';
+import { StringMap } from '../types.js';
 
 const TYPE_VARIABLE = 'variable';
 const TYPE_PATH = 'path';

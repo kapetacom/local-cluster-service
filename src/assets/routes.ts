@@ -1,11 +1,11 @@
 import Router from 'express-promise-router';
 import { Request, Response } from 'express';
 import YAML from 'yaml';
-import { assetManager } from '../assetManager';
+import { assetManager } from '../assetManager.js';
 
-import { corsHandler } from '../middleware/cors';
+import { corsHandler } from '../middleware/cors.js';
 
-import { stringBody, StringBodyRequest } from '../middleware/stringBody';
+import { stringBody, StringBodyRequest } from '../middleware/stringBody.js';
 
 function parseBody(req: StringBodyRequest) {
     switch (req.headers['content-type']) {

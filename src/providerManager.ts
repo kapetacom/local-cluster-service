@@ -1,8 +1,8 @@
 import Path from 'path';
 import FSExtra from 'fs-extra';
-import { repositoryManager } from './repositoryManager';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
-import { StringMap } from './types';
+import { repositoryManager } from './repositoryManager.js';
+import { StringMap } from './types.js';
 
 class ProviderManager {
     private _webAssetCache: StringMap;

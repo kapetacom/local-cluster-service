@@ -1,13 +1,13 @@
 import Router from 'express-promise-router';
 import { Request, Response } from 'express';
 import { Resource } from '@kapeta/schemas';
-import { proxyRestRequest } from './types/rest';
-import { proxyWebRequest } from './types/web';
-import { ProxyRequestHandler } from '../types';
-import { stringBody, StringBodyRequest } from '../middleware/stringBody';
-import { serviceManager } from '../serviceManager';
-import { clusterService } from '../clusterService';
-import { assetManager } from '../assetManager';
+import { proxyRestRequest } from './types/rest.js';
+import { proxyWebRequest } from './types/web.js';
+import { ProxyRequestHandler } from '../types.js';
+import { stringBody, StringBodyRequest } from '../middleware/stringBody.js';
+import { serviceManager } from '../serviceManager.js';
+import { clusterService } from '../clusterService.js';
+import { assetManager } from '../assetManager.js';
 
 import _ from 'lodash';
 

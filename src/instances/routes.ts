@@ -1,11 +1,11 @@
-import Router from 'express-promise-router';
-import { instanceManager } from '../instanceManager';
-import { serviceManager } from '../serviceManager';
-import { corsHandler } from '../middleware/cors';
 import { NextFunction, Request, Response } from 'express';
-import { kapetaHeaders, KapetaRequest } from '../middleware/kapeta';
-import { stringBody } from '../middleware/stringBody';
-import { EnvironmentType, KapetaBodyRequest } from '../types';
+import Router from 'express-promise-router';
+import { instanceManager } from '../instanceManager.js';
+import { serviceManager } from '../serviceManager.js';
+import { corsHandler } from '../middleware/cors.js';
+import { kapetaHeaders, KapetaRequest } from '../middleware/kapeta.js';
+import { stringBody } from '../middleware/stringBody.js';
+import { KapetaBodyRequest } from '../types.js';
 
 const router = Router();
 router.use('/', corsHandler);

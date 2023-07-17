@@ -1,8 +1,8 @@
 import EventEmitter from 'events';
 import express from 'express';
 import { Resource } from '@kapeta/schemas';
-import { StringBodyRequest } from './middleware/stringBody';
-import { KapetaRequest } from './middleware/kapeta';
+import { StringBodyRequest } from './middleware/stringBody.js';
+import { KapetaRequest } from './middleware/kapeta.js';
 
 export type StringMap = { [key: string]: string };
 export type AnyMap = { [key: string]: any };

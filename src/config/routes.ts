@@ -1,14 +1,13 @@
-import Router from 'express-promise-router';
-import { configManager } from '../configManager';
-import { serviceManager } from '../serviceManager';
-import { operatorManager } from '../operatorManager';
-import { instanceManager } from '../instanceManager';
-import { StringBodyRequest } from '../middleware/stringBody';
-import { corsHandler } from '../middleware/cors';
-import { kapetaHeaders, KapetaRequest } from '../middleware/kapeta';
-import { stringBody } from '../middleware/stringBody';
-import { EnvironmentType, KapetaBodyRequest } from '../types';
 import { Response } from 'express';
+import Router from 'express-promise-router';
+import { configManager } from '../configManager.js';
+import { serviceManager } from '../serviceManager.js';
+import { operatorManager } from '../operatorManager.js';
+import { instanceManager } from '../instanceManager.js';
+import { corsHandler } from '../middleware/cors.js';
+import { kapetaHeaders, KapetaRequest } from '../middleware/kapeta.js';
+import { stringBody } from '../middleware/stringBody.js';
+import { KapetaBodyRequest } from '../types.js';
 
 const router = Router();
 const SYSTEM_ID = '$plan';

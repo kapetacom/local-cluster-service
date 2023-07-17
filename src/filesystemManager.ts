@@ -1,7 +1,8 @@
 import Path from 'path';
 import FS from 'fs';
 import FSExtra from 'fs-extra';
-import { storageService } from './storageService';
+
+import { storageService } from './storageService.js';
 
 const SECTION_ID = 'filesystem';
 const PROJECT_ROOT = 'project_root';

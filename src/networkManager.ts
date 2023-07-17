@@ -1,6 +1,6 @@
 import uuid from 'node-uuid';
-import { Connection, SimpleRequest, SimpleResponse } from './types';
-import express from 'express';
+
+import { Connection, SimpleRequest, SimpleResponse } from './types.js';
 
 class NetworkManager {
     private _connections: { [systemId: string]: { [connectionId: string]: Traffic[] } };

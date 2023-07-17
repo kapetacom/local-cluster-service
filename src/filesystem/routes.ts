@@ -1,8 +1,8 @@
-import Router from 'express-promise-router';
-import { stringBody, StringBodyRequest } from '../middleware/stringBody';
-import { filesystemManager } from '../filesystemManager';
-import { corsHandler } from '../middleware/cors';
 import { NextFunction, Request, Response } from 'express';
+import Router from 'express-promise-router';
+import { stringBody, StringBodyRequest } from '../middleware/stringBody.js';
+import { filesystemManager } from '../filesystemManager.js';
+import { corsHandler } from '../middleware/cors.js';
 
 let router = Router();
 

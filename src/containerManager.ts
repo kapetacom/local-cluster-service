@@ -1,5 +1,4 @@
 import Path from 'path';
-import { storageService } from './storageService';
 import os from 'os';
 import _ from 'lodash';
 import FSExtra, { ReadStream } from 'fs-extra';
@@ -7,6 +6,8 @@ import { Docker } from 'node-docker-api';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { Container } from 'node-docker-api/lib/container';
+
+import { storageService } from './storageService.js';
 
 type StringMap = { [key: string]: string };
 

@@ -1,8 +1,8 @@
-import Router from 'express-promise-router';
-import { providerManager } from '../providerManager';
-
-import { corsHandler } from '../middleware/cors';
 import { Request, Response } from 'express';
+import Router from 'express-promise-router';
+import { providerManager } from '../providerManager.js';
+
+import { corsHandler } from '../middleware/cors.js';
 
 const router = Router();
 

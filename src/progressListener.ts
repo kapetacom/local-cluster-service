@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import { SocketManager, socketManager } from './socketManager';
+import { SocketManager, socketManager } from './socketManager.js';
 class ProgressListener {
     private socketManager: SocketManager;
 
