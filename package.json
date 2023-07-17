@@ -67,6 +67,7 @@
         "yaml": "^1.6.0"
     },
     "devDependencies": {
+        "@kapeta/eslint-config": "^0.6.1",
         "@kapeta/prettier-config": "^0.6.0",
         "@tsconfig/node18": "^18.2.0",
         "@types/express": "^4.17.17",
@@ -77,6 +78,7 @@
         "@types/request": "^2.48.8",
         "eslint": "^8.42.0",
         "eslint-config-prettier": "^8.8.0",
+        "eslint-plugin-import": "^2.27.5",
         "nodemon": "^2.0.2",
         "prettier": "^2.8.8"
     },

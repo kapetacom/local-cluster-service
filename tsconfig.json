@@ -3,7 +3,8 @@
     "compilerOptions": {
         "outDir": "./dist",
         "declaration": true,
-        "esModuleInterop": true
+        "esModuleInterop": true,
+        "module": "ESNext"
     },
     "ts-node": {
         "files": true
