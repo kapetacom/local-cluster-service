@@ -1,3 +1,10 @@
+## [0.8.1](https://github.com/kapetacom/local-cluster-service/compare/v0.8.0...v0.8.1) (2023-07-22)
+
+
+### Bug Fixes
+
+* Removed debug ([e002caa](https://github.com/kapetacom/local-cluster-service/commit/e002caa3ae20c5a9a7f521e6e47bf46abfcb9e96))
+
 # [0.8.0](https://github.com/kapetacom/local-cluster-service/compare/v0.7.6...v0.8.0) (2023-07-22)
 
 
