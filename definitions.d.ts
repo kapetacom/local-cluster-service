@@ -1,10 +1,3 @@
-declare module '@kapeta/nodejs-api-client' {
-    export class KapetaAPI {
-        getCurrentIdentity(): Promise<any>;
-        getMemberships(identityId: string): Promise<any>;
-    }
-}
-
 declare module 'recursive-watch' {
     export default function watch(path:string, callback:(filename:string) => void):() => void;
 }

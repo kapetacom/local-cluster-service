@@ -15,6 +15,7 @@ import IdentitiesRoutes from './src/identities/routes';
 import FilesystemRoutes from './src/filesystem/routes';
 import AssetsRoutes from './src/assets/routes';
 import ProviderRoutes from './src/providers/routes';
+import AttachmentRoutes from './src/attachments/routes';
 import { getBindHost } from './src/utils/utils';
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
@@ -33,6 +34,7 @@ function createServer() {
     app.use('/files', FilesystemRoutes);
     app.use('/assets', AssetsRoutes);
     app.use('/providers', ProviderRoutes);
+    app.use('/attachments', AttachmentRoutes);
     app.use('/', (req: express.Request, res: express.Response) => {
         console.error('Invalid request: %s %s', req.method, req.originalUrl);
         res.status(400).send({
