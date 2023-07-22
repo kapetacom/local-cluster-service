@@ -1,3 +1,10 @@
+# [0.8.0](https://github.com/kapetacom/local-cluster-service/compare/v0.7.6...v0.8.0) (2023-07-22)
+
+
+### Features
+
+* Added route for uploading attachments to assets ([#46](https://github.com/kapetacom/local-cluster-service/issues/46)) ([e668f33](https://github.com/kapetacom/local-cluster-service/commit/e668f33072e772077a3186fc753e8c516e15171d))
+
 ## [0.7.6](https://github.com/kapetacom/local-cluster-service/compare/v0.7.5...v0.7.6) (2023-07-17)
 
 
