@@ -46,7 +46,6 @@ router.put('/:handle/:name', async (req: Request, res: Response) => {
     try {
         const {handle, name} = req.params;
         const url = `${endpoint}/${handle}/${name}/attachments`;
-        console.log('Sending PUT', url);
         const result = await api.send<{url:string}>({
             method: 'PUT',
             url,
@@ -58,7 +57,6 @@ router.put('/:handle/:name', async (req: Request, res: Response) => {
             },
             body: req
         });
-        console.log('Got result from upload', result);
         res.send(result);
     } catch (e:any) {
         res.status(e.status ?? 500).send(e);
