@@ -12,16 +12,15 @@ router.use('/', corsHandler);
 router.get('/current', async (req: Request, res: Response) => {
     try {
         res.send(await api.getCurrentIdentity());
-    } catch (e:any) {
+    } catch (e: any) {
         res.status(e.status ?? 500).send(e);
     }
-
 });
 
 router.get('/:identityId/memberships', async (req: Request, res: Response) => {
     try {
         res.send(await api.getMemberships(req.params.identityId));
-    } catch (e:any) {
+    } catch (e: any) {
         res.status(e.status ?? 500).send(e);
     }
 });

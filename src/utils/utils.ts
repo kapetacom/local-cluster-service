@@ -24,7 +24,7 @@ export function isLinux() {
 }
 
 export function getBindHost(preferredHost = '127.0.0.1') {
-    // On Linux we need to bind to 0.0.0.0 to be able to connect to it from docker containers. 
+    // On Linux we need to bind to 0.0.0.0 to be able to connect to it from docker containers.
     // TODO: This might pose a security risk - so we should authenticate all requests using a shared secret/nonce that we pass around.
     return isLinux() ? '0.0.0.0' : preferredHost;
 }

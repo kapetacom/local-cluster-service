@@ -17,7 +17,7 @@ import AssetsRoutes from './src/assets/routes';
 import ProviderRoutes from './src/providers/routes';
 import AttachmentRoutes from './src/attachments/routes';
 import { getBindHost } from './src/utils/utils';
-import request from "request";
+import request from 'request';
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 
@@ -40,13 +40,13 @@ function createServer() {
         res.send({
             ok: true,
             dockerStatus: await containerManager.checkAlive(),
-            socketStatus: socketManager.isAlive()
+            socketStatus: socketManager.isAlive(),
         });
     });
 
     app.get('/ping', async (req, res) => {
         res.send({
-            ok: true
+            ok: true,
         });
     });
 
@@ -54,7 +54,7 @@ function createServer() {
         console.error('Invalid request: %s %s', req.method, req.originalUrl);
         res.status(400).send({
             ok: false,
-            error: 'Unknown'
+            error: 'Unknown',
         });
     });
 
@@ -84,7 +84,7 @@ export default {
         return currentServer.port;
     },
 
-    ping: async function(host:string, port:number): Promise<{ ok:boolean }> {
+    ping: async function (host: string, port: number): Promise<{ ok: boolean }> {
         return new Promise((resolve, reject) => {
             request.get(`http://${host}:${port}/ping`, (err, res, body) => {
                 if (err) {
@@ -93,8 +93,8 @@ export default {
                 }
 
                 resolve(JSON.parse(body));
-            })
-        })
+            });
+        });
     },
 
     /**
@@ -166,7 +166,9 @@ export default {
 
             const bindHost = getBindHost(host);
 
-            currentServer.listen(port, bindHost, () => resolve({ host, port, dockerStatus: containerManager.isAlive() }));
+            currentServer.listen(port, bindHost, () =>
+                resolve({ host, port, dockerStatus: containerManager.isAlive() })
+            );
             currentServer.host = host;
             currentServer.port = port;
         });
