@@ -1,5 +1,5 @@
 declare module 'recursive-watch' {
-    export default function watch(path:string, callback:(filename:string) => void):() => void;
+    export default function watch(path: string, callback: (filename: string) => void): () => void;
 }
 
 declare module '@kapeta/nodejs-registry-utils' {

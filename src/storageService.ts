@@ -53,7 +53,7 @@ class StorageService {
         this._writeConfig();
     }
 
-    get<T = any>(section: string, property?: string, defaultValue?:T): T|undefined {
+    get<T = any>(section: string, property?: string, defaultValue?: T): T | undefined {
         if (!property) {
             return this.section(section);
         }

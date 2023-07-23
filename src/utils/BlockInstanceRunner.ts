@@ -216,7 +216,7 @@ export class BlockInstanceRunner {
 
             PortBindings[dockerPort] = [
                 {
-                    HostIp: bindHost, 
+                    HostIp: bindHost,
                     HostPort: `${publicPort}`,
                 },
             ];
@@ -380,9 +380,7 @@ export class BlockInstanceRunner {
                     ...Object.entries(env).map(([key, value]) => `${key}=${value}`),
                 ],
                 HostConfig: {
-                    Binds: [
-                        `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`,
-                    ],
+                    Binds: [`${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`],
                 },
             });
 

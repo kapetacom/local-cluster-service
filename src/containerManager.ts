@@ -116,7 +116,7 @@ class ContainerManager {
         }
 
         try {
-            await this._docker.ping()
+            await this._docker.ping();
             this._alive = true;
         } catch (e) {
             this._alive = false;

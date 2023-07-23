@@ -3,7 +3,7 @@ import { KapetaAPI } from '@kapeta/nodejs-api-client';
 
 import { corsHandler } from '../middleware/cors';
 import { Request, Response } from 'express';
-import {storageService} from "../storageService";
+import { storageService } from '../storageService';
 
 const router = Router();
 const api = new KapetaAPI();
@@ -22,7 +22,7 @@ router.put('/:handle/:name', async (req: Request, res: Response) => {
     if (!req.headers['content-type']) {
         res.status(400).send({
             status: 400,
-            error: 'Missing content-type header'
+            error: 'Missing content-type header',
         });
         return;
     }
@@ -30,7 +30,7 @@ router.put('/:handle/:name', async (req: Request, res: Response) => {
     if (!req.headers['content-length']) {
         res.status(400).send({
             status: 400,
-            error: 'Missing content-length header'
+            error: 'Missing content-length header',
         });
         return;
     }
@@ -38,15 +38,15 @@ router.put('/:handle/:name', async (req: Request, res: Response) => {
     if (!req.headers['content-disposition']) {
         res.status(400).send({
             status: 400,
-            error: 'Missing content-disposition header'
+            error: 'Missing content-disposition header',
         });
         return;
     }
 
     try {
-        const {handle, name} = req.params;
+        const { handle, name } = req.params;
         const url = `${endpoint}/${handle}/${name}/attachments`;
-        const result = await api.send<{url:string}>({
+        const result = await api.send<{ url: string }>({
             method: 'PUT',
             url,
             auth: true,
@@ -55,10 +55,10 @@ router.put('/:handle/:name', async (req: Request, res: Response) => {
                 'content-length': req.headers['content-length'],
                 'content-disposition': req.headers['content-disposition'],
             },
-            body: req
+            body: req,
         });
         res.send(result);
-    } catch (e:any) {
+    } catch (e: any) {
         res.status(e.status ?? 500).send(e);
     }
 });

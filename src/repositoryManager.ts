@@ -41,23 +41,23 @@ class RepositoryManager {
 
         console.log('Watching local repository for provider changes: %s', baseDir);
         try {
-            this.watcher = watch(baseDir, (filename:string) => {
+            this.watcher = watch(baseDir, (filename: string) => {
                 if (!filename) {
                     return;
                 }
-    
+
                 const [handle, name, version] = filename.toString().split(/\//g);
                 if (!name || !version) {
                     return;
                 }
-    
+
                 if (!this.changeEventsEnabled) {
                     return;
                 }
-    
+
                 const ymlPath = Path.join(baseDir, handle, name, version, 'kapeta.yml');
                 const newDefinitions = ClusterConfiguration.getDefinitions();
-    
+
                 const newDefinition = newDefinitions.find((d) => d.ymlPath === ymlPath);
                 let currentDefinition = allDefinitions.find((d) => d.ymlPath === ymlPath);
                 const ymlExists = FS.existsSync(ymlPath);
@@ -85,13 +85,13 @@ class RepositoryManager {
                         return;
                     }
                 }
-    
+
                 const payload = {
                     type,
                     definition: currentDefinition?.definition,
                     asset: { handle, name, version },
                 };
-    
+
                 allDefinitions = newDefinitions;
                 socketManager.emit(`assets`, 'changed', payload);
             });
