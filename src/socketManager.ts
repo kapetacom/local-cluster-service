@@ -12,10 +12,12 @@ export class SocketManager {
     }
 
     setIo(io: Server) {
-        console.log('Socket server ready');
         this._io = io;
-
         this._bindIO();
+    }
+
+    isAlive() {
+        return !!this._io;
     }
 
     private get io() {
@@ -41,11 +43,9 @@ export class SocketManager {
     _bindSocket(socket: Socket) {
         socket.on('disconnect', () => this._handleSocketDestroyed(socket));
         socket.on('join', (id) => {
-            console.log('socket joined ', id);
             socket.join(id);
         });
         socket.on('leave', (id) => {
-            console.log('socket left ', id);
             socket.leave(id);
         });
     }

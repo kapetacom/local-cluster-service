@@ -17,6 +17,7 @@ import AssetsRoutes from './src/assets/routes';
 import ProviderRoutes from './src/providers/routes';
 import AttachmentRoutes from './src/attachments/routes';
 import { getBindHost } from './src/utils/utils';
+import request from "request";
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 
@@ -35,6 +36,20 @@ function createServer() {
     app.use('/assets', AssetsRoutes);
     app.use('/providers', ProviderRoutes);
     app.use('/attachments', AttachmentRoutes);
+    app.get('/status', async (req, res) => {
+        res.send({
+            ok: true,
+            dockerStatus: await containerManager.checkAlive(),
+            socketStatus: socketManager.isAlive()
+        });
+    });
+
+    app.get('/ping', async (req, res) => {
+        res.send({
+            ok: true
+        });
+    });
+
     app.use('/', (req: express.Request, res: express.Response) => {
         console.error('Invalid request: %s %s', req.method, req.originalUrl);
         res.status(400).send({
@@ -42,6 +57,7 @@ function createServer() {
             error: 'Unknown'
         });
     });
+
     const server = HTTP.createServer(app);
 
     //socket
@@ -66,6 +82,19 @@ export default {
         }
 
         return currentServer.port;
+    },
+
+    ping: async function(host:string, port:number): Promise<{ ok:boolean }> {
+        return new Promise((resolve, reject) => {
+            request.get(`http://${host}:${port}/ping`, (err, res, body) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                resolve(JSON.parse(body));
+            })
+        })
     },
 
     /**
@@ -93,6 +122,17 @@ export default {
         const clusterHost = storageService.get('cluster', 'host');
         if (clusterHost) {
             clusterService.setClusterServiceHost(clusterHost);
+        }
+
+        let pingResult = undefined;
+        try {
+            pingResult = await this.ping(clusterHost, clusterPort);
+        } catch (e: any) {
+            //Ignore - expected to not be running since we're starting it
+        }
+
+        if (pingResult?.ok) {
+            throw new Error(`Cluster service already running on: ${clusterHost}:${clusterPort}.`);
         }
 
         await clusterService.init();
