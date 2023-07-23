@@ -1,3 +1,10 @@
+## [0.8.2](https://github.com/kapetacom/local-cluster-service/compare/v0.8.1...v0.8.2) (2023-07-23)
+
+
+### Bug Fixes
+
+* Check for existing cluster services on the same point and exit if it exists ([#47](https://github.com/kapetacom/local-cluster-service/issues/47)) ([3c76c3c](https://github.com/kapetacom/local-cluster-service/commit/3c76c3c24927212e4a06dc627e6c7262b2c60c4f))
+
 ## [0.8.1](https://github.com/kapetacom/local-cluster-service/compare/v0.8.0...v0.8.1) (2023-07-22)
 
 
