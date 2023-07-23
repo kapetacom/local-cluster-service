@@ -105,6 +105,26 @@ class ContainerManager {
         throw new Error('Could not connect to docker daemon. Please make sure docker is running and working.');
     }
 
+    async checkAlive() {
+        if (!this._docker) {
+            try {
+                await this.initialize();
+            } catch (e) {
+                this._alive = false;
+            }
+            return this._alive;
+        }
+
+        try {
+            await this._docker.ping()
+            this._alive = true;
+        } catch (e) {
+            this._alive = false;
+        }
+
+        return this._alive;
+    }
+
     isAlive() {
         return this._alive;
     }
