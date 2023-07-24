@@ -10,6 +10,8 @@ import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { repositoryManager } from './repositoryManager';
 import { BlockDefinition } from '@kapeta/schemas';
 import { Actions } from '@kapeta/nodejs-registry-utils';
+import { definitionsManager } from './definitionsManager';
+import { normalizeKapetaUri } from './utils/utils';
 
 export interface EnrichedAsset {
     ref: string;
@@ -67,7 +69,7 @@ class AssetManager {
      */
     getAssets(assetKinds?: string[]): EnrichedAsset[] {
         if (!assetKinds) {
-            const blockTypeProviders = ClusterConfiguration.getDefinitions([
+            const blockTypeProviders = definitionsManager.getDefinitions([
                 'core/block-type',
                 'core/block-type-operator',
             ]);
@@ -77,7 +79,7 @@ class AssetManager {
             assetKinds.push('core/plan');
         }
 
-        const assets = ClusterConfiguration.getDefinitions(assetKinds);
+        const assets = definitionsManager.getDefinitions(assetKinds);
 
         return assets.map(enrichAsset);
     }
@@ -97,6 +99,7 @@ class AssetManager {
     }
 
     async getAsset(ref: string, noCache: boolean = false): Promise<EnrichedAsset | undefined> {
+        ref = normalizeKapetaUri(ref);
         const cacheKey = `getAsset:${ref}`;
         if (!noCache && this.cache.has(cacheKey)) {
             return this.cache.get(cacheKey);
@@ -104,10 +107,10 @@ class AssetManager {
         const uri = parseKapetaUri(ref);
         await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version);
 
-        let asset = ClusterConfiguration.getDefinitions()
+        let asset = definitionsManager
+            .getDefinitions()
             .map(enrichAsset)
             .find((a) => parseKapetaUri(a.ref).equals(uri));
-
         if (!asset) {
             throw new Error('Asset not found: ' + ref);
         }

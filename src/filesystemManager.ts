@@ -17,9 +17,7 @@ function isFile(path: string) {
 class FilesystemManager {
     async writeFile(path: string, data: string | Buffer) {
         const dirName = Path.dirname(path);
-        console.log('Dir name', dirName, path);
         if (!FS.existsSync(dirName)) {
-            console.log('Making folder', dirName);
             FSExtra.mkdirpSync(dirName, {});
         }
         FS.writeFileSync(path, data);

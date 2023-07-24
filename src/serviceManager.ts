@@ -2,6 +2,7 @@ import _ from 'lodash';
 import { clusterService } from './clusterService';
 import { storageService } from './storageService';
 import { EnvironmentType } from './types';
+import { normalizeKapetaUri } from './utils/utils';
 
 const DEFAULT_PORT_TYPE = 'rest';
 
@@ -42,6 +43,8 @@ class ServiceManager {
     }
 
     _ensureSystem(systemId: string) {
+        systemId = normalizeKapetaUri(systemId);
+
         if (!this._systems[systemId]) {
             this._systems[systemId] = {};
         }
@@ -60,6 +63,7 @@ class ServiceManager {
     }
 
     async ensureServicePort(systemId: string, blockInstanceId: string, portType: string = DEFAULT_PORT_TYPE) {
+        systemId = normalizeKapetaUri(systemId);
         if (!portType) {
             portType = DEFAULT_PORT_TYPE;
         }
@@ -94,6 +98,7 @@ class ServiceManager {
         portType: string,
         environmentType?: EnvironmentType
     ): string {
+        systemId = normalizeKapetaUri(systemId);
         const port = clusterService.getClusterServicePort();
         const path = clusterService.getProxyPath(systemId, consumerInstanceId, consumerResourceName, portType);
         return this._forLocal(port, path, environmentType);
@@ -108,6 +113,7 @@ class ServiceManager {
      *
      */
     async getProviderAddress(systemId: string, providerInstanceId: string, portType: string): Promise<string> {
+        systemId = normalizeKapetaUri(systemId);
         const port = await this.ensureServicePort(systemId, providerInstanceId, portType);
         return this._forLocal(port);
     }

@@ -1,3 +1,5 @@
+import { normalizeKapetaUri } from './utils/utils';
+
 const net = require('net');
 const DEFAULT_SERVER_PORT = 35100;
 const DEFAULT_START_PORT = 40000;
@@ -125,6 +127,7 @@ class ClusterService {
      * @return {string}
      */
     getProxyPath(systemId: string, consumerInstanceId: string, consumerResourceName: string, portType: string) {
+        systemId = normalizeKapetaUri(systemId);
         return `/proxy/${encodeURIComponent(systemId)}/${encodeURIComponent(consumerInstanceId)}/${encodeURIComponent(
             consumerResourceName
         )}/${encodeURIComponent(portType)}/`;

@@ -3,6 +3,7 @@ import { BlockInstance } from '@kapeta/schemas';
 import { storageService } from './storageService';
 import { assetManager } from './assetManager';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
+import { normalizeKapetaUri } from './utils/utils';
 
 type AnyMap = { [key: string]: any };
 
@@ -19,6 +20,7 @@ class ConfigManager {
     }
 
     _forSystem(systemId: string) {
+        systemId = normalizeKapetaUri(systemId);
         if (!this._config[systemId]) {
             this._config[systemId] = {};
         }
@@ -27,16 +29,19 @@ class ConfigManager {
     }
 
     setConfigForSystem(systemId: string, config: AnyMap) {
+        systemId = normalizeKapetaUri(systemId);
         const systemConfig = config || {};
 
         storageService.put('config', systemId, systemConfig);
     }
 
     getConfigForSystem(systemId: string): AnyMap {
+        systemId = normalizeKapetaUri(systemId);
         return this._forSystem(systemId);
     }
 
     setConfigForSection(systemId: string, sectionId: string, config: AnyMap) {
+        systemId = normalizeKapetaUri(systemId);
         let systemConfig = this._forSystem(systemId);
         systemConfig[sectionId] = config || {};
 
@@ -44,6 +49,7 @@ class ConfigManager {
     }
 
     getConfigForSection(systemId: string, sectionId: string) {
+        systemId = normalizeKapetaUri(systemId);
         const systemConfig = this._forSystem(systemId);
 
         if (!systemConfig[sectionId]) {
@@ -70,6 +76,10 @@ class ConfigManager {
      * @returns {Promise<{systemId:string,instanceId:string}>}
      */
     async resolveIdentity(blockRef: string, systemId?: string) {
+        blockRef = normalizeKapetaUri(blockRef);
+        if (systemId) {
+            systemId = normalizeKapetaUri(systemId);
+        }
         const planAssets = assetManager.getPlans();
 
         const blockUri = parseKapetaUri(blockRef);
@@ -89,7 +99,7 @@ class ConfigManager {
                 const refUri = parseKapetaUri(blockInstance.block.ref);
                 if (refUri.equals(blockUri)) {
                     matchingIdentities.push({
-                        systemId: planAsset.ref,
+                        systemId: normalizeKapetaUri(planAsset.ref),
                         instanceId: blockInstance.id,
                     });
                 }
@@ -120,6 +130,8 @@ class ConfigManager {
     }
 
     async verifyIdentity(blockRef: string, systemId: string, instanceId: string) {
+        blockRef = normalizeKapetaUri(blockRef);
+        systemId = normalizeKapetaUri(systemId);
         const planAssets = assetManager.getPlans();
         const systemUri = systemId ? parseKapetaUri(systemId) : null;
         const blockUri = parseKapetaUri(blockRef);

@@ -10,6 +10,7 @@ export type AnyMap = { [key: string]: any };
 export type LogLevel = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE' | 'FATAL';
 export type LogSource = 'stdout' | 'stderr';
 export type EnvironmentType = 'docker' | 'process';
+
 export interface LogEntry {
     source: LogSource;
     level: LogLevel;
@@ -23,32 +24,61 @@ export interface BlockProcessParams {
     configuration?: AnyMap;
 }
 
-export type ProcessType = 'docker' | 'local';
+export enum InstanceType {
+    DOCKER = 'docker',
+    LOCAL = 'local',
+    UNKNOWN = 'unknown',
+}
+export enum InstanceOwner {
+    INTERNAL = 'internal',
+    EXTERNAL = 'external',
+}
 
-export interface ProcessDetails {
-    pid: number | string;
-    type: ProcessType;
-    portType?: string;
+export enum InstanceStatus {
+    STOPPED = 'stopped',
+    STARTING = 'starting',
+    BUSY = 'busy',
+    READY = 'ready',
+    STOPPING = 'stopping',
+    UNHEALTHY = 'unhealthy',
+    FAILED = 'failed',
+}
+
+export enum DesiredInstanceStatus {
+    STOP = 'stop',
+    RUN = 'run',
+    EXTERNAL = 'external',
+}
+
+export type ProcessInfo = {
+    type: InstanceType;
+    pid?: number | string | null;
     output: EventEmitter;
+    portType?: string;
     logs: () => LogEntry[];
     stop: () => Promise<void> | void;
-}
-
-export interface ProcessInfo extends ProcessDetails {
-    id: string;
-    ref: string;
-    name: string;
-}
+};
 
 export type InstanceInfo = {
     systemId: string;
     instanceId: string;
+    ref: string;
+    name: string;
+    type: InstanceType;
+    owner: InstanceOwner;
+    status: InstanceStatus;
+    desiredStatus: DesiredInstanceStatus;
     address?: string;
+
+    startedAt?: number;
     health?: string | null;
-    status: string;
     pid?: number | string | null;
-    type: ProcessType;
     portType?: string;
+
+    internal?: {
+        output: EventEmitter;
+        logs: () => LogEntry[];
+    };
 };
 
 interface ResourceRef {

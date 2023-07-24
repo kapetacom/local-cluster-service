@@ -1,6 +1,7 @@
 import uuid from 'node-uuid';
 import { Connection, SimpleRequest, SimpleResponse } from './types';
 import express from 'express';
+import { normalizeKapetaUri } from './utils/utils';
 
 class NetworkManager {
     private _connections: { [systemId: string]: { [connectionId: string]: Traffic[] } };
@@ -23,6 +24,7 @@ class NetworkManager {
     }
 
     _ensureSystem(systemId: string) {
+        systemId = normalizeKapetaUri(systemId);
         if (!this._connections[systemId]) {
             this._connections[systemId] = {};
         }
@@ -37,6 +39,7 @@ class NetworkManager {
     }
 
     _ensureConnection(systemId: string, connectionId: string) {
+        systemId = normalizeKapetaUri(systemId);
         this._ensureSystem(systemId);
 
         if (!this._connections[systemId][connectionId]) {
@@ -47,6 +50,7 @@ class NetworkManager {
     }
 
     _ensureSource(systemId: string, sourceBlockInstanceId: string) {
+        systemId = normalizeKapetaUri(systemId);
         this._ensureSystem(systemId);
 
         if (!this._sources[systemId][sourceBlockInstanceId]) {
@@ -57,6 +61,7 @@ class NetworkManager {
     }
 
     _ensureTarget(systemId: string, targetBlockInstanceId: string) {
+        systemId = normalizeKapetaUri(systemId);
         this._ensureSystem(systemId);
 
         if (!this._targets[systemId][targetBlockInstanceId]) {
@@ -73,6 +78,7 @@ class NetworkManager {
         consumerMethodId?: string,
         providerMethodId?: string
     ) {
+        systemId = normalizeKapetaUri(systemId);
         const traffic = new Traffic(connection, request, consumerMethodId, providerMethodId);
 
         this._ensureConnection(systemId, traffic.connectionId).push(traffic);
