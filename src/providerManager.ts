@@ -3,6 +3,7 @@ import FSExtra from 'fs-extra';
 import { repositoryManager } from './repositoryManager';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { StringMap } from './types';
+import { definitionsManager } from './definitionsManager';
 
 class ProviderManager {
     private _webAssetCache: StringMap;
@@ -11,7 +12,7 @@ class ProviderManager {
     }
 
     getWebProviders() {
-        return ClusterConfiguration.getProviderDefinitions().filter((providerDefinition) => providerDefinition.hasWeb);
+        return definitionsManager.getProviderDefinitions().filter((providerDefinition) => providerDefinition.hasWeb);
     }
 
     async getAsset(handle: string, name: string, version: string, sourceMap: boolean = false) {
@@ -42,7 +43,7 @@ class ProviderManager {
     }
 }
 
-const providerDefinitions = ClusterConfiguration.getProviderDefinitions();
+const providerDefinitions = definitionsManager.getProviderDefinitions();
 
 if (providerDefinitions.length > 0) {
     console.log('## Loaded the following providers ##');

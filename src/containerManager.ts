@@ -27,6 +27,25 @@ export interface DockerMounts {
     Consistency: string;
 }
 
+interface DockerState {
+    Status: 'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead';
+    Running: boolean;
+    Paused: boolean;
+    Restarting: boolean;
+    OOMKilled: boolean;
+    Dead: boolean;
+    Pid: number;
+    ExitCode: number;
+    Error: string;
+    StartedAt: string;
+    FinishedAt: string;
+    Health?: {
+        Status: 'starting' | 'healthy' | 'unhealthy' | 'none';
+        FailingStreak: number;
+        Log: any[] | null;
+    };
+}
+
 interface Health {
     cmd: string;
     interval?: number;
@@ -36,10 +55,12 @@ interface Health {
 
 const LABEL_PORT_PREFIX = 'kapeta_port-';
 const NANO_SECOND = 1000000;
-const HEALTH_CHECK_INTERVAL = 2000;
-const HEALTH_CHECK_MAX = 30;
+const HEALTH_CHECK_INTERVAL = 3000;
+const HEALTH_CHECK_MAX = 20;
 const IMAGE_PULL_CACHE_TTL = 30 * 60 * 1000;
 const IMAGE_PULL_CACHE: { [key: string]: number } = {};
+
+export const HEALTH_CHECK_TIMEOUT = HEALTH_CHECK_INTERVAL * HEALTH_CHECK_MAX * 2;
 
 const promisifyStream = (stream: ReadStream) =>
     new Promise((resolve, reject) => {
@@ -165,11 +186,17 @@ class ContainerManager {
         return this._docker;
     }
 
-    async getContainerByName(containerName: string): Promise<Container | undefined> {
+    async getContainerByName(containerName: string): Promise<ContainerInfo | undefined> {
         const containers = await this.docker().container.list({ all: true });
-        return containers.find((container) => {
-            return (container.data as any).Names.indexOf(`/${containerName}`) > -1;
+        const out = containers.find((container) => {
+            const containerData = container.data as any;
+            return containerData.Names.indexOf(`/${containerName}`) > -1;
         });
+
+        if (out) {
+            return new ContainerInfo(out);
+        }
+        return undefined;
     }
 
     async pull(image: string, cacheForMS: number = IMAGE_PULL_CACHE_TTL) {
@@ -371,18 +398,28 @@ class ContainerManager {
     }
 
     async _isReady(container: Container) {
-        const info: Container = await container.status();
+        let info: Container;
+        try {
+            info = await container.status();
+        } catch (err) {
+            return false;
+        }
         const infoData: any = info?.data;
-        if (infoData?.State?.Status === 'exited') {
+        const state = infoData?.State as DockerState;
+        if (state?.Status === 'exited' || state?.Status === 'removing' || state?.Status === 'dead') {
             throw new Error('Container exited unexpectedly');
         }
         return infoData?.State?.Running ?? false;
     }
 
     async _isHealthy(container: Container) {
-        const info = await container.status();
-        const infoData: any = info?.data;
-        return infoData?.State?.Health?.Status === 'healthy';
+        try {
+            const info = await container.status();
+            const infoData: any = info?.data;
+            return infoData?.State?.Health?.Status === 'healthy';
+        } catch (err) {
+            return false;
+        }
     }
 
     /**
@@ -429,7 +466,7 @@ export class ContainerInfo {
     }
 
     async isRunning() {
-        const inspectResult = await this.getStatus();
+        const inspectResult = await this.inspect();
 
         if (!inspectResult || !inspectResult.State) {
             return false;
@@ -464,14 +501,24 @@ export class ContainerInfo {
         return null;
     }
 
-    async getStatus() {
-        const result = await this._container.status();
+    async inspect() {
+        try {
+            const result = await this._container.status();
 
-        return result ? (result.data as any) : null;
+            return result ? (result.data as any) : null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    async status() {
+        const result = await this.inspect();
+
+        return result.State as DockerState;
     }
 
     async getPorts(): Promise<PortMap | false> {
-        const inspectResult = await this.getStatus();
+        const inspectResult = await this.inspect();
 
         if (!inspectResult || !inspectResult.Config || !inspectResult.Config.Labels) {
             return false;

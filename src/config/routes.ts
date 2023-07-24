@@ -41,7 +41,7 @@ router.put('/instance', async (req: KapetaBodyRequest, res) => {
         if (req.kapeta!.instanceId) {
             configManager.setConfigForSection(req.kapeta!.systemId, req.kapeta!.instanceId, config);
             //Restart the instance if it is running after config change
-            await instanceManager.restartIfRunning(req.kapeta!.systemId, req.kapeta!.instanceId);
+            await instanceManager.restart(req.kapeta!.systemId, req.kapeta!.instanceId);
         } else {
             configManager.setConfigForSystem(req.kapeta!.systemId, config);
         }

@@ -8,6 +8,8 @@ import { ContainerInfo, containerManager } from './containerManager';
 import FSExtra from 'fs-extra';
 import { AnyMap, EnvironmentType, OperatorInfo } from './types';
 import { BlockInstance, Resource } from '@kapeta/schemas';
+import { definitionsManager } from './definitionsManager';
+import { normalizeKapetaUri } from './utils/utils';
 
 const KIND_OPERATOR = 'core/resource-type-operator';
 
@@ -47,7 +49,7 @@ class OperatorManager {
      * @return {Operator}
      */
     getOperator(resourceType: string, version: string) {
-        const operators = ClusterConfiguration.getDefinitions(KIND_OPERATOR);
+        const operators = definitionsManager.getDefinitions(KIND_OPERATOR);
 
         const operator: DefinitionInfo | undefined = operators.find(
             (operator) =>
@@ -80,7 +82,8 @@ class OperatorManager {
         name: string,
         environment?: EnvironmentType
     ): Promise<OperatorInfo> {
-        const plans = ClusterConfiguration.getDefinitions('core/plan');
+        systemId = normalizeKapetaUri(systemId);
+        const plans = definitionsManager.getDefinitions('core/plan');
 
         const planUri = parseKapetaUri(systemId);
         const currentPlan = plans.find(
@@ -98,10 +101,12 @@ class OperatorManager {
         }
 
         const blockUri = parseKapetaUri(currentInstance.block.ref);
-        const blockDefinition = ClusterConfiguration.getDefinitions().find(
-            (definition) =>
-                definition.version === blockUri.version && definition.definition.metadata.name === blockUri.fullName
-        );
+        const blockDefinition = definitionsManager
+            .getDefinitions()
+            .find(
+                (definition) =>
+                    definition.version === blockUri.version && definition.definition.metadata.name === blockUri.fullName
+            );
 
         if (!blockDefinition) {
             throw new Error(`Unknown block: ${currentInstance.block.ref} in plan ${systemId}`);

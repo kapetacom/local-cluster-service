@@ -9,6 +9,7 @@ import { socketManager } from './socketManager';
 import { progressListener } from './progressListener';
 import { Dependency } from '@kapeta/schemas';
 import { Actions, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
+import { definitionsManager } from './definitionsManager';
 
 const INSTALL_ATTEMPTED: { [p: string]: boolean } = {};
 
@@ -94,6 +95,7 @@ class RepositoryManager {
 
                 allDefinitions = newDefinitions;
                 socketManager.emit(`assets`, 'changed', payload);
+                definitionsManager.clearCache();
             });
         } catch (e) {
             // Fallback to run without watch mode due to potential platform issues.
@@ -186,7 +188,7 @@ class RepositoryManager {
             return;
         }
 
-        const definitions = ClusterConfiguration.getDefinitions();
+        const definitions = definitionsManager.getDefinitions();
         const installedAsset = definitions.find(
             (d) => d.definition.metadata.name === fullName && d.version === version
         );
@@ -221,8 +223,10 @@ class RepositoryManager {
         } else {
             //Ensure dependencies are installed
             const refs = assetVersion.dependencies.map((dep: Dependency) => dep.name);
-            console.log(`Auto-installing dependencies: ${refs.join(', ')}`);
-            await this._install(refs);
+            if (refs.length > 0) {
+                console.log(`Auto-installing dependencies: ${refs.join(', ')}`);
+                await this._install(refs);
+            }
         }
     }
 }

@@ -1,15 +1,15 @@
 import FS from 'node:fs';
 import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import { getBindHost, readYML } from './utils';
+import { getBindHost, getBlockInstanceContainerName, normalizeKapetaUri, readYML } from './utils';
 import { KapetaURI, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { serviceManager } from '../serviceManager';
 import { containerManager, DockerMounts, toLocalBindVolume } from '../containerManager';
 import { LogData } from './LogData';
 import EventEmitter from 'events';
-import md5 from 'md5';
 import { clusterService } from '../clusterService';
-import { AnyMap, BlockProcessParams, ProcessDetails, ProcessInfo, StringMap } from '../types';
+import { AnyMap, BlockProcessParams, ProcessInfo, InstanceType, StringMap } from '../types';
 import { Container } from 'node-docker-api/lib/container';
+import { definitionsManager } from '../definitionsManager';
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
@@ -27,7 +27,7 @@ const DOCKER_ENV_VARS = [
 ];
 
 function getProvider(uri: KapetaURI) {
-    return ClusterConfig.getProviderDefinitions().find((provider) => {
+    return definitionsManager.getProviderDefinitions().find((provider) => {
         const ref = `${provider.definition.metadata.name}:${provider.version}`;
         return parseKapetaUri(ref).id === uri.id;
     });
@@ -46,13 +46,13 @@ function getProviderPorts(assetVersion: DefinitionInfo): string[] {
 export class BlockInstanceRunner {
     private readonly _systemId: string;
 
-    constructor(planReference: string) {
+    constructor(systemId: string) {
         /**
          *
          * @type {string}
          * @private
          */
-        this._systemId = planReference ?? '';
+        this._systemId = normalizeKapetaUri(systemId);
     }
 
     /**
@@ -88,7 +88,7 @@ export class BlockInstanceRunner {
             blockUri.version = 'local';
         }
 
-        const assetVersion = ClusterConfig.getDefinitions().find((definitions) => {
+        const assetVersion = definitionsManager.getDefinitions().find((definitions) => {
             const ref = `${definitions.definition.metadata.name}:${definitions.version}`;
             return parseKapetaUri(ref).id === blockUri.id;
         });
@@ -105,30 +105,26 @@ export class BlockInstanceRunner {
             throw new Error(`Kind not found: ${kindUri.id}`);
         }
 
-        let processDetails: ProcessDetails;
+        let processInfo: ProcessInfo;
 
         if (providerVersion.definition.kind === KIND_BLOCK_TYPE_OPERATOR) {
-            processDetails = await this._startOperatorProcess(blockInstance, blockUri, providerVersion, env);
+            processInfo = await this._startOperatorProcess(blockInstance, blockUri, providerVersion, env);
         } else {
             //We need a port type to know how to connect to the block consistently
             const portTypes = getProviderPorts(assetVersion);
 
             if (blockUri.version === 'local') {
-                processDetails = await this._startLocalProcess(blockInstance, blockUri, env, assetVersion);
+                processInfo = await this._startLocalProcess(blockInstance, blockUri, env, assetVersion);
             } else {
-                processDetails = await this._startDockerProcess(blockInstance, blockUri, env);
+                processInfo = await this._startDockerProcess(blockInstance, blockUri, env);
             }
 
             if (portTypes.length > 0) {
-                processDetails.portType = portTypes[0];
+                processInfo.portType = portTypes[0];
             }
         }
 
-        return {
-            name: blockUri.id,
-            ...blockInstance,
-            ...processDetails,
-        };
+        return processInfo;
     }
 
     /**
@@ -139,7 +135,7 @@ export class BlockInstanceRunner {
         blockInfo: KapetaURI,
         env: StringMap,
         assetVersion: DefinitionInfo
-    ): Promise<ProcessDetails> {
+    ): Promise<ProcessInfo> {
         const baseDir = ClusterConfig.getRepositoryAssetPath(blockInfo.handle, blockInfo.name, blockInfo.version);
 
         if (!FS.existsSync(baseDir)) {
@@ -172,14 +168,16 @@ export class BlockInstanceRunner {
             throw new Error(`Missing docker image information: ${JSON.stringify(localContainer)}`);
         }
 
-        const containerName = `kapeta-block-instance-${blockInstance.id}`;
+        const containerName = getBlockInstanceContainerName(blockInstance.id);
         const logs = new LogData();
         logs.addLog(`Starting block ${blockInstance.ref}`);
-        let container: Container | null = (await containerManager.getContainerByName(containerName)) ?? null;
+        const containerInfo = await containerManager.getContainerByName(containerName);
+        let container = containerInfo?.native;
+
         console.log('Starting dev container', containerName);
 
         if (container) {
-            console.log(`Container already exists. Deleting...`);
+            console.log(`Dev container already exists. Deleting...`);
             try {
                 await container.delete({
                     force: true,
@@ -187,7 +185,7 @@ export class BlockInstanceRunner {
             } catch (e: any) {
                 throw new Error('Failed to delete existing container: ' + e.message);
             }
-            container = null;
+            container = undefined;
         }
 
         logs.addLog(`Creating new container for block: ${containerName}`);
@@ -229,6 +227,7 @@ export class BlockInstanceRunner {
             HealthCheck = containerManager.toDockerHealth({ cmd: localContainer.healthcheck });
         }
 
+        console.log('Starting dev container', containerName, dockerImage);
         container = await containerManager.startContainer({
             Image: dockerImage,
             name: containerName,
@@ -274,7 +273,7 @@ export class BlockInstanceRunner {
         container: Container,
         logs: LogData,
         deleteOnExit: boolean = false
-    ): Promise<ProcessDetails> {
+    ): Promise<ProcessInfo> {
         let localContainer: Container | null = container;
         const logStream = (await container.logs({
             follow: true,
@@ -306,7 +305,7 @@ export class BlockInstanceRunner {
         });
 
         return {
-            type: 'docker',
+            type: InstanceType.DOCKER,
             pid: container.id,
             output: outputEvents,
             stop: async () => {
@@ -350,9 +349,10 @@ export class BlockInstanceRunner {
             throw new Error(`Missing docker image information: ${JSON.stringify(versionInfo?.artifact?.details)}`);
         }
 
-        const containerName = `kapeta-block-instance-${blockInstance.id}`;
+        const containerName = getBlockInstanceContainerName(blockInstance.id);
         const logs = new LogData();
-        let container = await containerManager.getContainerByName(containerName);
+        const containerInfo = await containerManager.getContainerByName(containerName);
+        let container = containerInfo?.native;
 
         // For windows we need to default to root
         const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
@@ -435,9 +435,11 @@ export class BlockInstanceRunner {
             console.warn('Failed to pull image. Continuing...', e);
         }
 
-        const containerName = `kapeta-block-instance-${md5(blockInstance.id)}`;
+        const containerName = getBlockInstanceContainerName(blockInstance.id);
         const logs = new LogData();
-        let container: Container | null = (await containerManager.getContainerByName(containerName)) ?? null;
+        const containerInfo = await containerManager.getContainerByName(containerName);
+        let container = containerInfo?.native;
+
         if (container) {
             const containerData = container.data as any;
             if (containerData.State === 'running') {
@@ -448,7 +450,7 @@ export class BlockInstanceRunner {
                     try {
                         await container.delete();
                     } catch (e) {}
-                    container = null;
+                    container = undefined;
                 } else {
                     logs.addLog(`Found existing container for block: ${containerName}. Starting now`);
                     try {
@@ -458,7 +460,7 @@ export class BlockInstanceRunner {
                         try {
                             await container.delete();
                         } catch (e) {}
-                        container = null;
+                        container = undefined;
                     }
                 }
             }

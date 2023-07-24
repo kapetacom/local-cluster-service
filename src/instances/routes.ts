@@ -5,7 +5,7 @@ import { corsHandler } from '../middleware/cors';
 import { NextFunction, Request, Response } from 'express';
 import { kapetaHeaders, KapetaRequest } from '../middleware/kapeta';
 import { stringBody } from '../middleware/stringBody';
-import { EnvironmentType, KapetaBodyRequest } from '../types';
+import { DesiredInstanceStatus, InstanceInfo, InstanceOwner, InstanceType, KapetaBodyRequest } from '../types';
 
 const router = Router();
 router.use('/', corsHandler);
@@ -28,11 +28,11 @@ router.get('/:systemId/instances', (req: Request, res: Response) => {
  * Start all instances in a plan
  */
 router.post('/:systemId/start', async (req: Request, res: Response) => {
-    const processes = await instanceManager.createProcessesForPlan(req.params.systemId);
+    const instances = await instanceManager.startAllForPlan(req.params.systemId);
 
     res.status(202).send({
         ok: true,
-        processes: processes.map((p) => {
+        processes: instances.map((p) => {
             return { pid: p.pid, type: p.type };
         }),
     });
@@ -53,7 +53,7 @@ router.post('/:systemId/stop', async (req: Request, res: Response) => {
  * Start single instance in a plan
  */
 router.post('/:systemId/:instanceId/start', async (req: Request, res: Response) => {
-    const process = await instanceManager.createProcess(req.params.systemId, req.params.instanceId);
+    const process = await instanceManager.start(req.params.systemId, req.params.instanceId);
 
     res.status(202).send({
         ok: true,
@@ -66,7 +66,7 @@ router.post('/:systemId/:instanceId/start', async (req: Request, res: Response) 
  * Stop single instance in a plan
  */
 router.post('/:systemId/:instanceId/stop', async (req: Request, res: Response) => {
-    await instanceManager.stopProcess(req.params.systemId, req.params.instanceId);
+    await instanceManager.stop(req.params.systemId, req.params.instanceId);
 
     res.status(202).send({ ok: true });
 });
@@ -75,14 +75,14 @@ router.post('/:systemId/:instanceId/stop', async (req: Request, res: Response) =
  * Get logs for instance in a plan
  */
 router.get('/:systemId/:instanceId/logs', (req: Request, res: Response) => {
-    const processInfo = instanceManager.getProcessForInstance(req.params.systemId, req.params.instanceId);
-    if (!processInfo) {
+    const instanceInfo = instanceManager.getInstance(req.params.systemId, req.params.instanceId);
+    if (!instanceInfo) {
         res.status(404).send({ ok: false });
         return;
     }
 
     res.status(202).send({
-        logs: processInfo.logs(),
+        logs: instanceInfo.internal?.logs() ?? [],
     });
 });
 
@@ -132,31 +132,37 @@ router.use('/', (req: KapetaBodyRequest, res: Response, next: NextFunction) => {
 });
 
 /**
- * Updates the full configuration for a given service.
+ * Updates the full configuration for a given instance.
  */
 router.put('/', async (req: KapetaBodyRequest, res: Response) => {
-    let instance = req.stringBody ? JSON.parse(req.stringBody) : null;
+    let instance: InstanceInfo = req.stringBody ? JSON.parse(req.stringBody) : null;
     if (req.kapeta!.environment === 'docker') {
         //A bit hacky but we want to avoid overwriting the docker PID with a process PID
         const oldInstance = instanceManager.getInstance(req.kapeta!.systemId, req.kapeta!.instanceId);
         if (oldInstance) {
             instance.pid = oldInstance.pid;
         }
-        instance.type = 'docker';
-    } else if (req.kapeta!.environment === 'process') {
-        instance.type = 'process';
+        instance.type = InstanceType.DOCKER;
+    } else {
+        // Coming from user starting the instance outside of kapeta
+        instance.type = InstanceType.LOCAL;
+        instance.owner = InstanceOwner.EXTERNAL;
+        instance.desiredStatus = DesiredInstanceStatus.EXTERNAL;
     }
 
-    await instanceManager.registerInstance(req.kapeta!.systemId, req.kapeta!.instanceId, instance);
-
-    res.status(202).send({ ok: true });
+    try {
+        await instanceManager.registerInstanceFromSDK(req.kapeta!.systemId, req.kapeta!.instanceId, instance);
+        res.status(202).send({ ok: true });
+    } catch (e: any) {
+        res.status(400).send({ error: e.message });
+    }
 });
 
 /**
  * Delete instance
  */
 router.delete('/', async (req: KapetaRequest, res: Response) => {
-    await instanceManager.setInstanceAsStopped(req.kapeta!.systemId, req.kapeta!.instanceId);
+    await instanceManager.markAsStopped(req.kapeta!.systemId, req.kapeta!.instanceId);
 
     res.status(202).send({ ok: true });
 });
