@@ -1,3 +1,10 @@
+# [0.9.0](https://github.com/kapetacom/local-cluster-service/compare/v0.8.3...v0.9.0) (2023-07-24)
+
+
+### Features
+
+* Improves stability and consistency when starting blocks ([#48](https://github.com/kapetacom/local-cluster-service/issues/48)) ([87afeba](https://github.com/kapetacom/local-cluster-service/commit/87afebaa87f054865519186df61c6f51f1c2c5f0))
+
 ## [0.8.3](https://github.com/kapetacom/local-cluster-service/compare/v0.8.2...v0.8.3) (2023-07-23)
 
 
