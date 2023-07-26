@@ -7,9 +7,10 @@ import { containerManager, DockerMounts, toLocalBindVolume } from '../containerM
 import { LogData } from './LogData';
 import EventEmitter from 'events';
 import { clusterService } from '../clusterService';
-import { AnyMap, BlockProcessParams, ProcessInfo, InstanceType, StringMap } from '../types';
+import { AnyMap, BlockProcessParams, InstanceType, ProcessInfo, StringMap } from '../types';
 import { Container } from 'node-docker-api/lib/container';
 import { definitionsManager } from '../definitionsManager';
+import md5 from 'md5';
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
@@ -169,29 +170,6 @@ export class BlockInstanceRunner {
         }
 
         const containerName = getBlockInstanceContainerName(blockInstance.id);
-        const logs = new LogData();
-        logs.addLog(`Starting block ${blockInstance.ref}`);
-        let containerInfo = await containerManager.getContainerByName(containerName);
-        let container = containerInfo?.native;
-
-        console.log('Starting dev container', containerName);
-
-        if (containerInfo) {
-            console.log(`Dev container already exists. Deleting...`);
-            try {
-                await containerInfo.remove({
-                    force: true,
-                });
-            } catch (e: any) {
-                throw new Error('Failed to delete existing container: ' + e.message);
-            }
-            container = undefined;
-            containerInfo = undefined;
-        }
-
-        logs.addLog(`Creating new container for block: ${containerName}`);
-        console.log('Creating new dev container', containerName, dockerImage);
-        await containerManager.pull(dockerImage);
 
         const startCmd = localContainer.handlers?.onCreate ? localContainer.handlers.onCreate : '';
         const dockerOpts = localContainer.options ?? {};
@@ -228,8 +206,7 @@ export class BlockInstanceRunner {
             HealthCheck = containerManager.toDockerHealth({ cmd: localContainer.healthcheck });
         }
 
-        console.log('Starting dev container', containerName, dockerImage);
-        container = await containerManager.startContainer({
+        return this.ensureContainer({
             Image: dockerImage,
             name: containerName,
             WorkingDir: workingDir,
@@ -256,9 +233,15 @@ export class BlockInstanceRunner {
             },
             ...dockerOpts,
         });
+    }
+
+    private async ensureContainer(opts: any) {
+        const logs = new LogData();
+
+        const container = await containerManager.ensureContainer(opts);
 
         try {
-            if (HealthCheck) {
+            if (opts.HealthCheck) {
                 await containerManager.waitForHealthy(container);
             } else {
                 await containerManager.waitForReady(container);
@@ -352,47 +335,25 @@ export class BlockInstanceRunner {
 
         const containerName = getBlockInstanceContainerName(blockInstance.id);
         const logs = new LogData();
-        const containerInfo = await containerManager.getContainerByName(containerName);
-        let container = containerInfo?.native;
 
         // For windows we need to default to root
         const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
 
-        if (container) {
-            const containerData = container.data as any;
-            if (containerData.State === 'running') {
-                logs.addLog(`Found existing running container for block: ${containerName}`);
-            } else {
-                logs.addLog(`Found existing container for block: ${containerName}. Starting now`);
-                await container.start();
-            }
-        } else {
-            logs.addLog(`Creating new container for block: ${containerName}`);
-
-            container = await containerManager.startContainer({
-                Image: dockerImage,
-                name: containerName,
-                Labels: {
-                    instance: blockInstance.id,
-                },
-                Env: [
-                    ...DOCKER_ENV_VARS,
-                    `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
-                    ...Object.entries(env).map(([key, value]) => `${key}=${value}`),
-                ],
-                HostConfig: {
-                    Binds: [`${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`],
-                },
-            });
-
-            try {
-                await containerManager.waitForReady(container);
-            } catch (e: any) {
-                logs.addLog(e.message, 'ERROR');
-            }
-        }
-
-        return this._handleContainer(container, logs);
+        return this.ensureContainer({
+            Image: dockerImage,
+            name: containerName,
+            Labels: {
+                instance: blockInstance.id,
+            },
+            Env: [
+                ...DOCKER_ENV_VARS,
+                `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
+                ...Object.entries(env).map(([key, value]) => `${key}=${value}`),
+            ],
+            HostConfig: {
+                Binds: [`${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`],
+            },
+        });
     }
 
     /**
@@ -430,130 +391,79 @@ export class BlockInstanceRunner {
 
         const dockerImage = spec?.local?.image;
 
-        try {
-            await containerManager.pull(dockerImage);
-        } catch (e) {
-            console.warn('Failed to pull image. Continuing...', e);
-        }
-
         const containerName = getBlockInstanceContainerName(blockInstance.id);
         const logs = new LogData();
-        const containerInfo = await containerManager.getContainerByName(containerName);
-        let container = containerInfo?.native;
-
-        if (container) {
-            const containerData = container.data as any;
-            if (containerData.State === 'running') {
-                logs.addLog(`Found existing running container for block: ${containerName}`);
-            } else {
-                if (containerData.State?.ExitCode > 0) {
-                    logs.addLog(`Container exited with code: ${containerData.State.ExitCode}. Deleting...`);
-                    try {
-                        await containerManager.remove(container);
-                    } catch (e) {}
-                    container = undefined;
-                } else {
-                    logs.addLog(`Found existing container for block: ${containerName}. Starting now`);
-                    try {
-                        await container.start();
-                    } catch (e) {
-                        console.warn('Failed to start container. Deleting...', e);
-                        try {
-                            await containerManager.remove(container);
-                        } catch (e) {}
-                        container = undefined;
-                    }
-                }
-            }
-        }
 
         const bindHost = getBindHost();
 
-        if (!container) {
-            const ExposedPorts: AnyMap = {};
-            const addonEnv: StringMap = {};
-            const PortBindings: AnyMap = {};
-            let HealthCheck = undefined;
-            let Mounts: DockerMounts[] = [];
-            const promises = Object.entries(spec.local.ports as { [p: string]: { port: string; type: string } }).map(
-                async ([portType, value]) => {
-                    const dockerPort = `${value.port}/${value.type}`;
-                    ExposedPorts[dockerPort] = {};
-                    addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = value.port;
-                    const publicPort = await serviceManager.ensureServicePort(
-                        this._systemId,
-                        blockInstance.id,
-                        portType
-                    );
-                    PortBindings[dockerPort] = [
-                        {
-                            HostIp: bindHost,
-                            HostPort: `${publicPort}`,
-                        },
-                    ];
-                }
-            );
-
-            await Promise.all(promises);
-
-            if (spec.local?.env) {
-                Object.entries(spec.local.env).forEach(([key, value]) => {
-                    addonEnv[key] = value as string;
-                });
+        const ExposedPorts: AnyMap = {};
+        const addonEnv: StringMap = {};
+        const PortBindings: AnyMap = {};
+        let HealthCheck = undefined;
+        let Mounts: DockerMounts[] = [];
+        const promises = Object.entries(spec.local.ports as { [p: string]: { port: string; type: string } }).map(
+            async ([portType, value]) => {
+                const dockerPort = `${value.port}/${value.type}`;
+                ExposedPorts[dockerPort] = {};
+                addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = value.port;
+                const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
+                PortBindings[dockerPort] = [
+                    {
+                        HostIp: bindHost,
+                        HostPort: `${publicPort}`,
+                    },
+                ];
             }
+        );
 
-            if (spec.local?.mounts) {
-                const mounts = containerManager.createMounts(blockUri.id, spec.local.mounts);
-                Mounts = containerManager.toDockerMounts(mounts);
-            }
+        await Promise.all(promises);
 
-            if (spec.local?.health) {
-                HealthCheck = containerManager.toDockerHealth(spec.local?.health);
-            }
-
-            // For windows we need to default to root
-            const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
-
-            logs.addLog(`Creating new container for block: ${containerName}`);
-            container = await containerManager.startContainer({
-                Image: dockerImage,
-                name: containerName,
-                ExposedPorts,
-                HealthCheck,
-                HostConfig: {
-                    Binds: [
-                        `${toLocalBindVolume(kapetaYmlPath)}:/kapeta.yml:ro`,
-                        `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`,
-                    ],
-                    PortBindings,
-                    Mounts,
-                },
-                Labels: {
-                    instance: blockInstance.id,
-                },
-                Env: [
-                    `KAPETA_INSTANCE_NAME=${blockInstance.ref}`,
-                    `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
-                    ...DOCKER_ENV_VARS,
-                    ...Object.entries({
-                        ...env,
-                        ...addonEnv,
-                    }).map(([key, value]) => `${key}=${value}`),
-                ],
+        if (spec.local?.env) {
+            Object.entries(spec.local.env).forEach(([key, value]) => {
+                addonEnv[key] = value as string;
             });
-
-            try {
-                if (HealthCheck) {
-                    await containerManager.waitForHealthy(container);
-                } else {
-                    await containerManager.waitForReady(container);
-                }
-            } catch (e: any) {
-                logs.addLog(e.message, 'ERROR');
-            }
         }
 
-        const out = await this._handleContainer(container, logs, true);
+        if (spec.local?.mounts) {
+            const mounts = containerManager.createMounts(blockUri.id, spec.local.mounts);
+            Mounts = containerManager.toDockerMounts(mounts);
+        }
+
+        if (spec.local?.health) {
+            HealthCheck = containerManager.toDockerHealth(spec.local?.health);
+        }
+
+        // For windows we need to default to root
+        const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
+
+        logs.addLog(`Creating new container for block: ${containerName}`);
+        const out = await this.ensureContainer({
+            Image: dockerImage,
+            name: containerName,
+            ExposedPorts,
+            HealthCheck,
+            HostConfig: {
+                Binds: [
+                    `${toLocalBindVolume(kapetaYmlPath)}:/kapeta.yml:ro`,
+                    `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`,
+                ],
+                PortBindings,
+                Mounts,
+            },
+            Labels: {
+                instance: blockInstance.id,
+            },
+            Env: [
+                `KAPETA_INSTANCE_NAME=${blockInstance.ref}`,
+                `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
+                ...DOCKER_ENV_VARS,
+                ...Object.entries({
+                    ...env,
+                    ...addonEnv,
+                }).map(([key, value]) => `${key}=${value}`),
+            ],
+        });
+
         const portTypes = spec.local.ports ? Object.keys(spec.local.ports) : [];
         if (portTypes.length > 0) {
             out.portType = portTypes[0];
