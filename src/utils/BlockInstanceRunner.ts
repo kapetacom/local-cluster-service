@@ -171,21 +171,22 @@ export class BlockInstanceRunner {
         const containerName = getBlockInstanceContainerName(blockInstance.id);
         const logs = new LogData();
         logs.addLog(`Starting block ${blockInstance.ref}`);
-        const containerInfo = await containerManager.getContainerByName(containerName);
+        let containerInfo = await containerManager.getContainerByName(containerName);
         let container = containerInfo?.native;
 
         console.log('Starting dev container', containerName);
 
-        if (container) {
+        if (containerInfo) {
             console.log(`Dev container already exists. Deleting...`);
             try {
-                await container.delete({
+                await containerInfo.remove({
                     force: true,
                 });
             } catch (e: any) {
                 throw new Error('Failed to delete existing container: ' + e.message);
             }
             container = undefined;
+            containerInfo = undefined;
         }
 
         logs.addLog(`Creating new container for block: ${containerName}`);
@@ -298,7 +299,7 @@ export class BlockInstanceRunner {
             const data = status.data as any;
             if (deleteOnExit) {
                 try {
-                    await container.delete();
+                    await containerManager.remove(container);
                 } catch (e: any) {}
             }
             outputEvents.emit('exit', data?.State?.ExitCode ?? 0);
@@ -316,7 +317,7 @@ export class BlockInstanceRunner {
                 try {
                     await localContainer.stop();
                     if (deleteOnExit) {
-                        await localContainer.delete();
+                        await containerManager.remove(localContainer);
                     }
                 } catch (e) {}
                 localContainer = null;
@@ -448,7 +449,7 @@ export class BlockInstanceRunner {
                 if (containerData.State?.ExitCode > 0) {
                     logs.addLog(`Container exited with code: ${containerData.State.ExitCode}. Deleting...`);
                     try {
-                        await container.delete();
+                        await containerManager.remove(container);
                     } catch (e) {}
                     container = undefined;
                 } else {
@@ -458,7 +459,7 @@ export class BlockInstanceRunner {
                     } catch (e) {
                         console.warn('Failed to start container. Deleting...', e);
                         try {
-                            await container.delete();
+                            await containerManager.remove(container);
                         } catch (e) {}
                         container = undefined;
                     }
