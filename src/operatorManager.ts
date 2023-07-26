@@ -4,12 +4,14 @@ import md5 from 'md5';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { serviceManager } from './serviceManager';
 import { storageService } from './storageService';
-import { ContainerInfo, containerManager } from './containerManager';
+import { CONTAINER_LABEL_PORT_PREFIX, ContainerInfo, containerManager } from './containerManager';
 import FSExtra from 'fs-extra';
-import { AnyMap, EnvironmentType, OperatorInfo } from './types';
+import { AnyMap, EnvironmentType, OperatorInfo, StringMap } from './types';
 import { BlockInstance, Resource } from '@kapeta/schemas';
 import { definitionsManager } from './definitionsManager';
-import { normalizeKapetaUri } from './utils/utils';
+import { getBindHost, normalizeKapetaUri } from './utils/utils';
+import _ from 'lodash';
+import { Container } from 'node-docker-api/lib/container';
 
 const KIND_OPERATOR = 'core/resource-type-operator';
 
@@ -191,34 +193,58 @@ class OperatorManager {
         const mounts = containerManager.createMounts(resourceType, operatorData.mounts);
 
         const containerName = containerBaseName + '-' + md5(nameParts.join('_'));
-        let container = await containerManager.get(containerName);
 
-        const isRunning = container ? await container.isRunning() : false;
-        if (container && !isRunning) {
-            await container.start();
+        const PortBindings: { [key: string]: any } = {};
+        const Env: string[] = [];
+
+        const Labels: StringMap = {
+            kapeta: 'true',
+        };
+
+        const bindHost = getBindHost();
+
+        const ExposedPorts: { [key: string]: any } = {};
+
+        _.forEach(ports, (portInfo: any, containerPort) => {
+            ExposedPorts['' + containerPort] = {};
+            PortBindings['' + containerPort] = [
+                {
+                    HostPort: '' + portInfo.hostPort,
+                    HostIp: bindHost,
+                },
+            ];
+
+            Labels[CONTAINER_LABEL_PORT_PREFIX + portInfo.hostPort] = portInfo.type;
+        });
+
+        const Mounts = containerManager.toDockerMounts(mounts);
+
+        _.forEach(operatorData.env, (value, name) => {
+            Env.push(name + '=' + value);
+        });
+
+        let HealthCheck = undefined;
+
+        if (operatorData.health) {
+            HealthCheck = containerManager.toDockerHealth(operatorData.health);
         }
 
-        if (!container) {
-            container = await containerManager.run(operatorData.image, containerName, {
-                mounts,
-                ports,
-                health: operatorData.health,
-                env: operatorData.env,
-                cmd: operatorData.cmd,
-            });
-        }
+        const container = await containerManager.ensureContainer({
+            name: containerName,
+            Image: operatorData.image,
+            Hostname: containerName + '.kapeta',
+            Labels,
+            Cmd: operatorData.cmd,
+            ExposedPorts,
+            Env,
+            HealthCheck,
+            HostConfig: {
+                PortBindings,
+                Mounts,
+            },
+        });
 
-        try {
-            if (operatorData.health) {
-                await containerManager.waitForHealthy(container.native);
-            } else {
-                await containerManager.waitForReady(container.native);
-            }
-        } catch (e: any) {
-            console.error(e.message);
-        }
-
-        return container;
+        return new ContainerInfo(container);
     }
 }
 

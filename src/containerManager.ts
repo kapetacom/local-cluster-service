@@ -7,8 +7,8 @@ import { Docker } from 'node-docker-api';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { Container } from 'node-docker-api/lib/container';
-import { getBindHost } from './utils/utils';
-import uuid from "node-uuid";
+import uuid from 'node-uuid';
+import md5 from 'md5';
 
 type StringMap = { [key: string]: string };
 
@@ -54,7 +54,7 @@ interface Health {
     retries?: number;
 }
 
-const LABEL_PORT_PREFIX = 'kapeta_port-';
+export const CONTAINER_LABEL_PORT_PREFIX = 'kapeta_port-';
 const NANO_SECOND = 1000000;
 const HEALTH_CHECK_INTERVAL = 3000;
 const HEALTH_CHECK_MAX = 20;
@@ -206,24 +206,21 @@ class ContainerManager {
             tag = 'latest';
         }
 
-        if (tag !== 'latest') {
-            if (IMAGE_PULL_CACHE[image]) {
-                const timeSince = Date.now() - IMAGE_PULL_CACHE[image];
-                if (timeSince < cacheForMS) {
-                    return;
-                }
+        if (IMAGE_PULL_CACHE[image]) {
+            const timeSince = Date.now() - IMAGE_PULL_CACHE[image];
+            if (timeSince < cacheForMS) {
+                return false;
             }
+        }
 
-            const imageTagList = (await this.docker().image.list())
-                .map((image) => image.data as any)
-                .filter((imageData) => !!imageData.RepoTags)
-                .map((imageData) => imageData.RepoTags as string[]);
+        const imageTagList = (await this.docker().image.list())
+            .map((image) => image.data as any)
+            .filter((imageData) => !!imageData.RepoTags)
+            .map((imageData) => imageData.RepoTags as string[]);
 
-            if (imageTagList.some((imageTags) => imageTags.indexOf(image) > -1)) {
-                console.log('Image found: %s', image);
-                return;
-            }
-            console.log('Image not found: %s', image);
+        if (imageTagList.some((imageTags) => imageTags.indexOf(image) > -1)) {
+            console.log('Image found: %s', image);
+            return false;
         }
 
         console.log('Pulling image: %s', image);
@@ -240,6 +237,8 @@ class ContainerManager {
         IMAGE_PULL_CACHE[image] = Date.now();
 
         console.log('Image pulled: %s', image);
+
+        return true;
     }
 
     toDockerMounts(mounts: StringMap) {
@@ -266,66 +265,63 @@ class ContainerManager {
         };
     }
 
-    async run(
-        image: string,
-        name: string,
-        opts: { ports: {}; mounts: {}; env: {}; cmd: string; health: Health }
-    ): Promise<ContainerInfo> {
-        const PortBindings: { [key: string]: any } = {};
-        const Env: string[] = [];
-        const Labels: StringMap = {
-            kapeta: 'true',
-        };
-
-        await this.pull(image);
-
-        const bindHost = getBindHost();
-
-        const ExposedPorts: { [key: string]: any } = {};
-
-        _.forEach(opts.ports, (portInfo: any, containerPort) => {
-            ExposedPorts['' + containerPort] = {};
-            PortBindings['' + containerPort] = [
-                {
-                    HostPort: '' + portInfo.hostPort,
-                    HostIp: bindHost,
-                },
-            ];
-
-            Labels[LABEL_PORT_PREFIX + portInfo.hostPort] = portInfo.type;
-        });
-
-        const Mounts = this.toDockerMounts(opts.mounts);
-
-        _.forEach(opts.env, (value, name) => {
-            Env.push(name + '=' + value);
-        });
-
-        let HealthCheck = undefined;
-
-        if (opts.health) {
-            HealthCheck = this.toDockerHealth(opts.health);
-        }
-        const dockerContainer = await this.startContainer({
-            name: name,
-            Image: image,
-            Hostname: name + '.kapeta',
-            Labels,
-            Cmd: opts.cmd,
-            ExposedPorts,
-            Env,
-            HealthCheck,
-            HostConfig: {
-                PortBindings,
-                Mounts,
-            },
-        });
-
-        if (opts.health) {
-            await this.waitForHealthy(dockerContainer);
+    private applyHash(dockerOpts: any) {
+        if (dockerOpts?.Labels?.HASH) {
+            delete dockerOpts.Labels.HASH;
         }
 
-        return new ContainerInfo(dockerContainer);
+        const hash = md5(JSON.stringify(dockerOpts));
+
+        if (!dockerOpts.Labels) {
+            dockerOpts.Labels = {};
+        }
+        dockerOpts.Labels.HASH = hash;
+    }
+
+    async ensureContainer(opts: any) {
+        let imagePulled = false;
+        try {
+            imagePulled = await this.pull(opts.Image);
+        } catch (e) {
+            console.warn('Failed to pull image. Continuing...', e);
+        }
+
+        this.applyHash(opts);
+        if (!opts.name) {
+            console.log('Starting unnamed container: %s', opts.Image);
+            return this.startContainer(opts);
+        }
+        const containerInfo = await this.getContainerByName(opts.name);
+        if (imagePulled) {
+            console.log('New version of image was pulled: %s', opts.Image);
+        } else {
+            // If image was pulled always recreate
+            if (!containerInfo) {
+                console.log('Starting new container: %s', opts.name);
+                return this.startContainer(opts);
+            }
+
+            const containerData = containerInfo.native.data as any;
+
+            if (containerData?.Labels?.HASH === opts.Labels.HASH) {
+                if (!(await containerInfo.isRunning())) {
+                    console.log('Starting previously created container: %s', opts.name);
+                    await containerInfo.start();
+                } else {
+                    console.log('Previously created container already running: %s', opts.name);
+                }
+                return containerInfo.native;
+            }
+        }
+
+        if (containerInfo) {
+            // Remove the container and start a new one
+            console.log('Replacing previously created container: %s', opts.name);
+            await containerInfo.remove({ force: true });
+        }
+
+        console.log('Starting new container: %s', opts.name);
+        return this.startContainer(opts);
     }
 
     async startContainer(opts: any) {
@@ -423,8 +419,8 @@ class ContainerManager {
         }
     }
 
-    async remove(container:Container, opts?: { force?: boolean }) {
-        const newName = 'deleting-' + uuid.v4()
+    async remove(container: Container, opts?: { force?: boolean }) {
+        const newName = 'deleting-' + uuid.v4();
         const containerData = container.data as any;
         // Rename the container first to avoid name conflicts if people start the same container
         await container.rename({ name: newName });
@@ -537,11 +533,11 @@ export class ContainerInfo {
         const ports: PortMap = {};
 
         _.forEach(inspectResult.Config.Labels, (portType, name) => {
-            if (!name.startsWith(LABEL_PORT_PREFIX)) {
+            if (!name.startsWith(CONTAINER_LABEL_PORT_PREFIX)) {
                 return;
             }
 
-            const hostPort = name.substr(LABEL_PORT_PREFIX.length);
+            const hostPort = name.substr(CONTAINER_LABEL_PORT_PREFIX.length);
 
             portTypes[hostPort] = portType;
         });

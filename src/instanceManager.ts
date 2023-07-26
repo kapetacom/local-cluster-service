@@ -559,7 +559,10 @@ export class InstanceManager {
                     }
                 }
 
-                if (instance.desiredStatus === DesiredInstanceStatus.RUN && newStatus === InstanceStatus.STOPPED) {
+                if (
+                    instance.desiredStatus === DesiredInstanceStatus.RUN &&
+                    [InstanceStatus.STOPPED, InstanceStatus.FAILED, InstanceStatus.STOPPING].includes(newStatus)
+                ) {
                     //If the instance is stopped but we want it to run, start it
                     try {
                         await this.start(instance.systemId, instance.instanceId);
@@ -569,7 +572,10 @@ export class InstanceManager {
                     return;
                 }
 
-                if (instance.desiredStatus === DesiredInstanceStatus.STOP && newStatus === InstanceStatus.READY) {
+                if (
+                    instance.desiredStatus === DesiredInstanceStatus.STOP &&
+                    [InstanceStatus.READY, InstanceStatus.STARTING, InstanceStatus.UNHEALTHY].includes(newStatus)
+                ) {
                     //If the instance is running but we want it to stop, stop it
                     try {
                         await this.stop(instance.systemId, instance.instanceId);
