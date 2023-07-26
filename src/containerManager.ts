@@ -8,6 +8,7 @@ import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { Container } from 'node-docker-api/lib/container';
 import { getBindHost } from './utils/utils';
+import uuid from "node-uuid";
 
 type StringMap = { [key: string]: string };
 
@@ -422,6 +423,14 @@ class ContainerManager {
         }
     }
 
+    async remove(container:Container, opts?: { force?: boolean }) {
+        const newName = 'deleting-' + uuid.v4()
+        const containerData = container.data as any;
+        // Rename the container first to avoid name conflicts if people start the same container
+        await container.rename({ name: newName });
+        await container.delete({ force: !!opts?.force });
+    }
+
     /**
      *
      * @param name
@@ -488,7 +497,7 @@ export class ContainerInfo {
     }
 
     async remove(opts?: { force?: boolean }) {
-        await this._container.delete({ force: !!opts?.force });
+        await containerManager.remove(this._container, opts);
     }
 
     async getPort(type: string) {
