@@ -1,3 +1,10 @@
+## [0.9.1](https://github.com/kapetacom/local-cluster-service/compare/v0.9.0...v0.9.1) (2023-07-26)
+
+
+### Bug Fixes
+
+* Rename containers before deleting to avoid name conflicts ([#49](https://github.com/kapetacom/local-cluster-service/issues/49)) ([ac977f0](https://github.com/kapetacom/local-cluster-service/commit/ac977f0a9f18f57a517342d51e4c1e1fee68e4ff))
+
 # [0.9.0](https://github.com/kapetacom/local-cluster-service/compare/v0.8.3...v0.9.0) (2023-07-24)
 
 
