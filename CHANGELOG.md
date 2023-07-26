@@ -1,3 +1,10 @@
+# [0.10.0](https://github.com/kapetacom/local-cluster-service/compare/v0.9.1...v0.10.0) (2023-07-26)
+
+
+### Features
+
+* Auto-reuse containers ([#50](https://github.com/kapetacom/local-cluster-service/issues/50)) ([ecb396b](https://github.com/kapetacom/local-cluster-service/commit/ecb396b541f9184302e0681f4803d2404336138e))
+
 ## [0.9.1](https://github.com/kapetacom/local-cluster-service/compare/v0.9.0...v0.9.1) (2023-07-26)
 
 
