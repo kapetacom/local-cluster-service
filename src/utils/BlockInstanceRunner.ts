@@ -117,7 +117,7 @@ export class BlockInstanceRunner {
             if (blockUri.version === 'local') {
                 processInfo = await this._startLocalProcess(blockInstance, blockUri, env, assetVersion);
             } else {
-                processInfo = await this._startDockerProcess(blockInstance, blockUri, env);
+                processInfo = await this._startDockerProcess(blockInstance, blockUri, env, assetVersion);
             }
 
             if (portTypes.length > 0) {
@@ -170,36 +170,16 @@ export class BlockInstanceRunner {
         }
 
         const containerName = getBlockInstanceContainerName(blockInstance.id);
-
         const startCmd = localContainer.handlers?.onCreate ? localContainer.handlers.onCreate : '';
         const dockerOpts = localContainer.options ?? {};
         const homeDir = localContainer.userHome ? localContainer.userHome : '/root';
         const workingDir = localContainer.workingDir ? localContainer.workingDir : '/workspace';
 
-        const bindHost = getBindHost();
-
-        const ExposedPorts: AnyMap = {};
-        const addonEnv: StringMap = {};
-        const PortBindings: AnyMap = {};
-
-        const portTypes = getProviderPorts(assetVersion);
-        let port = 80;
-        const promises = portTypes.map(async (portType) => {
-            const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
-            const thisPort = port++; //TODO: Not sure how we should handle multiple ports or non-HTTP ports
-            const dockerPort = `${thisPort}/tcp`;
-            ExposedPorts[dockerPort] = {};
-            addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = '' + thisPort;
-
-            PortBindings[dockerPort] = [
-                {
-                    HostIp: bindHost,
-                    HostPort: `${publicPort}`,
-                },
-            ];
-        });
-
-        await Promise.all(promises);
+        const {
+            PortBindings,
+            ExposedPorts,
+            addonEnv
+        } = await this.getDockerPortBindings(blockInstance, assetVersion);
 
         let HealthCheck = undefined;
         if (localContainer.healthcheck) {
@@ -235,83 +215,7 @@ export class BlockInstanceRunner {
         });
     }
 
-    private async ensureContainer(opts: any) {
-        const logs = new LogData();
-
-        const container = await containerManager.ensureContainer(opts);
-
-        try {
-            if (opts.HealthCheck) {
-                await containerManager.waitForHealthy(container);
-            } else {
-                await containerManager.waitForReady(container);
-            }
-        } catch (e: any) {
-            logs.addLog(e.message, 'ERROR');
-        }
-
-        return this._handleContainer(container, logs);
-    }
-
-    private async _handleContainer(
-        container: Container,
-        logs: LogData,
-        deleteOnExit: boolean = false
-    ): Promise<ProcessInfo> {
-        let localContainer: Container | null = container;
-        const logStream = (await container.logs({
-            follow: true,
-            stdout: true,
-            stderr: true,
-            tail: LogData.MAX_LINES,
-        })) as EventEmitter;
-
-        const outputEvents = new EventEmitter();
-        logStream.on('data', (data) => {
-            logs.addLog(data.toString());
-            outputEvents.emit('data', data);
-        });
-
-        logStream.on('error', (data) => {
-            logs.addLog(data.toString());
-            outputEvents.emit('data', data);
-        });
-
-        logStream.on('close', async () => {
-            const status = await container.status();
-            const data = status.data as any;
-            if (deleteOnExit) {
-                try {
-                    await containerManager.remove(container);
-                } catch (e: any) {}
-            }
-            outputEvents.emit('exit', data?.State?.ExitCode ?? 0);
-        });
-
-        return {
-            type: InstanceType.DOCKER,
-            pid: container.id,
-            output: outputEvents,
-            stop: async () => {
-                if (!localContainer) {
-                    return;
-                }
-
-                try {
-                    await localContainer.stop();
-                    if (deleteOnExit) {
-                        await containerManager.remove(localContainer);
-                    }
-                } catch (e) {}
-                localContainer = null;
-            },
-            logs: () => {
-                return logs.getLogs();
-            },
-        };
-    }
-
-    private async _startDockerProcess(blockInstance: BlockProcessParams, blockInfo: KapetaURI, env: StringMap) {
+    private async _startDockerProcess(blockInstance: BlockProcessParams, blockInfo: KapetaURI, env: StringMap, assetVersion: DefinitionInfo) {
         const { versionFile } = ClusterConfig.getRepositoryAssetInfoPath(
             blockInfo.handle,
             blockInfo.name,
@@ -333,8 +237,13 @@ export class BlockInstanceRunner {
             throw new Error(`Missing docker image information: ${JSON.stringify(versionInfo?.artifact?.details)}`);
         }
 
+        const {
+            PortBindings,
+            ExposedPorts,
+            addonEnv
+        } = await this.getDockerPortBindings(blockInstance, assetVersion);
+
         const containerName = getBlockInstanceContainerName(blockInstance.id);
-        const logs = new LogData();
 
         // For windows we need to default to root
         const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
@@ -342,16 +251,22 @@ export class BlockInstanceRunner {
         return this.ensureContainer({
             Image: dockerImage,
             name: containerName,
+            ExposedPorts,
             Labels: {
                 instance: blockInstance.id,
             },
             Env: [
                 ...DOCKER_ENV_VARS,
                 `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
-                ...Object.entries(env).map(([key, value]) => `${key}=${value}`),
+                ...Object.entries({
+                    ...env,
+                    ...addonEnv
+                }).map(([key, value]) => `${key}=${value}`),
+
             ],
             HostConfig: {
                 Binds: [`${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`],
+                PortBindings,
             },
         });
     }
@@ -470,5 +385,111 @@ export class BlockInstanceRunner {
         }
 
         return out;
+    }
+
+
+    private async getDockerPortBindings(blockInstance: BlockProcessParams, assetVersion: DefinitionInfo) {
+        const bindHost = getBindHost();
+        const ExposedPorts: AnyMap = {};
+        const addonEnv: StringMap = {};
+        const PortBindings: AnyMap = {};
+
+        const portTypes = getProviderPorts(assetVersion);
+        let port = 80;
+        const promises = portTypes.map(async (portType) => {
+            const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
+            const thisPort = port++; //TODO: Not sure how we should handle multiple ports or non-HTTP ports
+            const dockerPort = `${thisPort}/tcp`;
+            ExposedPorts[dockerPort] = {};
+            addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = '' + thisPort;
+
+            PortBindings[dockerPort] = [
+                {
+                    HostIp: bindHost,
+                    HostPort: `${publicPort}`,
+                },
+            ];
+        });
+
+
+        await Promise.all(promises);
+
+        return {PortBindings,ExposedPorts, addonEnv};
+    }
+
+    private async ensureContainer(opts: any) {
+        const logs = new LogData();
+
+        const container = await containerManager.ensureContainer(opts);
+
+        try {
+            if (opts.HealthCheck) {
+                await containerManager.waitForHealthy(container);
+            } else {
+                await containerManager.waitForReady(container);
+            }
+        } catch (e: any) {
+            logs.addLog(e.message, 'ERROR');
+        }
+
+        return this._handleContainer(container, logs);
+    }
+
+    private async _handleContainer(
+        container: Container,
+        logs: LogData,
+        deleteOnExit: boolean = false
+    ): Promise<ProcessInfo> {
+        let localContainer: Container | null = container;
+        const logStream = (await container.logs({
+            follow: true,
+            stdout: true,
+            stderr: true,
+            tail: LogData.MAX_LINES,
+        })) as EventEmitter;
+
+        const outputEvents = new EventEmitter();
+        logStream.on('data', (data) => {
+            logs.addLog(data.toString());
+            outputEvents.emit('data', data);
+        });
+
+        logStream.on('error', (data) => {
+            logs.addLog(data.toString());
+            outputEvents.emit('data', data);
+        });
+
+        logStream.on('close', async () => {
+            const status = await container.status();
+            const data = status.data as any;
+            if (deleteOnExit) {
+                try {
+                    await containerManager.remove(container);
+                } catch (e: any) {}
+            }
+            outputEvents.emit('exit', data?.State?.ExitCode ?? 0);
+        });
+
+        return {
+            type: InstanceType.DOCKER,
+            pid: container.id,
+            output: outputEvents,
+            stop: async () => {
+                if (!localContainer) {
+                    return;
+                }
+
+                try {
+                    await localContainer.stop();
+                    if (deleteOnExit) {
+                        await containerManager.remove(localContainer);
+                    }
+                } catch (e) {}
+                localContainer = null;
+            },
+            logs: () => {
+                return logs.getLogs();
+            },
+        };
     }
 }
