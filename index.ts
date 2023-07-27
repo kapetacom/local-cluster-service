@@ -6,6 +6,7 @@ import { containerManager } from './src/containerManager';
 import express from 'express';
 import HTTP from 'http';
 import { Server } from 'socket.io';
+import request from 'request';
 
 import TrafficRoutes from './src/traffic/routes';
 import ProxyRoutes from './src/proxy/routes';
@@ -16,8 +17,8 @@ import FilesystemRoutes from './src/filesystem/routes';
 import AssetsRoutes from './src/assets/routes';
 import ProviderRoutes from './src/providers/routes';
 import AttachmentRoutes from './src/attachments/routes';
+import WebRoutes from './src/web/routes';
 import { getBindHost } from './src/utils/utils';
-import request from 'request';
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 
@@ -36,6 +37,7 @@ function createServer() {
     app.use('/assets', AssetsRoutes);
     app.use('/providers', ProviderRoutes);
     app.use('/attachments', AttachmentRoutes);
+    app.use('/web', WebRoutes);
     app.get('/status', async (req, res) => {
         res.send({
             ok: true,
