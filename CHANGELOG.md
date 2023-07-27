@@ -1,3 +1,10 @@
+## [0.10.1](https://github.com/kapetacom/local-cluster-service/compare/v0.10.0...v0.10.1) (2023-07-27)
+
+
+### Bug Fixes
+
+* Include port bindings for non-local containers ([#51](https://github.com/kapetacom/local-cluster-service/issues/51)) ([64fd440](https://github.com/kapetacom/local-cluster-service/commit/64fd4409ea9e2dda8e2438d0ec85a8f5a2092b1e))
+
 # [0.10.0](https://github.com/kapetacom/local-cluster-service/compare/v0.9.1...v0.10.0) (2023-07-26)
 
 
