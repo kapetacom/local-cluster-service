@@ -1,3 +1,10 @@
+# [0.11.0](https://github.com/kapetacom/local-cluster-service/compare/v0.10.1...v0.11.0) (2023-07-31)
+
+
+### Features
+
+* Always get logs from docker ([#53](https://github.com/kapetacom/local-cluster-service/issues/53)) ([5cab8cb](https://github.com/kapetacom/local-cluster-service/commit/5cab8cbf18b38edf99d538e1819e135f0a5bd7e3))
+
 ## [0.10.1](https://github.com/kapetacom/local-cluster-service/compare/v0.10.0...v0.10.1) (2023-07-27)
 
 
