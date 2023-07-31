@@ -20,6 +20,7 @@ export class LogData {
         if (!msg.endsWith('\n')) {
             msg += '\n';
         }
+
         this.entries.push({
             time: Date.now(),
             message: msg,

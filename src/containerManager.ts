@@ -9,6 +9,10 @@ import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { Container } from 'node-docker-api/lib/container';
 import uuid from 'node-uuid';
 import md5 from 'md5';
+import {getBlockInstanceContainerName} from "./utils/utils";
+import {InstanceInfo, LogEntry, LogSource} from "./types";
+import EventEmitter from "events";
+import {LogData} from "./utils/LogData";
 
 type StringMap = { [key: string]: string };
 
@@ -63,9 +67,9 @@ const IMAGE_PULL_CACHE: { [key: string]: number } = {};
 
 export const HEALTH_CHECK_TIMEOUT = HEALTH_CHECK_INTERVAL * HEALTH_CHECK_MAX * 2;
 
-const promisifyStream = (stream: ReadStream) =>
+const promisifyStream = (stream: ReadStream, handler:(d:string|Buffer) => void) =>
     new Promise((resolve, reject) => {
-        stream.on('data', (d) => console.log(d.toString()));
+        stream.on('data', handler);
         stream.on('end', resolve);
         stream.on('error', reject);
     });
@@ -151,19 +155,30 @@ class ContainerManager {
         return this._alive;
     }
 
-    getMountPoint(kind: string, mountName: string) {
-        const kindUri = parseKapetaUri(kind);
-        return Path.join(this._mountDir, kindUri.handle, kindUri.name, mountName);
+    getMountPoint(systemId:string, ref: string, mountName: string) {
+        const kindUri = parseKapetaUri(ref);
+        const systemUri = parseKapetaUri(systemId)
+        return Path.join(this._mountDir,
+            systemUri.handle,
+            systemUri.name,
+            systemUri.version,
+            kindUri.handle,
+            kindUri.name,
+            kindUri.version, mountName);
     }
 
-    createMounts(kind: string, mountOpts: StringMap): StringMap {
+    async createMounts(systemId:string, kind: string, mountOpts: StringMap|null|undefined): Promise<StringMap> {
         const mounts: StringMap = {};
 
-        _.forEach(mountOpts, (containerPath, mountName) => {
-            const hostPath = this.getMountPoint(kind, mountName);
-            FSExtra.mkdirpSync(hostPath);
-            mounts[containerPath] = hostPath;
-        });
+        if (mountOpts) {
+            const mountOptList = Object.entries(mountOpts);
+            for(const [mountName, containerPath] of mountOptList) {
+                const hostPath = this.getMountPoint(systemId, kind, mountName);
+                await FSExtra.mkdirp(hostPath);
+                mounts[containerPath] = hostPath;
+            }
+        }
+
         return mounts;
     }
 
@@ -224,15 +239,18 @@ class ContainerManager {
         }
 
         console.log('Pulling image: %s', image);
-        await this.docker()
+        const stream = await this.docker()
             .image.create(
                 {},
                 {
                     fromImage: imageName,
                     tag: tag,
                 }
-            )
-            .then((stream) => promisifyStream(stream as ReadStream));
+            ) as ReadStream;
+
+        await promisifyStream(stream, (chunk) => {
+            console.log('Data from docker: "%s"', chunk.toString());
+        });
 
         IMAGE_PULL_CACHE[image] = Date.now();
 
@@ -278,7 +296,15 @@ class ContainerManager {
         dockerOpts.Labels.HASH = hash;
     }
 
-    async ensureContainer(opts: any) {
+    public async ensureContainer(opts: any) {
+        const container = await this.createOrUpdateContainer(opts);
+
+        await this.waitForReady(container);
+
+        return container;
+    }
+
+    private async createOrUpdateContainer(opts: any) {
         let imagePulled = false;
         try {
             imagePulled = await this.pull(opts.Image);
@@ -369,31 +395,6 @@ class ContainerManager {
         });
     }
 
-    async waitForHealthy(container: Container, attempt?: number): Promise<void> {
-        if (!attempt) {
-            attempt = 0;
-        }
-
-        if (attempt >= HEALTH_CHECK_MAX) {
-            throw new Error('Container did not become healthy within the timeout');
-        }
-
-        if (await this._isHealthy(container)) {
-            return;
-        }
-
-        return new Promise((resolve, reject) => {
-            setTimeout(async () => {
-                try {
-                    await this.waitForHealthy(container, (attempt ?? 0) + 1);
-                    resolve();
-                } catch (err) {
-                    reject(err);
-                }
-            }, HEALTH_CHECK_INTERVAL);
-        });
-    }
-
     async _isReady(container: Container) {
         let info: Container;
         try {
@@ -403,19 +404,16 @@ class ContainerManager {
         }
         const infoData: any = info?.data;
         const state = infoData?.State as DockerState;
+
         if (state?.Status === 'exited' || state?.Status === 'removing' || state?.Status === 'dead') {
             throw new Error('Container exited unexpectedly');
         }
-        return infoData?.State?.Running ?? false;
-    }
 
-    async _isHealthy(container: Container) {
-        try {
-            const info = await container.status();
-            const infoData: any = info?.data;
-            return infoData?.State?.Health?.Status === 'healthy';
-        } catch (err) {
-            return false;
+        if (infoData?.State?.Health) {
+            // If container has health info - wait for it to become healthy
+            return infoData.State.Health.Status === 'healthy';
+        } else {
+            return infoData?.State?.Running ?? false;
         }
     }
 
@@ -448,6 +446,21 @@ class ContainerManager {
         }
 
         return new ContainerInfo(dockerContainer);
+    }
+
+    async getLogs(instance: InstanceInfo):Promise<LogEntry[]> {
+        const containerName = getBlockInstanceContainerName(instance.systemId, instance.instanceId);
+        const containerInfo = await this.getContainerByName(containerName);
+        if (!containerInfo) {
+            return [{
+                source: "stdout",
+                level: "ERROR",
+                time: Date.now(),
+                message: "Container not found"
+            }];
+        }
+
+        return containerInfo.getLogs()
     }
 }
 
@@ -557,6 +570,70 @@ export class ContainerInfo {
         });
 
         return ports;
+    }
+
+    async getLogs():Promise<LogEntry[]> {
+
+        const logStream = await this.native.logs({
+            stdout: true,
+            stderr: true,
+            follow: false,
+            tail: 100,
+            timestamps: true,
+        })  as ReadStream;
+
+        const out = [] as LogEntry[];
+        await promisifyStream(logStream, (data) => {
+            const buf = data as Buffer;
+            let offset = 0;
+            while(offset < buf.length) {
+                try {
+                    // Read the docker log format - explained here:
+                    // https://docs.docker.com/engine/api/v1.41/#operation/ContainerAttach
+                    // or here : https://ahmet.im/blog/docker-logs-api-binary-format-explained/
+
+                    // First byte is stream type
+                    const streamTypeInt = buf.readInt8(offset);
+                    const streamType:LogSource = streamTypeInt === 1 ? 'stdout' : 'stderr';
+
+                    // Bytes 4-8 is frame size
+                    const messageLength = buf.readInt32BE(offset + 4);
+
+                    // After that is the message - with the message length
+                    const dataWithoutStreamType = buf.subarray(offset + 8, offset + 8 + messageLength);
+                    const raw = dataWithoutStreamType.toString();
+
+                    // Split the message into date and message
+                    const firstSpaceIx = raw.indexOf(' ');
+                    const dateString = raw.substring(0, firstSpaceIx);
+                    const line = raw.substring(firstSpaceIx + 1);
+                    offset = offset + messageLength + 8;
+                    if (!dateString) {
+                        continue;
+                    }
+                    out.push({
+                        time: new Date(dateString).getTime(),
+                        message: line,
+                        level: 'INFO',
+                        source: streamType,
+                    });
+                } catch (err) {
+                    console.error('Error parsing log entry', err);
+                    offset = buf.length
+                }
+            }
+        });
+
+        if (out.length === 0) {
+            out.push({
+                time: Date.now(),
+                message: 'No logs found for container',
+                level: 'INFO',
+                source: 'stdout',
+            });
+        }
+
+        return out;
     }
 }
 

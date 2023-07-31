@@ -53,10 +53,7 @@ export enum DesiredInstanceStatus {
 export type ProcessInfo = {
     type: InstanceType;
     pid?: number | string | null;
-    output: EventEmitter;
     portType?: string;
-    logs: () => LogEntry[];
-    stop: () => Promise<void> | void;
 };
 
 export type InstanceInfo = {
@@ -75,10 +72,6 @@ export type InstanceInfo = {
     pid?: number | string | null;
     portType?: string;
 
-    internal?: {
-        output: EventEmitter;
-        logs: () => LogEntry[];
-    };
 };
 
 interface ResourceRef {

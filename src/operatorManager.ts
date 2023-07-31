@@ -162,16 +162,12 @@ class OperatorManager {
 
         portTypes.sort();
 
-        const containerBaseName = 'kapeta-resource';
-
-        const nameParts = [resourceType.toLowerCase()];
-
         const ports: AnyMap = {};
 
         for (let i = 0; i < portTypes.length; i++) {
             const portType = portTypes[i];
             let containerPortInfo = operatorData.ports[portType];
-            const hostPort = await serviceManager.ensureServicePort(resourceType, portType);
+            const hostPort = await serviceManager.ensureServicePort(systemId, resourceType, portType);
 
             if (typeof containerPortInfo === 'number' || typeof containerPortInfo === 'string') {
                 containerPortInfo = { port: containerPortInfo, type: 'tcp' };
@@ -182,7 +178,6 @@ class OperatorManager {
             }
 
             const portId = containerPortInfo.port + '/' + containerPortInfo.type;
-            nameParts.push(portType + '-' + portId + '-' + hostPort);
 
             ports[portId] = {
                 type: portType,
@@ -190,9 +185,15 @@ class OperatorManager {
             };
         }
 
-        const mounts = containerManager.createMounts(resourceType, operatorData.mounts);
+        const mounts = await containerManager.createMounts(systemId, resourceType, operatorData.mounts);
 
-        const containerName = containerBaseName + '-' + md5(nameParts.join('_'));
+        const nameParts = [
+            systemId,
+            resourceType.toLowerCase(),
+            version
+        ];
+
+        const containerName = `kapeta-resource-${md5(nameParts.join('_'))}`;
 
         const PortBindings: { [key: string]: any } = {};
         const Env: string[] = [];
