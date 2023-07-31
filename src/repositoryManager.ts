@@ -2,7 +2,7 @@ import FS from 'node:fs';
 import os from 'node:os';
 import Path from 'node:path';
 import watch from 'recursive-watch';
-import FSExtra, { FSWatcher } from 'fs-extra';
+import FSExtra from 'fs-extra';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { socketManager } from './socketManager';
@@ -119,9 +119,11 @@ class RepositoryManager {
             this._installQueue.push(async () => {
                 try {
                     const normalizedRefs = refs.map((ref) => parseKapetaUri(ref).id);
-                    const filteredRefs = normalizedRefs.filter((ref) => !INSTALL_ATTEMPTED[ref]);
-                    console.log(filteredRefs);
+                    const filteredRefs = normalizedRefs
+                        .filter((ref) => !INSTALL_ATTEMPTED[ref])
+                        .filter((ref) => !definitionsManager.exists(ref));
                     if (filteredRefs.length > 0) {
+                        console.log(`Auto-installing dependencies: ${filteredRefs.join(', ')}`);
                         filteredRefs.forEach((ref) => (INSTALL_ATTEMPTED[ref] = true));
                         //Auto-install missing asset
                         try {
@@ -218,13 +220,11 @@ class RepositoryManager {
 
         this._cache[ref] = true;
         if (!installedAsset) {
-            console.log(`Auto-installing missing asset: ${ref}`);
             await this._install([ref]);
         } else {
             //Ensure dependencies are installed
             const refs = assetVersion.dependencies.map((dep: Dependency) => dep.name);
             if (refs.length > 0) {
-                console.log(`Auto-installing dependencies: ${refs.join(', ')}`);
                 await this._install(refs);
             }
         }

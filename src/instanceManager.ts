@@ -67,6 +67,37 @@ export class InstanceManager {
         return this._instances.find((i) => i.systemId === systemId && i.instanceId === instanceId);
     }
 
+
+    public async getLogs(systemId: string, instanceId: string):Promise<LogEntry[]> {
+        const instance = this.getInstance(systemId, instanceId);
+        if (!instance) {
+            throw new Error(`Instance ${systemId}/${instanceId} not found`);
+        }
+
+        switch (instance.type) {
+            case InstanceType.DOCKER:
+                 return await containerManager.getLogs(instance);
+
+            case InstanceType.UNKNOWN:
+                return [{
+                    level: 'INFO',
+                    message: 'Instance is starting...',
+                    time: Date.now(),
+                    source: 'stdout',
+                }];
+
+            case InstanceType.LOCAL:
+                return [{
+                    level: 'INFO',
+                    message: 'Instance started outside Kapeta - logs not available...',
+                    time: Date.now(),
+                    source: 'stdout',
+                }];
+        }
+
+        return [];
+    }
+
     public async saveInternalInstance(instance: InstanceInfo) {
         instance.systemId = normalizeKapetaUri(instance.systemId);
         if (instance.ref) {
@@ -143,7 +174,6 @@ export class InstanceManager {
 
                 instance.desiredStatus = info.desiredStatus;
                 instance.owner = info.owner;
-                instance.internal = undefined;
                 instance.status = InstanceStatus.STARTING;
                 instance.startedAt = Date.now();
             }
@@ -260,7 +290,7 @@ export class InstanceManager {
 
         try {
             if (instance.type === 'docker') {
-                const containerName = getBlockInstanceContainerName(instance.instanceId);
+                const containerName = getBlockInstanceContainerName(instance.systemId, instance.instanceId);
                 const container = await containerManager.getContainerByName(containerName);
                 if (container) {
                     try {
@@ -350,7 +380,7 @@ export class InstanceManager {
             name: blockAsset.data.metadata.name,
             desiredStatus: DesiredInstanceStatus.RUN,
             owner: InstanceOwner.INTERNAL,
-            type: InstanceType.UNKNOWN,
+            type: existingInstance?.type ?? InstanceType.UNKNOWN,
             status: InstanceStatus.STARTING,
             startedAt: Date.now(),
         };
@@ -374,45 +404,6 @@ export class InstanceManager {
         const startTime = Date.now();
         try {
             const processInfo = await runner.start(blockRef, instanceId, instanceConfig);
-            //emit stdout/stderr via sockets
-            processInfo.output.on('data', (data: Buffer) => {
-                const payload = {
-                    source: 'stdout',
-                    level: 'INFO',
-                    message: data.toString(),
-                    time: Date.now(),
-                };
-                this.emitInstanceEvent(systemId, instanceId, EVENT_INSTANCE_LOG, payload);
-            });
-
-            processInfo.output.on('exit', (exitCode: number) => {
-                const timeRunning = Date.now() - startTime;
-                const instance = this.getInstance(systemId, instanceId);
-                if (instance?.status === InstanceStatus.READY) {
-                    //It's already been running
-                    return;
-                }
-
-                if (exitCode === 143 || exitCode === 137) {
-                    //Process got SIGTERM (143) or SIGKILL (137)
-                    //TODO: Windows?
-                    return;
-                }
-
-                if (exitCode !== 0 || timeRunning < MIN_TIME_RUNNING) {
-                    const instance = this.getInstance(systemId, instanceId);
-                    if (instance) {
-                        instance.status = InstanceStatus.FAILED;
-                        this.save();
-                    }
-
-                    this.emitSystemEvent(systemId, EVENT_INSTANCE_EXITED, {
-                        error: 'Failed to start instance',
-                        status: EVENT_INSTANCE_EXITED,
-                        instanceId: blockInstance.id,
-                    });
-                }
-            });
 
             instance.status = InstanceStatus.READY;
 
@@ -423,10 +414,6 @@ export class InstanceManager {
                 health: null,
                 portType: processInfo.portType,
                 status: InstanceStatus.READY,
-                internal: {
-                    logs: processInfo.logs,
-                    output: processInfo.output,
-                },
             });
         } catch (e: any) {
             console.warn('Failed to start instance', e);
@@ -482,9 +469,7 @@ export class InstanceManager {
             storageService.put(
                 'instances',
                 this._instances.map((instance) => {
-                    const copy = { ...instance };
-                    delete copy.internal;
-                    return copy;
+                    return { ...instance };
                 })
             );
         } catch (e) {
@@ -612,7 +597,7 @@ export class InstanceManager {
 
     private async getExternalStatus(instance: InstanceInfo): Promise<InstanceStatus> {
         if (instance.type === InstanceType.DOCKER) {
-            const containerName = getBlockInstanceContainerName(instance.instanceId);
+            const containerName = getBlockInstanceContainerName(instance.systemId, instance.instanceId);
             const container = await containerManager.getContainerByName(containerName);
             if (!container) {
                 // If the container doesn't exist, we consider the instance stopped

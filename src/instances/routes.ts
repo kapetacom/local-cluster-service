@@ -74,16 +74,21 @@ router.post('/:systemId/:instanceId/stop', async (req: Request, res: Response) =
 /**
  * Get logs for instance in a plan
  */
-router.get('/:systemId/:instanceId/logs', (req: Request, res: Response) => {
+router.get('/:systemId/:instanceId/logs', async (req: Request, res: Response) => {
     const instanceInfo = instanceManager.getInstance(req.params.systemId, req.params.instanceId);
     if (!instanceInfo) {
         res.status(404).send({ ok: false });
         return;
     }
 
-    res.status(202).send({
-        logs: instanceInfo.internal?.logs() ?? [],
-    });
+    try {
+        const logs = await instanceManager.getLogs(req.params.systemId, req.params.instanceId);
+        res.status(200).send({
+            logs,
+        });
+    } catch (e:any) {
+        res.status(500).send({ ok: false, error: e.message });
+    }
 });
 
 /**

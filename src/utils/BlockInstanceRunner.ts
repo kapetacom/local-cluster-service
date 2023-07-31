@@ -169,7 +169,7 @@ export class BlockInstanceRunner {
             throw new Error(`Missing docker image information: ${JSON.stringify(localContainer)}`);
         }
 
-        const containerName = getBlockInstanceContainerName(blockInstance.id);
+        const containerName = getBlockInstanceContainerName(this._systemId, blockInstance.id);
         const startCmd = localContainer.handlers?.onCreate ? localContainer.handlers.onCreate : '';
         const dockerOpts = localContainer.options ?? {};
         const homeDir = localContainer.userHome ? localContainer.userHome : '/root';
@@ -243,7 +243,7 @@ export class BlockInstanceRunner {
             addonEnv
         } = await this.getDockerPortBindings(blockInstance, assetVersion);
 
-        const containerName = getBlockInstanceContainerName(blockInstance.id);
+        const containerName = getBlockInstanceContainerName(this._systemId, blockInstance.id);
 
         // For windows we need to default to root
         const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
@@ -306,7 +306,8 @@ export class BlockInstanceRunner {
 
         const dockerImage = spec?.local?.image;
 
-        const containerName = getBlockInstanceContainerName(blockInstance.id);
+        //We only want 1 operator per operator type - across all local systems
+        const containerName = getBlockInstanceContainerName(this._systemId, blockInstance.id);
         const logs = new LogData();
 
         const bindHost = getBindHost();
@@ -340,7 +341,7 @@ export class BlockInstanceRunner {
         }
 
         if (spec.local?.mounts) {
-            const mounts = containerManager.createMounts(blockUri.id, spec.local.mounts);
+            const mounts = await containerManager.createMounts(this._systemId, blockUri.id, spec.local.mounts);
             Mounts = containerManager.toDockerMounts(mounts);
         }
 
@@ -418,78 +419,21 @@ export class BlockInstanceRunner {
     }
 
     private async ensureContainer(opts: any) {
-        const logs = new LogData();
-
         const container = await containerManager.ensureContainer(opts);
 
-        try {
-            if (opts.HealthCheck) {
-                await containerManager.waitForHealthy(container);
-            } else {
-                await containerManager.waitForReady(container);
-            }
-        } catch (e: any) {
-            logs.addLog(e.message, 'ERROR');
-        }
+        await containerManager.waitForReady(container);
 
-        return this._handleContainer(container, logs);
+        return this._handleContainer(container);
+
     }
 
     private async _handleContainer(
-        container: Container,
-        logs: LogData,
-        deleteOnExit: boolean = false
+        container: Container
     ): Promise<ProcessInfo> {
-        let localContainer: Container | null = container;
-        const logStream = (await container.logs({
-            follow: true,
-            stdout: true,
-            stderr: true,
-            tail: LogData.MAX_LINES,
-        })) as EventEmitter;
-
-        const outputEvents = new EventEmitter();
-        logStream.on('data', (data) => {
-            logs.addLog(data.toString());
-            outputEvents.emit('data', data);
-        });
-
-        logStream.on('error', (data) => {
-            logs.addLog(data.toString());
-            outputEvents.emit('data', data);
-        });
-
-        logStream.on('close', async () => {
-            const status = await container.status();
-            const data = status.data as any;
-            if (deleteOnExit) {
-                try {
-                    await containerManager.remove(container);
-                } catch (e: any) {}
-            }
-            outputEvents.emit('exit', data?.State?.ExitCode ?? 0);
-        });
 
         return {
             type: InstanceType.DOCKER,
-            pid: container.id,
-            output: outputEvents,
-            stop: async () => {
-                if (!localContainer) {
-                    return;
-                }
-
-                try {
-                    await localContainer.stop();
-                    if (deleteOnExit) {
-                        await containerManager.remove(localContainer);
-                    }
-                } catch (e) {}
-                localContainer = null;
-            },
-            logs: () => {
-                return logs.getLogs();
-            },
+            pid: container.id
         };
     }
 }
