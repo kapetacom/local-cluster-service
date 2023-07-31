@@ -1,3 +1,10 @@
+# [0.12.0](https://github.com/kapetacom/local-cluster-service/compare/v0.11.1...v0.12.0) (2023-07-31)
+
+
+### Features
+
+* Send status events to client when pulling image ([#54](https://github.com/kapetacom/local-cluster-service/issues/54)) ([6c6f1b0](https://github.com/kapetacom/local-cluster-service/commit/6c6f1b0cf31d4bbd1fccf10f4a66a3ac97ff7171))
+
 ## [0.11.1](https://github.com/kapetacom/local-cluster-service/compare/v0.11.0...v0.11.1) (2023-07-31)
 
 
