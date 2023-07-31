@@ -1,3 +1,10 @@
+## [0.11.1](https://github.com/kapetacom/local-cluster-service/compare/v0.11.0...v0.11.1) (2023-07-31)
+
+
+### Bug Fixes
+
+* Ensure we do not attempt to start / stop the same instance at the ([493e077](https://github.com/kapetacom/local-cluster-service/commit/493e077d0c6acdbcc371dae2ef8b6fbf2478c950))
+
 # [0.11.0](https://github.com/kapetacom/local-cluster-service/compare/v0.10.1...v0.11.0) (2023-07-31)
 
 
