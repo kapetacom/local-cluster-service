@@ -86,7 +86,7 @@ router.get('/:systemId/:instanceId/logs', async (req: Request, res: Response) =>
         res.status(200).send({
             logs,
         });
-    } catch (e:any) {
+    } catch (e: any) {
         res.status(500).send({ ok: false, error: e.message });
     }
 });

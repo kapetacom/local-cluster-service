@@ -18,4 +18,11 @@ declare module '@kapeta/nodejs-registry-utils' {
 
     export const Config: any;
     export const Actions: any;
+
+    export const handlers: {
+        DockerHandler: ArtifactHandlerFactory;
+        NPMHandler: ArtifactHandlerFactory;
+        MavenHandler: ArtifactHandlerFactory;
+        YAMLHandler: ArtifactHandlerFactory;
+    };
 }

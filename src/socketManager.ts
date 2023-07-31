@@ -31,6 +31,10 @@ export class SocketManager {
         this.io.to(context).emit(type, { context, payload });
     }
 
+    emitGlobal(type: string, payload: any) {
+        this.io.emit(type, { payload });
+    }
+
     _bindIO() {
         this.io.on('connection', (socket) => this._handleSocketCreated(socket));
     }
