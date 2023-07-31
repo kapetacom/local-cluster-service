@@ -1,5 +1,6 @@
 import _ from 'lodash';
 import request from 'request';
+import AsyncLock from 'async-lock';
 import { BlockInstanceRunner } from './utils/BlockInstanceRunner';
 import { storageService } from './storageService';
 import { socketManager } from './socketManager';
@@ -24,6 +25,8 @@ export class InstanceManager {
     private _interval: NodeJS.Timer | undefined = undefined;
 
     private readonly _instances: InstanceInfo[] = [];
+
+    private readonly instanceLocks:AsyncLock = new AsyncLock();
 
     constructor() {
         this._instances = storageService.section('instances', []);
@@ -65,6 +68,13 @@ export class InstanceManager {
         systemId = normalizeKapetaUri(systemId);
 
         return this._instances.find((i) => i.systemId === systemId && i.instanceId === instanceId);
+    }
+
+
+    private async exclusive<T = any>(systemId: string, instanceId: string, fn: () => Promise<T>) {
+        systemId = normalizeKapetaUri(systemId);
+        const key = `${systemId}/${instanceId}`;
+        return this.instanceLocks.acquire(key, fn);
     }
 
 
@@ -142,74 +152,76 @@ export class InstanceManager {
         instanceId: string,
         info: Omit<InstanceInfo, 'systemId' | 'instanceId'>
     ) {
-        systemId = normalizeKapetaUri(systemId);
+        return this.exclusive(systemId, instanceId, async () => {
+            systemId = normalizeKapetaUri(systemId);
 
-        let instance = this.getInstance(systemId, instanceId);
+            let instance = this.getInstance(systemId, instanceId);
 
-        //Get target address
-        const address = await serviceManager.getProviderAddress(
-            systemId,
-            instanceId,
-            info.portType ?? DEFAULT_HEALTH_PORT_TYPE
-        );
-
-        const healthUrl = this.getHealthUrl(info, address);
-
-        if (instance) {
-            if (instance.status === InstanceStatus.STOPPING && instance.desiredStatus === DesiredInstanceStatus.STOP) {
-                //If instance is stopping do not interfere
-                return;
-            }
-
-            if (info.owner === InstanceOwner.EXTERNAL) {
-                //If instance was started externally - then we want to replace the internal instance with that
-                if (
-                    instance.owner === InstanceOwner.INTERNAL &&
-                    (instance.status === InstanceStatus.READY ||
-                        instance.status === InstanceStatus.STARTING ||
-                        instance.status === InstanceStatus.UNHEALTHY)
-                ) {
-                    throw new Error(`Instance ${instanceId} is already running`);
-                }
-
-                instance.desiredStatus = info.desiredStatus;
-                instance.owner = info.owner;
-                instance.status = InstanceStatus.STARTING;
-                instance.startedAt = Date.now();
-            }
-
-            instance.pid = info.pid;
-            instance.address = address;
-            if (info.type) {
-                instance.type = info.type;
-            }
-            if (healthUrl) {
-                instance.health = healthUrl;
-            }
-
-            this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
-        } else {
-            //If instance was not found - then we're receiving an externally started instance
-            instance = {
-                ...info,
+            //Get target address
+            const address = await serviceManager.getProviderAddress(
                 systemId,
                 instanceId,
-                status: InstanceStatus.STARTING,
-                startedAt: Date.now(),
-                desiredStatus: DesiredInstanceStatus.EXTERNAL,
-                owner: InstanceOwner.EXTERNAL,
-                health: healthUrl,
-                address,
-            };
+                info.portType ?? DEFAULT_HEALTH_PORT_TYPE
+            );
 
-            this._instances.push(instance);
+            const healthUrl = this.getHealthUrl(info, address);
 
-            this.emitSystemEvent(systemId, EVENT_INSTANCE_CREATED, instance);
-        }
+            if (instance) {
+                if (instance.status === InstanceStatus.STOPPING && instance.desiredStatus === DesiredInstanceStatus.STOP) {
+                    //If instance is stopping do not interfere
+                    return;
+                }
 
-        this.save();
+                if (info.owner === InstanceOwner.EXTERNAL) {
+                    //If instance was started externally - then we want to replace the internal instance with that
+                    if (
+                        instance.owner === InstanceOwner.INTERNAL &&
+                        (instance.status === InstanceStatus.READY ||
+                            instance.status === InstanceStatus.STARTING ||
+                            instance.status === InstanceStatus.UNHEALTHY)
+                    ) {
+                        throw new Error(`Instance ${instanceId} is already running`);
+                    }
 
-        return instance;
+                    instance.desiredStatus = info.desiredStatus;
+                    instance.owner = info.owner;
+                    instance.status = InstanceStatus.STARTING;
+                    instance.startedAt = Date.now();
+                }
+
+                instance.pid = info.pid;
+                instance.address = address;
+                if (info.type) {
+                    instance.type = info.type;
+                }
+                if (healthUrl) {
+                    instance.health = healthUrl;
+                }
+
+                this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+            } else {
+                //If instance was not found - then we're receiving an externally started instance
+                instance = {
+                    ...info,
+                    systemId,
+                    instanceId,
+                    status: InstanceStatus.STARTING,
+                    startedAt: Date.now(),
+                    desiredStatus: DesiredInstanceStatus.EXTERNAL,
+                    owner: InstanceOwner.EXTERNAL,
+                    health: healthUrl,
+                    address,
+                };
+
+                this._instances.push(instance);
+
+                this.emitSystemEvent(systemId, EVENT_INSTANCE_CREATED, instance);
+            }
+
+            this.save();
+
+            return instance;
+        });
     }
 
     private getHealthUrl(info: Omit<InstanceInfo, 'systemId' | 'instanceId'>, address: string) {
@@ -225,15 +237,17 @@ export class InstanceManager {
     }
 
     public markAsStopped(systemId: string, instanceId: string) {
-        systemId = normalizeKapetaUri(systemId);
-        const instance = _.find(this._instances, { systemId, instanceId });
-        if (instance && instance.owner === InstanceOwner.EXTERNAL && instance.status !== InstanceStatus.STOPPED) {
-            instance.status = InstanceStatus.STOPPED;
-            instance.pid = null;
-            instance.health = null;
-            this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
-            this.save();
-        }
+        return this.exclusive(systemId, instanceId, async () => {
+            systemId = normalizeKapetaUri(systemId);
+            const instance = _.find(this._instances, {systemId, instanceId});
+            if (instance && instance.owner === InstanceOwner.EXTERNAL && instance.status !== InstanceStatus.STOPPED) {
+                instance.status = InstanceStatus.STOPPED;
+                instance.pid = null;
+                instance.health = null;
+                this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+                this.save();
+            }
+        })
     }
 
     public async startAllForPlan(systemId: string): Promise<InstanceInfo[]> {
@@ -267,59 +281,67 @@ export class InstanceManager {
         return settled.map((p) => (p.status === 'fulfilled' ? p.value : null)).filter((p) => !!p) as InstanceInfo[];
     }
 
+
     public async stop(systemId: string, instanceId: string) {
-        systemId = normalizeKapetaUri(systemId);
-        const instance = this.getInstance(systemId, instanceId);
-        if (!instance) {
-            return;
-        }
+        return this.stopInner(systemId, instanceId, true);
+    }
 
-        if (instance.status === InstanceStatus.STOPPED) {
-            return;
-        }
-
-        if (instance.desiredStatus !== DesiredInstanceStatus.EXTERNAL) {
-            instance.desiredStatus = DesiredInstanceStatus.STOP;
-        }
-
-        instance.status = InstanceStatus.STOPPING;
-
-        this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
-        console.log('Stopping instance: %s::%s [desired: %s]', systemId, instanceId, instance.desiredStatus);
-        this.save();
-
-        try {
-            if (instance.type === 'docker') {
-                const containerName = getBlockInstanceContainerName(instance.systemId, instance.instanceId);
-                const container = await containerManager.getContainerByName(containerName);
-                if (container) {
-                    try {
-                        await container.stop();
-                        instance.status = InstanceStatus.STOPPED;
-                        this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
-                        this.save();
-                    } catch (e) {
-                        console.error('Failed to stop container', e);
-                    }
-                } else {
-                    console.warn('Container not found', containerName);
-                }
+    private async stopInner(systemId: string, instanceId: string, changeDesired:boolean = false) {
+        return this.exclusive(systemId, instanceId, async () => {
+            systemId = normalizeKapetaUri(systemId);
+            const instance = this.getInstance(systemId, instanceId);
+            if (!instance) {
                 return;
             }
 
-            if (!instance.pid) {
-                instance.status = InstanceStatus.STOPPED;
-                this.save();
+            if (instance.status === InstanceStatus.STOPPED) {
                 return;
             }
 
-            process.kill(instance.pid as number, 'SIGTERM');
-            instance.status = InstanceStatus.STOPPED;
+            if (changeDesired &&
+                instance.desiredStatus !== DesiredInstanceStatus.EXTERNAL) {
+                instance.desiredStatus = DesiredInstanceStatus.STOP;
+            }
+
+            instance.status = InstanceStatus.STOPPING;
+
             this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+            console.log('Stopping instance: %s::%s [desired: %s]', systemId, instanceId, instance.desiredStatus);
             this.save();
-        } catch (e) {
-            console.error('Failed to stop process', e);
-        }
+
+            try {
+                if (instance.type === 'docker') {
+                    const containerName = getBlockInstanceContainerName(instance.systemId, instance.instanceId);
+                    const container = await containerManager.getContainerByName(containerName);
+                    if (container) {
+                        try {
+                            await container.stop();
+                            instance.status = InstanceStatus.STOPPED;
+                            this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+                            this.save();
+                        } catch (e) {
+                            console.error('Failed to stop container', e);
+                        }
+                    } else {
+                        console.warn('Container not found', containerName);
+                    }
+                    return;
+                }
+
+                if (!instance.pid) {
+                    instance.status = InstanceStatus.STOPPED;
+                    this.save();
+                    return;
+                }
+
+                process.kill(instance.pid as number, 'SIGTERM');
+                instance.status = InstanceStatus.STOPPED;
+                this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+                this.save();
+            } catch (e) {
+                console.error('Failed to stop process', e);
+            }
+        });
     }
 
     public async stopAllForPlan(systemId: string) {
@@ -330,126 +352,134 @@ export class InstanceManager {
     }
 
     public async start(systemId: string, instanceId: string): Promise<InstanceInfo> {
-        systemId = normalizeKapetaUri(systemId);
-        const plan = await assetManager.getPlan(systemId, true);
-        if (!plan) {
-            throw new Error('Plan not found: ' + systemId);
-        }
-
-        const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, { id: instanceId }) : null;
-        if (!blockInstance) {
-            throw new Error('Block instance not found: ' + instanceId);
-        }
-
-        const blockRef = normalizeKapetaUri(blockInstance.block.ref);
-
-        const blockAsset = await assetManager.getAsset(blockRef, true);
-        if (!blockAsset) {
-            throw new Error('Block not found: ' + blockRef);
-        }
-
-        const existingInstance = this.getInstance(systemId, instanceId);
-
-        if (existingInstance) {
-            if (existingInstance.status === InstanceStatus.READY) {
-                // Instance is already running
-                return existingInstance;
+        return this.exclusive(systemId, instanceId, async () => {
+            systemId = normalizeKapetaUri(systemId);
+            const plan = await assetManager.getPlan(systemId, true);
+            if (!plan) {
+                throw new Error('Plan not found: ' + systemId);
             }
 
-            if (
-                existingInstance.desiredStatus === DesiredInstanceStatus.RUN &&
-                existingInstance.status === InstanceStatus.STARTING
-            ) {
-                // Internal instance is already starting - don't start it again
-                return existingInstance;
+            const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, {id: instanceId}) : null;
+            if (!blockInstance) {
+                throw new Error('Block instance not found: ' + instanceId);
             }
 
-            if (
-                existingInstance.owner === InstanceOwner.EXTERNAL &&
-                existingInstance.status === InstanceStatus.STARTING
-            ) {
-                // External instance is already starting - don't start it again
-                return existingInstance;
+            const blockRef = normalizeKapetaUri(blockInstance.block.ref);
+
+            const blockAsset = await assetManager.getAsset(blockRef, true);
+            if (!blockAsset) {
+                throw new Error('Block not found: ' + blockRef);
             }
-        }
 
-        let instance: InstanceInfo = {
-            systemId,
-            instanceId,
-            ref: blockRef,
-            name: blockAsset.data.metadata.name,
-            desiredStatus: DesiredInstanceStatus.RUN,
-            owner: InstanceOwner.INTERNAL,
-            type: existingInstance?.type ?? InstanceType.UNKNOWN,
-            status: InstanceStatus.STARTING,
-            startedAt: Date.now(),
-        };
+            const existingInstance = this.getInstance(systemId, instanceId);
 
-        console.log('Starting instance: %s::%s [desired: %s]', systemId, instanceId, instance.desiredStatus);
-        // Save the instance before starting it, so that we can track the status
-        await this.saveInternalInstance(instance);
+            if (existingInstance) {
+                if (existingInstance.status === InstanceStatus.READY) {
+                    // Instance is already running
+                    return existingInstance;
+                }
 
-        if (existingInstance) {
-            // Check if the instance is already running - but after we've commmuicated the desired status
-            const currentStatus = await this.requestInstanceStatus(existingInstance);
-            if (currentStatus === InstanceStatus.READY) {
-                // Instance is already running
-                return existingInstance;
+                if (
+                    existingInstance.desiredStatus === DesiredInstanceStatus.RUN &&
+                    existingInstance.status === InstanceStatus.STARTING
+                ) {
+                    // Internal instance is already starting - don't start it again
+                    return existingInstance;
+                }
+
+                if (
+                    existingInstance.owner === InstanceOwner.EXTERNAL &&
+                    existingInstance.status === InstanceStatus.STARTING
+                ) {
+                    // External instance is already starting - don't start it again
+                    return existingInstance;
+                }
             }
-        }
 
-        const instanceConfig = await configManager.getConfigForSection(systemId, instanceId);
-        const runner = new BlockInstanceRunner(systemId);
+            let instance: InstanceInfo = {
+                systemId,
+                instanceId,
+                ref: blockRef,
+                name: blockAsset.data.metadata.name,
+                desiredStatus: DesiredInstanceStatus.RUN,
+                owner: InstanceOwner.INTERNAL,
+                type: existingInstance?.type ?? InstanceType.UNKNOWN,
+                status: InstanceStatus.STARTING,
+                startedAt: Date.now(),
+            };
 
-        const startTime = Date.now();
-        try {
-            const processInfo = await runner.start(blockRef, instanceId, instanceConfig);
+            console.log('Starting instance: %s::%s [desired: %s]', systemId, instanceId, instance.desiredStatus);
+            // Save the instance before starting it, so that we can track the status
+            await this.saveInternalInstance(instance);
 
-            instance.status = InstanceStatus.READY;
+            if (existingInstance) {
+                // Check if the instance is already running - but after we've commmuicated the desired status
+                const currentStatus = await this.requestInstanceStatus(existingInstance);
+                if (currentStatus === InstanceStatus.READY) {
+                    // Instance is already running
+                    return existingInstance;
+                }
+            }
 
-            return this.saveInternalInstance({
-                ...instance,
-                type: processInfo.type,
-                pid: processInfo.pid ?? -1,
-                health: null,
-                portType: processInfo.portType,
-                status: InstanceStatus.READY,
-            });
-        } catch (e: any) {
-            console.warn('Failed to start instance', e);
-            const logs: LogEntry[] = [
-                {
-                    source: 'stdout',
-                    level: 'ERROR',
-                    message: e.message,
-                    time: Date.now(),
-                },
-            ];
+            const instanceConfig = await configManager.getConfigForSection(systemId, instanceId);
+            const runner = new BlockInstanceRunner(systemId);
 
-            const out = await this.saveInternalInstance({
-                ...instance,
-                type: InstanceType.LOCAL,
-                pid: null,
-                health: null,
-                portType: DEFAULT_HEALTH_PORT_TYPE,
-                status: InstanceStatus.FAILED,
-            });
+            const startTime = Date.now();
+            try {
+                const processInfo = await runner.start(blockRef, instanceId, instanceConfig);
 
-            this.emitInstanceEvent(systemId, instanceId, EVENT_INSTANCE_LOG, logs[0]);
+                instance.status = InstanceStatus.READY;
 
-            this.emitInstanceEvent(systemId, blockInstance.id, EVENT_INSTANCE_EXITED, {
-                error: `Failed to start instance: ${e.message}`,
-                status: EVENT_INSTANCE_EXITED,
-                instanceId: blockInstance.id,
-            });
+                return this.saveInternalInstance({
+                    ...instance,
+                    type: processInfo.type,
+                    pid: processInfo.pid ?? -1,
+                    health: null,
+                    portType: processInfo.portType,
+                    status: InstanceStatus.READY,
+                });
+            } catch (e: any) {
+                console.warn('Failed to start instance', e);
+                const logs: LogEntry[] = [
+                    {
+                        source: 'stdout',
+                        level: 'ERROR',
+                        message: e.message,
+                        time: Date.now(),
+                    },
+                ];
 
-            return out;
-        }
+                const out = await this.saveInternalInstance({
+                    ...instance,
+                    type: InstanceType.LOCAL,
+                    pid: null,
+                    health: null,
+                    portType: DEFAULT_HEALTH_PORT_TYPE,
+                    status: InstanceStatus.FAILED,
+                });
+
+                this.emitInstanceEvent(systemId, instanceId, EVENT_INSTANCE_LOG, logs[0]);
+
+                this.emitInstanceEvent(systemId, blockInstance.id, EVENT_INSTANCE_EXITED, {
+                    error: `Failed to start instance: ${e.message}`,
+                    status: EVENT_INSTANCE_EXITED,
+                    instanceId: blockInstance.id,
+                });
+
+                return out;
+            }
+        });
     }
 
     public async restart(systemId: string, instanceId: string) {
         systemId = normalizeKapetaUri(systemId);
-        await this.stop(systemId, instanceId);
+        await this.stopInner(systemId, instanceId);
+
+        const existingInstance = this.getInstance(systemId, instanceId);
+        if (existingInstance?.desiredStatus === DesiredInstanceStatus.STOP) {
+            // Internal instance was marked as stopped - abort restart
+            return existingInstance;
+        }
 
         return this.start(systemId, instanceId);
     }
@@ -483,7 +513,7 @@ export class InstanceManager {
         const all = [...this._instances];
         while (all.length > 0) {
             // Check a few instances at a time - docker doesn't like too many concurrent requests
-            const chunk = all.splice(0, 20);
+            const chunk = all.splice(0, 30);
             const promises = chunk.map(async (instance) => {
                 if (!instance.systemId) {
                     return;
@@ -563,7 +593,7 @@ export class InstanceManager {
                 ) {
                     //If the instance is running but we want it to stop, stop it
                     try {
-                        await this.stop(instance.systemId, instance.instanceId);
+                        await this.stopInner(instance.systemId, instance.instanceId);
                     } catch (e) {
                         console.warn('Failed to stop instance', instance.systemId, instance.instanceId, e);
                     }
