@@ -1,5 +1,5 @@
 import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import {parseKapetaUri} from "@kapeta/nodejs-utils";
+import { parseKapetaUri } from '@kapeta/nodejs-utils';
 
 const CACHE_TTL = 60 * 1000; // 1 min
 
@@ -48,14 +48,18 @@ class DefinitionsManager {
     }
 
     public exists(ref: string) {
-        const uri = parseKapetaUri(ref);
-        return !!this.getDefinitions().find((d) => {
-            return parseKapetaUri(`${d.definition.metadata.name}:${d.version}`).id === uri.id;
-        });
+        return !!this.getDefinition(ref);
     }
 
     public getProviderDefinitions() {
         return this.doCached('providers', () => ClusterConfiguration.getProviderDefinitions());
+    }
+
+    public getDefinition(ref: string) {
+        const uri = parseKapetaUri(ref);
+        return this.getDefinitions().find((d) => {
+            return parseKapetaUri(`${d.definition.metadata.name}:${d.version}`).id === uri.id;
+        });
     }
 }
 

@@ -11,9 +11,9 @@ import { BlockInstance, Resource } from '@kapeta/schemas';
 import { definitionsManager } from './definitionsManager';
 import { getBindHost, normalizeKapetaUri } from './utils/utils';
 import _ from 'lodash';
-import { Container } from 'node-docker-api/lib/container';
+import AsyncLock from 'async-lock';
 
-const KIND_OPERATOR = 'core/resource-type-operator';
+export const KIND_OPERATOR = 'core/resource-type-operator';
 
 class Operator {
     private _data: any;
@@ -32,6 +32,8 @@ class Operator {
 
 class OperatorManager {
     private _mountDir: string;
+
+    private operatorLock: AsyncLock = new AsyncLock();
 
     constructor() {
         this._mountDir = Path.join(storageService.getKapetaBasedir(), 'mounts');
@@ -154,98 +156,98 @@ class OperatorManager {
      * @return {Promise<ContainerInfo>}
      */
     async ensureResource(systemId: string, resourceType: string, version: string): Promise<ContainerInfo> {
-        const operator = this.getOperator(resourceType, version);
+        systemId = normalizeKapetaUri(systemId);
+        const key = `${systemId}#${resourceType}:${version}`;
+        return await this.operatorLock.acquire(key, async () => {
+            const operator = this.getOperator(resourceType, version);
 
-        const operatorData = operator.getData();
+            const operatorData = operator.getData();
 
-        const portTypes = Object.keys(operatorData.ports);
+            const portTypes = Object.keys(operatorData.ports);
 
-        portTypes.sort();
+            portTypes.sort();
 
-        const ports: AnyMap = {};
+            const ports: AnyMap = {};
 
-        for (let i = 0; i < portTypes.length; i++) {
-            const portType = portTypes[i];
-            let containerPortInfo = operatorData.ports[portType];
-            const hostPort = await serviceManager.ensureServicePort(systemId, resourceType, portType);
+            for (let i = 0; i < portTypes.length; i++) {
+                const portType = portTypes[i];
+                let containerPortInfo = operatorData.ports[portType];
+                const hostPort = await serviceManager.ensureServicePort(systemId, resourceType, portType);
 
-            if (typeof containerPortInfo === 'number' || typeof containerPortInfo === 'string') {
-                containerPortInfo = { port: containerPortInfo, type: 'tcp' };
+                if (typeof containerPortInfo === 'number' || typeof containerPortInfo === 'string') {
+                    containerPortInfo = { port: containerPortInfo, type: 'tcp' };
+                }
+
+                if (!containerPortInfo.type) {
+                    containerPortInfo.type = 'tcp';
+                }
+
+                const portId = containerPortInfo.port + '/' + containerPortInfo.type;
+
+                ports[portId] = {
+                    type: portType,
+                    hostPort,
+                };
             }
 
-            if (!containerPortInfo.type) {
-                containerPortInfo.type = 'tcp';
-            }
+            const mounts = await containerManager.createMounts(systemId, resourceType, operatorData.mounts);
 
-            const portId = containerPortInfo.port + '/' + containerPortInfo.type;
+            const nameParts = [systemId, resourceType.toLowerCase(), version];
 
-            ports[portId] = {
-                type: portType,
-                hostPort,
+            const containerName = `kapeta-resource-${md5(nameParts.join('_'))}`;
+
+            const PortBindings: { [key: string]: any } = {};
+            const Env: string[] = [];
+
+            const Labels: StringMap = {
+                kapeta: 'true',
             };
-        }
 
-        const mounts = await containerManager.createMounts(systemId, resourceType, operatorData.mounts);
+            const bindHost = getBindHost();
 
-        const nameParts = [
-            systemId,
-            resourceType.toLowerCase(),
-            version
-        ];
+            const ExposedPorts: { [key: string]: any } = {};
 
-        const containerName = `kapeta-resource-${md5(nameParts.join('_'))}`;
+            _.forEach(ports, (portInfo: any, containerPort) => {
+                ExposedPorts['' + containerPort] = {};
+                PortBindings['' + containerPort] = [
+                    {
+                        HostPort: '' + portInfo.hostPort,
+                        HostIp: bindHost,
+                    },
+                ];
 
-        const PortBindings: { [key: string]: any } = {};
-        const Env: string[] = [];
+                Labels[CONTAINER_LABEL_PORT_PREFIX + portInfo.hostPort] = portInfo.type;
+            });
 
-        const Labels: StringMap = {
-            kapeta: 'true',
-        };
+            const Mounts = containerManager.toDockerMounts(mounts);
 
-        const bindHost = getBindHost();
+            _.forEach(operatorData.env, (value, name) => {
+                Env.push(name + '=' + value);
+            });
 
-        const ExposedPorts: { [key: string]: any } = {};
+            let HealthCheck = undefined;
 
-        _.forEach(ports, (portInfo: any, containerPort) => {
-            ExposedPorts['' + containerPort] = {};
-            PortBindings['' + containerPort] = [
-                {
-                    HostPort: '' + portInfo.hostPort,
-                    HostIp: bindHost,
+            if (operatorData.health) {
+                HealthCheck = containerManager.toDockerHealth(operatorData.health);
+            }
+
+            const container = await containerManager.ensureContainer({
+                name: containerName,
+                Image: operatorData.image,
+                Hostname: containerName + '.kapeta',
+                Labels,
+                Cmd: operatorData.cmd,
+                ExposedPorts,
+                Env,
+                HealthCheck,
+                HostConfig: {
+                    PortBindings,
+                    Mounts,
                 },
-            ];
+            });
 
-            Labels[CONTAINER_LABEL_PORT_PREFIX + portInfo.hostPort] = portInfo.type;
+            return new ContainerInfo(container);
         });
-
-        const Mounts = containerManager.toDockerMounts(mounts);
-
-        _.forEach(operatorData.env, (value, name) => {
-            Env.push(name + '=' + value);
-        });
-
-        let HealthCheck = undefined;
-
-        if (operatorData.health) {
-            HealthCheck = containerManager.toDockerHealth(operatorData.health);
-        }
-
-        const container = await containerManager.ensureContainer({
-            name: containerName,
-            Image: operatorData.image,
-            Hostname: containerName + '.kapeta',
-            Labels,
-            Cmd: operatorData.cmd,
-            ExposedPorts,
-            Env,
-            HealthCheck,
-            HostConfig: {
-                PortBindings,
-                Mounts,
-            },
-        });
-
-        return new ContainerInfo(container);
     }
 }
 

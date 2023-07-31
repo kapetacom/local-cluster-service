@@ -9,10 +9,14 @@ import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { Container } from 'node-docker-api/lib/container';
 import uuid from 'node-uuid';
 import md5 from 'md5';
-import {getBlockInstanceContainerName} from "./utils/utils";
-import {InstanceInfo, LogEntry, LogSource} from "./types";
-import EventEmitter from "events";
-import {LogData} from "./utils/LogData";
+import { getBlockInstanceContainerName } from './utils/utils';
+import { InstanceInfo, LogEntry, LogSource } from './types';
+import { socketManager } from './socketManager';
+import { handlers as ArtifactHandlers } from '@kapeta/nodejs-registry-utils';
+import { progressListener } from './progressListener';
+import { KapetaAPI } from '@kapeta/nodejs-api-client';
+
+const EVENT_IMAGE_PULL = 'docker-image-pull';
 
 type StringMap = { [key: string]: string };
 
@@ -67,7 +71,7 @@ const IMAGE_PULL_CACHE: { [key: string]: number } = {};
 
 export const HEALTH_CHECK_TIMEOUT = HEALTH_CHECK_INTERVAL * HEALTH_CHECK_MAX * 2;
 
-const promisifyStream = (stream: ReadStream, handler:(d:string|Buffer) => void) =>
+const promisifyStream = (stream: ReadStream, handler: (d: string | Buffer) => void) =>
     new Promise((resolve, reject) => {
         stream.on('data', handler);
         stream.on('end', resolve);
@@ -79,6 +83,7 @@ class ContainerManager {
     private _alive: boolean;
     private _mountDir: string;
     private _version: string;
+    private _lastDockerAccessCheck: number = 0;
 
     constructor() {
         this._docker = null;
@@ -155,24 +160,27 @@ class ContainerManager {
         return this._alive;
     }
 
-    getMountPoint(systemId:string, ref: string, mountName: string) {
+    getMountPoint(systemId: string, ref: string, mountName: string) {
         const kindUri = parseKapetaUri(ref);
-        const systemUri = parseKapetaUri(systemId)
-        return Path.join(this._mountDir,
+        const systemUri = parseKapetaUri(systemId);
+        return Path.join(
+            this._mountDir,
             systemUri.handle,
             systemUri.name,
             systemUri.version,
             kindUri.handle,
             kindUri.name,
-            kindUri.version, mountName);
+            kindUri.version,
+            mountName
+        );
     }
 
-    async createMounts(systemId:string, kind: string, mountOpts: StringMap|null|undefined): Promise<StringMap> {
+    async createMounts(systemId: string, kind: string, mountOpts: StringMap | null | undefined): Promise<StringMap> {
         const mounts: StringMap = {};
 
         if (mountOpts) {
             const mountOptList = Object.entries(mountOpts);
-            for(const [mountName, containerPath] of mountOptList) {
+            for (const [mountName, containerPath] of mountOptList) {
                 const hostPath = this.getMountPoint(systemId, kind, mountName);
                 await FSExtra.mkdirp(hostPath);
                 mounts[containerPath] = hostPath;
@@ -238,23 +246,153 @@ class ContainerManager {
             return false;
         }
 
-        console.log('Pulling image: %s', image);
-        const stream = await this.docker()
-            .image.create(
-                {},
-                {
-                    fromImage: imageName,
-                    tag: tag,
-                }
-            ) as ReadStream;
+        const timeStarted = Date.now();
+        socketManager.emitGlobal(EVENT_IMAGE_PULL, { image, percent: 0 });
 
-        await promisifyStream(stream, (chunk) => {
-            console.log('Data from docker: "%s"', chunk.toString());
+        const api = new KapetaAPI();
+        const accessToken = await api.getAccessToken();
+
+        const auth = image.startsWith('docker.kapeta.com/')
+            ? {
+                  username: 'kapeta',
+                  password: accessToken,
+                  serveraddress: 'docker.kapeta.com',
+              }
+            : {};
+
+        const stream = (await this.docker().image.create(auth, {
+            fromImage: imageName,
+            tag: tag,
+        })) as ReadStream;
+
+        const chunks: {
+            [p: string]: {
+                downloading: {
+                    total: number;
+                    current: number;
+                };
+                extracting: {
+                    total: number;
+                    current: number;
+                };
+                done: boolean;
+            };
+        } = {};
+
+        let lastEmitted = Date.now();
+        await promisifyStream(stream, (rawData) => {
+            const lines = rawData.toString().trim().split('\n');
+            lines.forEach((line) => {
+                const data = JSON.parse(line);
+                if (
+                    ![
+                        'Waiting',
+                        'Downloading',
+                        'Extracting',
+                        'Download complete',
+                        'Pull complete',
+                        'Already exists',
+                    ].includes(data.status)
+                ) {
+                    return;
+                }
+
+                if (!chunks[data.id]) {
+                    chunks[data.id] = {
+                        downloading: {
+                            total: 0,
+                            current: 0,
+                        },
+                        extracting: {
+                            total: 0,
+                            current: 0,
+                        },
+                        done: false,
+                    };
+                }
+
+                const chunk = chunks[data.id];
+
+                switch (data.status) {
+                    case 'Downloading':
+                        chunk.downloading = data.progressDetail;
+                        break;
+                    case 'Extracting':
+                        chunk.extracting = data.progressDetail;
+                        break;
+                    case 'Download complete':
+                        chunk.downloading.current = chunks[data.id].downloading.total;
+                        break;
+                    case 'Pull complete':
+                        chunk.extracting.current = chunks[data.id].extracting.total;
+                        chunk.done = true;
+                        break;
+                    case 'Already exists':
+                        // Force layer to be done
+                        chunk.downloading.current = 1;
+                        chunk.downloading.total = 1;
+                        chunk.extracting.current = 1;
+                        chunk.extracting.total = 1;
+                        chunk.done = true;
+                        break;
+                }
+            });
+
+            if (Date.now() - lastEmitted < 1000) {
+                return;
+            }
+
+            const chunkList = Object.values(chunks);
+            let totals = {
+                downloading: {
+                    total: 0,
+                    current: 0,
+                },
+                extracting: {
+                    total: 0,
+                    current: 0,
+                },
+                total: chunkList.length,
+                done: 0,
+            };
+
+            chunkList.forEach((chunk) => {
+                if (chunk.downloading.current > 0) {
+                    totals.downloading.current += chunk.downloading.current;
+                }
+
+                if (chunk.downloading.total > 0) {
+                    totals.downloading.total += chunk.downloading.total;
+                }
+
+                if (chunk.extracting.current > 0) {
+                    totals.extracting.current += chunk.extracting.current;
+                }
+
+                if (chunk.extracting.total > 0) {
+                    totals.extracting.total += chunk.extracting.total;
+                }
+
+                if (chunk.done) {
+                    totals.done++;
+                }
+            });
+
+            const percent = totals.total > 0 ? (totals.done / totals.total) * 100 : 0;
+            //We emit at most every second to not spam the client
+            socketManager.emitGlobal(EVENT_IMAGE_PULL, {
+                image,
+                percent,
+                status: totals,
+                timeTaken: Date.now() - timeStarted,
+            });
+            lastEmitted = Date.now();
+            //console.log('Pulling image %s: %s % [done: %s, total: %s]', image, Math.round(percent), totals.done, totals.total);
         });
 
         IMAGE_PULL_CACHE[image] = Date.now();
 
-        console.log('Image pulled: %s', image);
+        socketManager.emitGlobal(EVENT_IMAGE_PULL, { image, percent: 100, timeTaken: Date.now() - timeStarted });
 
         return true;
     }
@@ -305,12 +443,7 @@ class ContainerManager {
     }
 
     private async createOrUpdateContainer(opts: any) {
-        let imagePulled = false;
-        try {
-            imagePulled = await this.pull(opts.Image);
-        } catch (e) {
-            console.warn('Failed to pull image. Continuing...', e);
-        }
+        let imagePulled = await this.pull(opts.Image);
 
         this.applyHash(opts);
         if (!opts.name) {
@@ -448,24 +581,27 @@ class ContainerManager {
         return new ContainerInfo(dockerContainer);
     }
 
-    async getLogs(instance: InstanceInfo):Promise<LogEntry[]> {
+    async getLogs(instance: InstanceInfo): Promise<LogEntry[]> {
         const containerName = getBlockInstanceContainerName(instance.systemId, instance.instanceId);
         const containerInfo = await this.getContainerByName(containerName);
         if (!containerInfo) {
-            return [{
-                source: "stdout",
-                level: "ERROR",
-                time: Date.now(),
-                message: "Container not found"
-            }];
+            return [
+                {
+                    source: 'stdout',
+                    level: 'ERROR',
+                    time: Date.now(),
+                    message: 'Container not found',
+                },
+            ];
         }
 
-        return containerInfo.getLogs()
+        return containerInfo.getLogs();
     }
 }
 
 export class ContainerInfo {
     private readonly _container: Container;
+
     /**
      *
      * @param {Container} dockerContainer
@@ -572,21 +708,20 @@ export class ContainerInfo {
         return ports;
     }
 
-    async getLogs():Promise<LogEntry[]> {
-
-        const logStream = await this.native.logs({
+    async getLogs(): Promise<LogEntry[]> {
+        const logStream = (await this.native.logs({
             stdout: true,
             stderr: true,
             follow: false,
             tail: 100,
             timestamps: true,
-        })  as ReadStream;
+        })) as ReadStream;
 
         const out = [] as LogEntry[];
         await promisifyStream(logStream, (data) => {
             const buf = data as Buffer;
             let offset = 0;
-            while(offset < buf.length) {
+            while (offset < buf.length) {
                 try {
                     // Read the docker log format - explained here:
                     // https://docs.docker.com/engine/api/v1.41/#operation/ContainerAttach
@@ -594,7 +729,7 @@ export class ContainerInfo {
 
                     // First byte is stream type
                     const streamTypeInt = buf.readInt8(offset);
-                    const streamType:LogSource = streamTypeInt === 1 ? 'stdout' : 'stderr';
+                    const streamType: LogSource = streamTypeInt === 1 ? 'stdout' : 'stderr';
 
                     // Bytes 4-8 is frame size
                     const messageLength = buf.readInt32BE(offset + 4);
@@ -619,7 +754,7 @@ export class ContainerInfo {
                     });
                 } catch (err) {
                     console.error('Error parsing log entry', err);
-                    offset = buf.length
+                    offset = buf.length;
                 }
             }
         });

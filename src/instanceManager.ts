@@ -9,8 +9,11 @@ import { assetManager } from './assetManager';
 import { containerManager, HEALTH_CHECK_TIMEOUT } from './containerManager';
 import { configManager } from './configManager';
 import { DesiredInstanceStatus, InstanceInfo, InstanceOwner, InstanceStatus, InstanceType, LogEntry } from './types';
-import { BlockInstance } from '@kapeta/schemas';
+import { BlockDefinitionSpec, BlockInstance } from '@kapeta/schemas';
 import { getBlockInstanceContainerName, normalizeKapetaUri } from './utils/utils';
+import { KIND_OPERATOR, operatorManager } from './operatorManager';
+import { parseKapetaUri } from '@kapeta/nodejs-utils';
+import { definitionsManager } from './definitionsManager';
 
 const CHECK_INTERVAL = 5000;
 const DEFAULT_HEALTH_PORT_TYPE = 'rest';
@@ -26,7 +29,7 @@ export class InstanceManager {
 
     private readonly _instances: InstanceInfo[] = [];
 
-    private readonly instanceLocks:AsyncLock = new AsyncLock();
+    private readonly instanceLocks: AsyncLock = new AsyncLock();
 
     constructor() {
         this._instances = storageService.section('instances', []);
@@ -70,15 +73,16 @@ export class InstanceManager {
         return this._instances.find((i) => i.systemId === systemId && i.instanceId === instanceId);
     }
 
-
     private async exclusive<T = any>(systemId: string, instanceId: string, fn: () => Promise<T>) {
         systemId = normalizeKapetaUri(systemId);
         const key = `${systemId}/${instanceId}`;
-        return this.instanceLocks.acquire(key, fn);
+        //console.log(`Acquiring lock for ${key}`, this.instanceLocks.isBusy(key));
+        const result = await this.instanceLocks.acquire(key, fn);
+        //console.log(`Releasing lock for ${key}`, this.instanceLocks.isBusy(key));
+        return result;
     }
 
-
-    public async getLogs(systemId: string, instanceId: string):Promise<LogEntry[]> {
+    public async getLogs(systemId: string, instanceId: string): Promise<LogEntry[]> {
         const instance = this.getInstance(systemId, instanceId);
         if (!instance) {
             throw new Error(`Instance ${systemId}/${instanceId} not found`);
@@ -86,23 +90,27 @@ export class InstanceManager {
 
         switch (instance.type) {
             case InstanceType.DOCKER:
-                 return await containerManager.getLogs(instance);
+                return await containerManager.getLogs(instance);
 
             case InstanceType.UNKNOWN:
-                return [{
-                    level: 'INFO',
-                    message: 'Instance is starting...',
-                    time: Date.now(),
-                    source: 'stdout',
-                }];
+                return [
+                    {
+                        level: 'INFO',
+                        message: 'Instance is starting...',
+                        time: Date.now(),
+                        source: 'stdout',
+                    },
+                ];
 
             case InstanceType.LOCAL:
-                return [{
-                    level: 'INFO',
-                    message: 'Instance started outside Kapeta - logs not available...',
-                    time: Date.now(),
-                    source: 'stdout',
-                }];
+                return [
+                    {
+                        level: 'INFO',
+                        message: 'Instance started outside Kapeta - logs not available...',
+                        time: Date.now(),
+                        source: 'stdout',
+                    },
+                ];
         }
 
         return [];
@@ -167,7 +175,10 @@ export class InstanceManager {
             const healthUrl = this.getHealthUrl(info, address);
 
             if (instance) {
-                if (instance.status === InstanceStatus.STOPPING && instance.desiredStatus === DesiredInstanceStatus.STOP) {
+                if (
+                    instance.status === InstanceStatus.STOPPING &&
+                    instance.desiredStatus === DesiredInstanceStatus.STOP
+                ) {
                     //If instance is stopping do not interfere
                     return;
                 }
@@ -239,7 +250,7 @@ export class InstanceManager {
     public markAsStopped(systemId: string, instanceId: string) {
         return this.exclusive(systemId, instanceId, async () => {
             systemId = normalizeKapetaUri(systemId);
-            const instance = _.find(this._instances, {systemId, instanceId});
+            const instance = _.find(this._instances, { systemId, instanceId });
             if (instance && instance.owner === InstanceOwner.EXTERNAL && instance.status !== InstanceStatus.STOPPED) {
                 instance.status = InstanceStatus.STOPPED;
                 instance.pid = null;
@@ -247,7 +258,7 @@ export class InstanceManager {
                 this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
                 this.save();
             }
-        })
+        });
     }
 
     public async startAllForPlan(systemId: string): Promise<InstanceInfo[]> {
@@ -281,12 +292,11 @@ export class InstanceManager {
         return settled.map((p) => (p.status === 'fulfilled' ? p.value : null)).filter((p) => !!p) as InstanceInfo[];
     }
 
-
     public async stop(systemId: string, instanceId: string) {
         return this.stopInner(systemId, instanceId, true);
     }
 
-    private async stopInner(systemId: string, instanceId: string, changeDesired:boolean = false) {
+    private async stopInner(systemId: string, instanceId: string, changeDesired: boolean = false) {
         return this.exclusive(systemId, instanceId, async () => {
             systemId = normalizeKapetaUri(systemId);
             const instance = this.getInstance(systemId, instanceId);
@@ -298,8 +308,7 @@ export class InstanceManager {
                 return;
             }
 
-            if (changeDesired &&
-                instance.desiredStatus !== DesiredInstanceStatus.EXTERNAL) {
+            if (changeDesired && instance.desiredStatus !== DesiredInstanceStatus.EXTERNAL) {
                 instance.desiredStatus = DesiredInstanceStatus.STOP;
             }
 
@@ -359,7 +368,7 @@ export class InstanceManager {
                 throw new Error('Plan not found: ' + systemId);
             }
 
-            const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, {id: instanceId}) : null;
+            const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, { id: instanceId }) : null;
             if (!blockInstance) {
                 throw new Error('Block instance not found: ' + instanceId);
             }
@@ -412,6 +421,28 @@ export class InstanceManager {
             // Save the instance before starting it, so that we can track the status
             await this.saveInternalInstance(instance);
 
+            const blockSpec = blockAsset.data.spec as BlockDefinitionSpec;
+            if (blockSpec.consumers) {
+                const promises = blockSpec.consumers.map((consumer) => {
+                    const consumerUri = parseKapetaUri(consumer.kind);
+                    const asset = definitionsManager.getDefinition(consumer.kind);
+                    if (!asset) {
+                        // Definition not found
+                        return Promise.resolve();
+                    }
+
+                    if (KIND_OPERATOR.toLowerCase() !== asset.definition.kind.toLowerCase()) {
+                        // Not an operator
+                        return Promise.resolve();
+                    }
+
+                    console.log('Ensuring resource: %s in %s', consumerUri.id, systemId);
+                    return operatorManager.ensureResource(systemId, consumerUri.fullName, consumerUri.version);
+                });
+
+                await Promise.all(promises);
+            }
+
             if (existingInstance) {
                 // Check if the instance is already running - but after we've commmuicated the desired status
                 const currentStatus = await this.requestInstanceStatus(existingInstance);
@@ -439,7 +470,7 @@ export class InstanceManager {
                     status: InstanceStatus.READY,
                 });
             } catch (e: any) {
-                console.warn('Failed to start instance', e);
+                console.warn('Failed to start instance: ', systemId, instanceId, blockRef, e.message);
                 const logs: LogEntry[] = [
                     {
                         source: 'stdout',
@@ -456,6 +487,7 @@ export class InstanceManager {
                     health: null,
                     portType: DEFAULT_HEALTH_PORT_TYPE,
                     status: InstanceStatus.FAILED,
+                    errorMessage: e.message ?? 'Failed to start - Check logs for details.',
                 });
 
                 this.emitInstanceEvent(systemId, instanceId, EVENT_INSTANCE_LOG, logs[0]);
@@ -471,17 +503,16 @@ export class InstanceManager {
         });
     }
 
-    public async restart(systemId: string, instanceId: string) {
+    /**
+     * Stops an instance but does not remove it from the list of active instances
+     *
+     * It will be started again next time the system checks the status of the instance
+     *
+     * We do it this way to not cause the user to wait for the instance to start again
+     */
+    public async prepareForRestart(systemId: string, instanceId: string) {
         systemId = normalizeKapetaUri(systemId);
         await this.stopInner(systemId, instanceId);
-
-        const existingInstance = this.getInstance(systemId, instanceId);
-        if (existingInstance?.desiredStatus === DesiredInstanceStatus.STOP) {
-            // Internal instance was marked as stopped - abort restart
-            return existingInstance;
-        }
-
-        return this.start(systemId, instanceId);
     }
 
     public async stopAll() {
@@ -553,8 +584,7 @@ export class InstanceManager {
                     const skipUpdate =
                         (newStatus === InstanceStatus.STOPPED && instance.status === InstanceStatus.FAILED) ||
                         ([InstanceStatus.READY, InstanceStatus.UNHEALTHY].includes(newStatus) &&
-                            instance.status === InstanceStatus.STOPPING &&
-                            instance.desiredStatus === DesiredInstanceStatus.STOP) ||
+                            instance.status === InstanceStatus.STOPPING) ||
                         (newStatus === InstanceStatus.STOPPED &&
                             instance.status === InstanceStatus.STARTING &&
                             instance.desiredStatus === DesiredInstanceStatus.RUN);
@@ -608,7 +638,7 @@ export class InstanceManager {
                     //If the instance is unhealthy, try to restart it
                     console.log('Restarting unhealthy instance', instance);
                     try {
-                        await this.restart(instance.systemId, instance.instanceId);
+                        await this.prepareForRestart(instance.systemId, instance.instanceId);
                     } catch (e) {
                         console.warn('Failed to restart instance', instance.systemId, instance.instanceId, e);
                     }

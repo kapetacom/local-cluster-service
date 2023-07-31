@@ -1,9 +1,9 @@
 import FS from 'node:fs';
 import YAML from 'yaml';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
-import md5 from "md5";
+import md5 from 'md5';
 
-export function getBlockInstanceContainerName(systemId:string, instanceId: string) {
+export function getBlockInstanceContainerName(systemId: string, instanceId: string) {
     return `kapeta-block-instance-${md5(systemId + instanceId)}`;
 }
 

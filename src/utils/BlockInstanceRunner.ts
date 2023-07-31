@@ -175,11 +175,7 @@ export class BlockInstanceRunner {
         const homeDir = localContainer.userHome ? localContainer.userHome : '/root';
         const workingDir = localContainer.workingDir ? localContainer.workingDir : '/workspace';
 
-        const {
-            PortBindings,
-            ExposedPorts,
-            addonEnv
-        } = await this.getDockerPortBindings(blockInstance, assetVersion);
+        const { PortBindings, ExposedPorts, addonEnv } = await this.getDockerPortBindings(blockInstance, assetVersion);
 
         let HealthCheck = undefined;
         if (localContainer.healthcheck) {
@@ -215,7 +211,12 @@ export class BlockInstanceRunner {
         });
     }
 
-    private async _startDockerProcess(blockInstance: BlockProcessParams, blockInfo: KapetaURI, env: StringMap, assetVersion: DefinitionInfo) {
+    private async _startDockerProcess(
+        blockInstance: BlockProcessParams,
+        blockInfo: KapetaURI,
+        env: StringMap,
+        assetVersion: DefinitionInfo
+    ) {
         const { versionFile } = ClusterConfig.getRepositoryAssetInfoPath(
             blockInfo.handle,
             blockInfo.name,
@@ -237,11 +238,7 @@ export class BlockInstanceRunner {
             throw new Error(`Missing docker image information: ${JSON.stringify(versionInfo?.artifact?.details)}`);
         }
 
-        const {
-            PortBindings,
-            ExposedPorts,
-            addonEnv
-        } = await this.getDockerPortBindings(blockInstance, assetVersion);
+        const { PortBindings, ExposedPorts, addonEnv } = await this.getDockerPortBindings(blockInstance, assetVersion);
 
         const containerName = getBlockInstanceContainerName(this._systemId, blockInstance.id);
 
@@ -260,9 +257,8 @@ export class BlockInstanceRunner {
                 `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
                 ...Object.entries({
                     ...env,
-                    ...addonEnv
+                    ...addonEnv,
                 }).map(([key, value]) => `${key}=${value}`),
-
             ],
             HostConfig: {
                 Binds: [`${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`],
@@ -388,7 +384,6 @@ export class BlockInstanceRunner {
         return out;
     }
 
-
     private async getDockerPortBindings(blockInstance: BlockProcessParams, assetVersion: DefinitionInfo) {
         const bindHost = getBindHost();
         const ExposedPorts: AnyMap = {};
@@ -412,10 +407,9 @@ export class BlockInstanceRunner {
             ];
         });
 
-
         await Promise.all(promises);
 
-        return {PortBindings,ExposedPorts, addonEnv};
+        return { PortBindings, ExposedPorts, addonEnv };
     }
 
     private async ensureContainer(opts: any) {
@@ -424,16 +418,12 @@ export class BlockInstanceRunner {
         await containerManager.waitForReady(container);
 
         return this._handleContainer(container);
-
     }
 
-    private async _handleContainer(
-        container: Container
-    ): Promise<ProcessInfo> {
-
+    private async _handleContainer(container: Container): Promise<ProcessInfo> {
         return {
             type: InstanceType.DOCKER,
-            pid: container.id
+            pid: container.id,
         };
     }
 }

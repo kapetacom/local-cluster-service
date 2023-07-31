@@ -64,6 +64,7 @@ export type InstanceInfo = {
     type: InstanceType;
     owner: InstanceOwner;
     status: InstanceStatus;
+    errorMessage?: string;
     desiredStatus: DesiredInstanceStatus;
     address?: string;
 
@@ -71,7 +72,6 @@ export type InstanceInfo = {
     health?: string | null;
     pid?: number | string | null;
     portType?: string;
-
 };
 
 interface ResourceRef {
