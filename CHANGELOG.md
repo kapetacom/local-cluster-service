@@ -1,3 +1,10 @@
+## [0.12.1](https://github.com/kapetacom/local-cluster-service/compare/v0.12.0...v0.12.1) (2023-08-02)
+
+
+### Bug Fixes
+
+* Adjustments to make starting plans locally smoother ([fc353ad](https://github.com/kapetacom/local-cluster-service/commit/fc353adde350b7e9d4c7eb9347c4cfa0c3a6aa58))
+
 # [0.12.0](https://github.com/kapetacom/local-cluster-service/compare/v0.11.1...v0.12.0) (2023-07-31)
 
 
