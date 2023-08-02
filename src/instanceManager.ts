@@ -9,7 +9,7 @@ import { assetManager } from './assetManager';
 import { containerManager, HEALTH_CHECK_TIMEOUT } from './containerManager';
 import { configManager } from './configManager';
 import { DesiredInstanceStatus, InstanceInfo, InstanceOwner, InstanceStatus, InstanceType, LogEntry } from './types';
-import { BlockDefinitionSpec, BlockInstance } from '@kapeta/schemas';
+import {BlockDefinitionSpec, BlockInstance, Plan} from '@kapeta/schemas';
 import { getBlockInstanceContainerName, normalizeKapetaUri } from './utils/utils';
 import { KIND_OPERATOR, operatorManager } from './operatorManager';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
@@ -64,7 +64,17 @@ export class InstanceManager {
 
         systemId = normalizeKapetaUri(systemId);
 
-        return this._instances.filter((instance) => instance.systemId === systemId);
+        const planInfo = definitionsManager.getDefinition(systemId);
+
+        if (!planInfo) {
+            return [];
+        }
+
+        const plan = planInfo.definition as Plan;
+
+        const instanceIds = plan.spec.blocks.map((block) => block.id);
+
+        return this._instances.filter((instance) => instance.systemId === systemId && instanceIds.includes(instance.instanceId));
     }
 
     public getInstance(systemId: string, instanceId: string) {
@@ -482,7 +492,7 @@ export class InstanceManager {
 
                 const out = await this.saveInternalInstance({
                     ...instance,
-                    type: InstanceType.LOCAL,
+                    type: InstanceType.UNKNOWN,
                     pid: null,
                     health: null,
                     portType: DEFAULT_HEALTH_PORT_TYPE,

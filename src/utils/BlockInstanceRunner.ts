@@ -415,8 +415,6 @@ export class BlockInstanceRunner {
     private async ensureContainer(opts: any) {
         const container = await containerManager.ensureContainer(opts);
 
-        await containerManager.waitForReady(container);
-
         return this._handleContainer(container);
     }
 

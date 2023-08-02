@@ -146,8 +146,10 @@ router.put('/', async (req: KapetaBodyRequest, res: Response) => {
         const oldInstance = instanceManager.getInstance(req.kapeta!.systemId, req.kapeta!.instanceId);
         if (oldInstance) {
             instance.pid = oldInstance.pid;
+            instance.desiredStatus = oldInstance.desiredStatus;
         }
         instance.type = InstanceType.DOCKER;
+        instance.owner = InstanceOwner.INTERNAL;
     } else {
         // Coming from user starting the instance outside of kapeta
         instance.type = InstanceType.LOCAL;

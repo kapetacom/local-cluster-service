@@ -246,6 +246,8 @@ class OperatorManager {
                 },
             });
 
+            await containerManager.waitForReady(container);
+
             return new ContainerInfo(container);
         });
     }

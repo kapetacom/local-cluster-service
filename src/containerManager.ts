@@ -66,8 +66,7 @@ export const CONTAINER_LABEL_PORT_PREFIX = 'kapeta_port-';
 const NANO_SECOND = 1000000;
 const HEALTH_CHECK_INTERVAL = 3000;
 const HEALTH_CHECK_MAX = 20;
-const IMAGE_PULL_CACHE_TTL = 30 * 60 * 1000;
-const IMAGE_PULL_CACHE: { [key: string]: number } = {};
+
 
 export const HEALTH_CHECK_TIMEOUT = HEALTH_CHECK_INTERVAL * HEALTH_CHECK_MAX * 2;
 
@@ -223,17 +222,10 @@ class ContainerManager {
         return undefined;
     }
 
-    async pull(image: string, cacheForMS: number = IMAGE_PULL_CACHE_TTL) {
+    async pull(image: string) {
         let [imageName, tag] = image.split(/:/);
         if (!tag) {
             tag = 'latest';
-        }
-
-        if (IMAGE_PULL_CACHE[image]) {
-            const timeSince = Date.now() - IMAGE_PULL_CACHE[image];
-            if (timeSince < cacheForMS) {
-                return false;
-            }
         }
 
         const imageTagList = (await this.docker().image.list())
@@ -247,7 +239,7 @@ class ContainerManager {
         }
 
         const timeStarted = Date.now();
-        socketManager.emitGlobal(EVENT_IMAGE_PULL, { image, percent: 0 });
+        socketManager.emitGlobal(EVENT_IMAGE_PULL, { image, percent: -1 });
 
         const api = new KapetaAPI();
         const accessToken = await api.getAccessToken();
@@ -390,8 +382,6 @@ class ContainerManager {
             //console.log('Pulling image %s: %s % [done: %s, total: %s]', image, Math.round(percent), totals.done, totals.total);
         });
 
-        IMAGE_PULL_CACHE[image] = Date.now();
-
         socketManager.emitGlobal(EVENT_IMAGE_PULL, { image, percent: 100, timeTaken: Date.now() - timeStarted });
 
         return true;
@@ -435,11 +425,7 @@ class ContainerManager {
     }
 
     public async ensureContainer(opts: any) {
-        const container = await this.createOrUpdateContainer(opts);
-
-        await this.waitForReady(container);
-
-        return container;
+        return await this.createOrUpdateContainer(opts);
     }
 
     private async createOrUpdateContainer(opts: any) {
