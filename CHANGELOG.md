@@ -1,3 +1,10 @@
+# [0.13.0](https://github.com/kapetacom/local-cluster-service/compare/v0.12.1...v0.13.0) (2023-08-03)
+
+
+### Features
+
+* Adds background task concept ([#55](https://github.com/kapetacom/local-cluster-service/issues/55)) ([71cc63c](https://github.com/kapetacom/local-cluster-service/commit/71cc63c9c3eb8bec1dec8b31d3340694e93bd3e5))
+
 ## [0.12.1](https://github.com/kapetacom/local-cluster-service/compare/v0.12.0...v0.12.1) (2023-08-02)
 
 
