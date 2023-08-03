@@ -5,12 +5,10 @@ import { KapetaURI, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { serviceManager } from '../serviceManager';
 import { containerManager, DockerMounts, toLocalBindVolume } from '../containerManager';
 import { LogData } from './LogData';
-import EventEmitter from 'events';
 import { clusterService } from '../clusterService';
 import { AnyMap, BlockProcessParams, InstanceType, ProcessInfo, StringMap } from '../types';
 import { Container } from 'node-docker-api/lib/container';
 import { definitionsManager } from '../definitionsManager';
-import md5 from 'md5';
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';

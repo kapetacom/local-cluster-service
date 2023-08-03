@@ -12,21 +12,26 @@ import { definitionsManager } from './definitionsManager';
 import { getBindHost, normalizeKapetaUri } from './utils/utils';
 import _ from 'lodash';
 import AsyncLock from 'async-lock';
+import { taskManager } from './taskManager';
 
 export const KIND_OPERATOR = 'core/resource-type-operator';
 
 class Operator {
-    private _data: any;
-    constructor(data: any) {
+    private readonly _data: DefinitionInfo;
+    constructor(data: DefinitionInfo) {
         this._data = data;
     }
 
-    getData() {
+    getLocalData() {
+        return this._data.definition.spec.local;
+    }
+
+    getDefinitionInfo() {
         return this._data;
     }
 
     getCredentials() {
-        return this._data.credentials;
+        return this._data.definition.spec.local.credentials;
     }
 }
 
@@ -72,7 +77,7 @@ class OperatorManager {
             throw new Error(`Operator missing local definition: ${resourceType}:${version}`);
         }
 
-        return new Operator(operator.definition.spec.local);
+        return new Operator(operator);
     }
 
     /**
@@ -161,7 +166,7 @@ class OperatorManager {
         return await this.operatorLock.acquire(key, async () => {
             const operator = this.getOperator(resourceType, version);
 
-            const operatorData = operator.getData();
+            const operatorData = operator.getLocalData();
 
             const portTypes = Object.keys(operatorData.ports);
 
@@ -203,6 +208,8 @@ class OperatorManager {
                 kapeta: 'true',
             };
 
+            const operatorMetadata = operator.getDefinitionInfo().definition.metadata;
+
             const bindHost = getBindHost();
 
             const ExposedPorts: { [key: string]: any } = {};
@@ -225,30 +232,41 @@ class OperatorManager {
                 Env.push(name + '=' + value);
             });
 
-            let HealthCheck = undefined;
+            const task = taskManager.add(
+                `operator:ensure:${key}`,
+                async () => {
+                    let HealthCheck = undefined;
 
-            if (operatorData.health) {
-                HealthCheck = containerManager.toDockerHealth(operatorData.health);
-            }
+                    if (operatorData.health) {
+                        HealthCheck = containerManager.toDockerHealth(operatorData.health);
+                    }
 
-            const container = await containerManager.ensureContainer({
-                name: containerName,
-                Image: operatorData.image,
-                Hostname: containerName + '.kapeta',
-                Labels,
-                Cmd: operatorData.cmd,
-                ExposedPorts,
-                Env,
-                HealthCheck,
-                HostConfig: {
-                    PortBindings,
-                    Mounts,
+                    const container = await containerManager.ensureContainer({
+                        name: containerName,
+                        Image: operatorData.image,
+                        Hostname: containerName + '.kapeta',
+                        Labels,
+                        Cmd: operatorData.cmd,
+                        ExposedPorts,
+                        Env,
+                        HealthCheck,
+                        HostConfig: {
+                            PortBindings,
+                            Mounts,
+                        },
+                    });
+
+                    await containerManager.waitForReady(container);
+
+                    return new ContainerInfo(container);
                 },
-            });
+                {
+                    name: `Ensuring ${operatorMetadata.title ?? operatorMetadata.name}`,
+                    systemId,
+                }
+            );
 
-            await containerManager.waitForReady(container);
-
-            return new ContainerInfo(container);
+            return task.wait();
         });
     }
 }

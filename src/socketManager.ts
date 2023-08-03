@@ -32,7 +32,7 @@ export class SocketManager {
     }
 
     emitGlobal(type: string, payload: any) {
-        this.io.emit(type, { payload });
+        this.io.emit(type, payload);
     }
 
     _bindIO() {

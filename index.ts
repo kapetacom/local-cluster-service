@@ -16,6 +16,7 @@ import FilesystemRoutes from './src/filesystem/routes';
 import AssetsRoutes from './src/assets/routes';
 import ProviderRoutes from './src/providers/routes';
 import AttachmentRoutes from './src/attachments/routes';
+import TaskRoutes from './src/tasks/routes';
 import { getBindHost } from './src/utils/utils';
 import request from 'request';
 
@@ -36,6 +37,7 @@ function createServer() {
     app.use('/assets', AssetsRoutes);
     app.use('/providers', ProviderRoutes);
     app.use('/attachments', AttachmentRoutes);
+    app.use('/tasks', TaskRoutes);
     app.get('/status', async (req, res) => {
         res.send({
             ok: true,

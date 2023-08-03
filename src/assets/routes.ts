@@ -44,8 +44,15 @@ router.get('/read', async (req: Request, res: Response) => {
         return;
     }
 
+    const ensure = req.query.ensure !== 'false';
+
     try {
-        res.send(await assetManager.getAsset(req.query.ref as string, true));
+        const asset = await assetManager.getAsset(req.query.ref as string, true, ensure);
+        if (asset) {
+            res.send(asset);
+        } else {
+            res.status(404).send({ error: 'Asset not found' });
+        }
     } catch (err: any) {
         res.status(400).send({ error: err.message });
     }
@@ -124,6 +131,21 @@ router.put('/import', async (req: Request, res: Response) => {
         const assets = await assetManager.importFile(req.query.ref as string);
 
         res.status(200).send(assets);
+    } catch (err: any) {
+        res.status(400).send({ error: err.message });
+    }
+});
+
+router.put('/install', async (req: Request, res: Response) => {
+    if (!req.query.ref) {
+        res.status(400).send({ error: 'Query parameter "ref" is missing' });
+        return;
+    }
+
+    try {
+        const tasks = await assetManager.installAsset(req.query.ref as string);
+        const taskIds = tasks?.map((t) => t.id) ?? [];
+        res.status(200).send(taskIds);
     } catch (err: any) {
         res.status(400).send({ error: err.message });
     }
