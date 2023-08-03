@@ -6,6 +6,7 @@ import { NextFunction, Request, Response } from 'express';
 import { kapetaHeaders, KapetaRequest } from '../middleware/kapeta';
 import { stringBody } from '../middleware/stringBody';
 import { DesiredInstanceStatus, InstanceInfo, InstanceOwner, InstanceType, KapetaBodyRequest } from '../types';
+import { Task } from '../taskManager';
 
 const router = Router();
 router.use('/', corsHandler);
@@ -28,13 +29,11 @@ router.get('/:systemId/instances', (req: Request, res: Response) => {
  * Start all instances in a plan
  */
 router.post('/:systemId/start', async (req: Request, res: Response) => {
-    const instances = await instanceManager.startAllForPlan(req.params.systemId);
+    const task = await instanceManager.startAllForPlan(req.params.systemId);
 
     res.status(202).send({
         ok: true,
-        processes: instances.map((p) => {
-            return { pid: p.pid, type: p.type };
-        }),
+        taskId: task.id,
     });
 });
 
@@ -42,10 +41,11 @@ router.post('/:systemId/start', async (req: Request, res: Response) => {
  * Stop all instances in plan
  */
 router.post('/:systemId/stop', async (req: Request, res: Response) => {
-    await instanceManager.stopAllForPlan(req.params.systemId);
+    const task = instanceManager.stopAllForPlan(req.params.systemId);
 
     res.status(202).send({
         ok: true,
+        taskId: task.id,
     });
 });
 
@@ -53,13 +53,19 @@ router.post('/:systemId/stop', async (req: Request, res: Response) => {
  * Start single instance in a plan
  */
 router.post('/:systemId/:instanceId/start', async (req: Request, res: Response) => {
-    const process = await instanceManager.start(req.params.systemId, req.params.instanceId);
-
-    res.status(202).send({
-        ok: true,
-        pid: process.pid,
-        type: process.type,
-    });
+    const result = await instanceManager.start(req.params.systemId, req.params.instanceId);
+    if (result instanceof Task) {
+        res.status(202).send({
+            ok: true,
+            taskId: result.id,
+        });
+    } else {
+        res.status(202).send({
+            ok: true,
+            pid: result.pid,
+            type: result.type,
+        });
+    }
 });
 
 /**

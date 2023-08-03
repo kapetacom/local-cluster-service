@@ -23,7 +23,7 @@ class ProviderManager {
             return FSExtra.readFile(this._webAssetCache[id], 'utf8');
         }
 
-        await repositoryManager.ensureAsset(handle, name, version);
+        await repositoryManager.ensureAsset(handle, name, version, true);
 
         const installedProvider = this.getWebProviders().find((providerDefinition) => {
             return providerDefinition.definition.metadata.name === fullName && providerDefinition.version === version;

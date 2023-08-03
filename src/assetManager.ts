@@ -62,6 +62,10 @@ class AssetManager {
         });
     }
 
+    public clearCache() {
+        this.cache.flushAll();
+    }
+
     /**
      *
      * @param {string[]} [assetKinds]
@@ -98,23 +102,32 @@ class AssetManager {
         return asset.data;
     }
 
-    async getAsset(ref: string, noCache: boolean = false): Promise<EnrichedAsset | undefined> {
+    async getAsset(
+        ref: string,
+        noCache: boolean = false,
+        autoFetch: boolean = true
+    ): Promise<EnrichedAsset | undefined> {
         ref = normalizeKapetaUri(ref);
         const cacheKey = `getAsset:${ref}`;
         if (!noCache && this.cache.has(cacheKey)) {
             return this.cache.get(cacheKey);
         }
         const uri = parseKapetaUri(ref);
-        await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version);
+        if (autoFetch) {
+            await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, true);
+        }
 
         let asset = definitionsManager
             .getDefinitions()
             .map(enrichAsset)
             .find((a) => parseKapetaUri(a.ref).equals(uri));
-        if (!asset) {
+        if (autoFetch && !asset) {
             throw new Error('Asset not found: ' + ref);
         }
-        this.cache.set(cacheKey, asset);
+        if (asset) {
+            this.cache.set(cacheKey, asset);
+        }
+
         return asset;
     }
 
@@ -188,6 +201,17 @@ class AssetManager {
         }
         this.cache.flushAll();
         await Actions.uninstall(progressListener, [asset.ref]);
+    }
+
+    async installAsset(ref: string) {
+        const asset = await this.getAsset(ref, true, false);
+        if (asset) {
+            throw new Error('Asset already installed: ' + ref);
+        }
+        const uri = parseKapetaUri(ref);
+        console.log('Installing %s', ref);
+
+        return await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, false);
     }
 }
 

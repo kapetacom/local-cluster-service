@@ -15,6 +15,7 @@ import { socketManager } from './socketManager';
 import { handlers as ArtifactHandlers } from '@kapeta/nodejs-registry-utils';
 import { progressListener } from './progressListener';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
+import { taskManager, Task } from './taskManager';
 
 const EVENT_IMAGE_PULL = 'docker-image-pull';
 
@@ -66,7 +67,6 @@ export const CONTAINER_LABEL_PORT_PREFIX = 'kapeta_port-';
 const NANO_SECOND = 1000000;
 const HEALTH_CHECK_INTERVAL = 3000;
 const HEALTH_CHECK_MAX = 20;
-
 
 export const HEALTH_CHECK_TIMEOUT = HEALTH_CHECK_INTERVAL * HEALTH_CHECK_MAX * 2;
 
@@ -238,151 +238,176 @@ class ContainerManager {
             return false;
         }
 
-        const timeStarted = Date.now();
-        socketManager.emitGlobal(EVENT_IMAGE_PULL, { image, percent: -1 });
+        let friendlyImageName = image;
+        const imageParts = imageName.split('/');
+        if (imageParts.length > 2) {
+            //Strip the registry to make the name shorter
+            friendlyImageName = `${imageParts.slice(1).join('/')}:${tag}`;
+        }
 
-        const api = new KapetaAPI();
-        const accessToken = await api.getAccessToken();
+        const taskName = `Pulling image ${friendlyImageName}`;
 
-        const auth = image.startsWith('docker.kapeta.com/')
-            ? {
-                  username: 'kapeta',
-                  password: accessToken,
-                  serveraddress: 'docker.kapeta.com',
-              }
-            : {};
+        const processor = async (task: Task) => {
+            const timeStarted = Date.now();
+            const api = new KapetaAPI();
+            const accessToken = await api.getAccessToken();
 
-        const stream = (await this.docker().image.create(auth, {
-            fromImage: imageName,
-            tag: tag,
-        })) as ReadStream;
+            const auth = image.startsWith('docker.kapeta.com/')
+                ? {
+                      username: 'kapeta',
+                      password: accessToken,
+                      serveraddress: 'docker.kapeta.com',
+                  }
+                : {};
 
-        const chunks: {
-            [p: string]: {
-                downloading: {
-                    total: number;
-                    current: number;
+            const stream = (await this.docker().image.create(auth, {
+                fromImage: imageName,
+                tag: tag,
+            })) as ReadStream;
+
+            const chunks: {
+                [p: string]: {
+                    downloading: {
+                        total: number;
+                        current: number;
+                    };
+                    extracting: {
+                        total: number;
+                        current: number;
+                    };
+                    done: boolean;
                 };
-                extracting: {
-                    total: number;
-                    current: number;
-                };
-                done: boolean;
-            };
-        } = {};
+            } = {};
 
-        let lastEmitted = Date.now();
-        await promisifyStream(stream, (rawData) => {
-            const lines = rawData.toString().trim().split('\n');
-            lines.forEach((line) => {
-                const data = JSON.parse(line);
-                if (
-                    ![
-                        'Waiting',
-                        'Downloading',
-                        'Extracting',
-                        'Download complete',
-                        'Pull complete',
-                        'Already exists',
-                    ].includes(data.status)
-                ) {
+            let lastEmitted = Date.now();
+            await promisifyStream(stream, (rawData) => {
+                const lines = rawData.toString().trim().split('\n');
+                lines.forEach((line) => {
+                    const data = JSON.parse(line);
+                    if (
+                        ![
+                            'Waiting',
+                            'Downloading',
+                            'Extracting',
+                            'Download complete',
+                            'Pull complete',
+                            'Already exists',
+                        ].includes(data.status)
+                    ) {
+                        return;
+                    }
+
+                    if (!chunks[data.id]) {
+                        chunks[data.id] = {
+                            downloading: {
+                                total: 0,
+                                current: 0,
+                            },
+                            extracting: {
+                                total: 0,
+                                current: 0,
+                            },
+                            done: false,
+                        };
+                    }
+
+                    const chunk = chunks[data.id];
+
+                    switch (data.status) {
+                        case 'Downloading':
+                            chunk.downloading = data.progressDetail;
+                            break;
+                        case 'Extracting':
+                            chunk.extracting = data.progressDetail;
+                            break;
+                        case 'Download complete':
+                            chunk.downloading.current = chunks[data.id].downloading.total;
+                            break;
+                        case 'Pull complete':
+                            chunk.extracting.current = chunks[data.id].extracting.total;
+                            chunk.done = true;
+                            break;
+                        case 'Already exists':
+                            // Force layer to be done
+                            chunk.downloading.current = 1;
+                            chunk.downloading.total = 1;
+                            chunk.extracting.current = 1;
+                            chunk.extracting.total = 1;
+                            chunk.done = true;
+                            break;
+                    }
+                });
+
+                if (Date.now() - lastEmitted < 1000) {
                     return;
                 }
 
-                if (!chunks[data.id]) {
-                    chunks[data.id] = {
-                        downloading: {
-                            total: 0,
-                            current: 0,
-                        },
-                        extracting: {
-                            total: 0,
-                            current: 0,
-                        },
-                        done: false,
-                    };
-                }
+                const chunkList = Object.values(chunks);
+                let totals = {
+                    downloading: {
+                        total: 0,
+                        current: 0,
+                    },
+                    extracting: {
+                        total: 0,
+                        current: 0,
+                    },
+                    total: chunkList.length,
+                    done: 0,
+                };
 
-                const chunk = chunks[data.id];
+                chunkList.forEach((chunk) => {
+                    if (chunk.downloading.current > 0) {
+                        totals.downloading.current += chunk.downloading.current;
+                    }
 
-                switch (data.status) {
-                    case 'Downloading':
-                        chunk.downloading = data.progressDetail;
-                        break;
-                    case 'Extracting':
-                        chunk.extracting = data.progressDetail;
-                        break;
-                    case 'Download complete':
-                        chunk.downloading.current = chunks[data.id].downloading.total;
-                        break;
-                    case 'Pull complete':
-                        chunk.extracting.current = chunks[data.id].extracting.total;
-                        chunk.done = true;
-                        break;
-                    case 'Already exists':
-                        // Force layer to be done
-                        chunk.downloading.current = 1;
-                        chunk.downloading.total = 1;
-                        chunk.extracting.current = 1;
-                        chunk.extracting.total = 1;
-                        chunk.done = true;
-                        break;
-                }
+                    if (chunk.downloading.total > 0) {
+                        totals.downloading.total += chunk.downloading.total;
+                    }
+
+                    if (chunk.extracting.current > 0) {
+                        totals.extracting.current += chunk.extracting.current;
+                    }
+
+                    if (chunk.extracting.total > 0) {
+                        totals.extracting.total += chunk.extracting.total;
+                    }
+
+                    if (chunk.done) {
+                        totals.done++;
+                    }
+                });
+
+                const progress = totals.total > 0 ? (totals.done / totals.total) * 100 : 0;
+
+                task.metadata = {
+                    ...task.metadata,
+                    image,
+                    progress,
+                    status: totals,
+                    timeTaken: Date.now() - timeStarted,
+                };
+                task.emitUpdate();
+                lastEmitted = Date.now();
+                //console.log('Pulling image %s: %s % [done: %s, total: %s]', image, Math.round(percent), totals.done, totals.total);
             });
 
-            if (Date.now() - lastEmitted < 1000) {
-                return;
-            }
-
-            const chunkList = Object.values(chunks);
-            let totals = {
-                downloading: {
-                    total: 0,
-                    current: 0,
-                },
-                extracting: {
-                    total: 0,
-                    current: 0,
-                },
-                total: chunkList.length,
-                done: 0,
-            };
-
-            chunkList.forEach((chunk) => {
-                if (chunk.downloading.current > 0) {
-                    totals.downloading.current += chunk.downloading.current;
-                }
-
-                if (chunk.downloading.total > 0) {
-                    totals.downloading.total += chunk.downloading.total;
-                }
-
-                if (chunk.extracting.current > 0) {
-                    totals.extracting.current += chunk.extracting.current;
-                }
-
-                if (chunk.extracting.total > 0) {
-                    totals.extracting.total += chunk.extracting.total;
-                }
-
-                if (chunk.done) {
-                    totals.done++;
-                }
-            });
-
-            const percent = totals.total > 0 ? (totals.done / totals.total) * 100 : 0;
-            //We emit at most every second to not spam the client
-            socketManager.emitGlobal(EVENT_IMAGE_PULL, {
+            task.metadata = {
+                ...task.metadata,
                 image,
-                percent,
-                status: totals,
+                progress: 100,
                 timeTaken: Date.now() - timeStarted,
-            });
-            lastEmitted = Date.now();
-            //console.log('Pulling image %s: %s % [done: %s, total: %s]', image, Math.round(percent), totals.done, totals.total);
+            };
+            task.emitUpdate();
+        };
+
+        const task = taskManager.add(`docker:image:pull:${image}`, processor, {
+            name: taskName,
+            image,
+            progress: -1,
         });
 
-        socketManager.emitGlobal(EVENT_IMAGE_PULL, { image, percent: 100, timeTaken: Date.now() - timeStarted });
+        await task.wait();
 
         return true;
     }

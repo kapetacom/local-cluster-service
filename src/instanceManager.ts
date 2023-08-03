@@ -9,11 +9,12 @@ import { assetManager } from './assetManager';
 import { containerManager, HEALTH_CHECK_TIMEOUT } from './containerManager';
 import { configManager } from './configManager';
 import { DesiredInstanceStatus, InstanceInfo, InstanceOwner, InstanceStatus, InstanceType, LogEntry } from './types';
-import {BlockDefinitionSpec, BlockInstance, Plan} from '@kapeta/schemas';
+import { BlockDefinitionSpec, BlockInstance, Plan } from '@kapeta/schemas';
 import { getBlockInstanceContainerName, normalizeKapetaUri } from './utils/utils';
 import { KIND_OPERATOR, operatorManager } from './operatorManager';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { definitionsManager } from './definitionsManager';
+import { Task, taskManager } from './taskManager';
 
 const CHECK_INTERVAL = 5000;
 const DEFAULT_HEALTH_PORT_TYPE = 'rest';
@@ -74,7 +75,9 @@ export class InstanceManager {
 
         const instanceIds = plan.spec.blocks.map((block) => block.id);
 
-        return this._instances.filter((instance) => instance.systemId === systemId && instanceIds.includes(instance.instanceId));
+        return this._instances.filter(
+            (instance) => instance.systemId === systemId && instanceIds.includes(instance.instanceId)
+        );
     }
 
     public getInstance(systemId: string, instanceId: string) {
@@ -271,35 +274,51 @@ export class InstanceManager {
         });
     }
 
-    public async startAllForPlan(systemId: string): Promise<InstanceInfo[]> {
+    public async startAllForPlan(systemId: string): Promise<Task<InstanceInfo[]>> {
         systemId = normalizeKapetaUri(systemId);
         const plan = await assetManager.getPlan(systemId, true);
         if (!plan) {
-            throw new Error('Plan not found: ' + systemId);
+            throw new Error(`Plan not found: ${systemId}`);
         }
 
         if (!plan.spec.blocks) {
-            console.warn('No blocks found in plan', systemId);
-            return [];
+            throw new Error(`No blocks found in plan: ${systemId}`);
         }
 
-        let promises: Promise<InstanceInfo>[] = [];
-        let errors = [];
-        for (let blockInstance of Object.values(plan.spec.blocks as BlockInstance[])) {
-            try {
-                promises.push(this.start(systemId, blockInstance.id));
-            } catch (e) {
-                errors.push(e);
+        return taskManager.add(
+            `plan:start:${systemId}`,
+            async () => {
+                let promises: Promise<InstanceInfo>[] = [];
+                let errors = [];
+                for (let blockInstance of Object.values(plan.spec.blocks as BlockInstance[])) {
+                    try {
+                        promises.push(
+                            this.start(systemId, blockInstance.id).then((taskOrInstance) => {
+                                if (taskOrInstance instanceof Task) {
+                                    return taskOrInstance.wait();
+                                }
+                                return taskOrInstance;
+                            })
+                        );
+                    } catch (e) {
+                        errors.push(e);
+                    }
+                }
+
+                const settled = await Promise.allSettled(promises);
+
+                if (errors.length > 0) {
+                    throw errors[0];
+                }
+
+                return settled
+                    .map((p) => (p.status === 'fulfilled' ? p.value : null))
+                    .filter((p) => !!p) as InstanceInfo[];
+            },
+            {
+                name: `Starting plan ${systemId}`,
             }
-        }
-
-        const settled = await Promise.allSettled(promises);
-
-        if (errors.length > 0) {
-            throw errors[0];
-        }
-
-        return settled.map((p) => (p.status === 'fulfilled' ? p.value : null)).filter((p) => !!p) as InstanceInfo[];
+        );
     }
 
     public async stop(systemId: string, instanceId: string) {
@@ -363,14 +382,21 @@ export class InstanceManager {
         });
     }
 
-    public async stopAllForPlan(systemId: string) {
+    public stopAllForPlan(systemId: string) {
         systemId = normalizeKapetaUri(systemId);
         const instancesForPlan = this._instances.filter((instance) => instance.systemId === systemId);
-
-        return this.stopInstances(instancesForPlan);
+        return taskManager.add(
+            `plan:stop:${systemId}`,
+            async () => {
+                return this.stopInstances(instancesForPlan);
+            },
+            {
+                name: `Stopping plan ${systemId}`,
+            }
+        );
     }
 
-    public async start(systemId: string, instanceId: string): Promise<InstanceInfo> {
+    public async start(systemId: string, instanceId: string): Promise<InstanceInfo | Task<InstanceInfo>> {
         return this.exclusive(systemId, instanceId, async () => {
             systemId = normalizeKapetaUri(systemId);
             const plan = await assetManager.getPlan(systemId, true);
@@ -463,53 +489,63 @@ export class InstanceManager {
             }
 
             const instanceConfig = await configManager.getConfigForSection(systemId, instanceId);
-            const runner = new BlockInstanceRunner(systemId);
+            const task = taskManager.add(
+                `instance:start:${systemId}:${instanceId}`,
+                async () => {
+                    const runner = new BlockInstanceRunner(systemId);
+                    const startTime = Date.now();
+                    try {
+                        const processInfo = await runner.start(blockRef, instanceId, instanceConfig);
 
-            const startTime = Date.now();
-            try {
-                const processInfo = await runner.start(blockRef, instanceId, instanceConfig);
+                        instance.status = InstanceStatus.READY;
 
-                instance.status = InstanceStatus.READY;
+                        return this.saveInternalInstance({
+                            ...instance,
+                            type: processInfo.type,
+                            pid: processInfo.pid ?? -1,
+                            health: null,
+                            portType: processInfo.portType,
+                            status: InstanceStatus.READY,
+                        });
+                    } catch (e: any) {
+                        console.warn('Failed to start instance: ', systemId, instanceId, blockRef, e.message);
+                        const logs: LogEntry[] = [
+                            {
+                                source: 'stdout',
+                                level: 'ERROR',
+                                message: e.message,
+                                time: Date.now(),
+                            },
+                        ];
 
-                return this.saveInternalInstance({
-                    ...instance,
-                    type: processInfo.type,
-                    pid: processInfo.pid ?? -1,
-                    health: null,
-                    portType: processInfo.portType,
-                    status: InstanceStatus.READY,
-                });
-            } catch (e: any) {
-                console.warn('Failed to start instance: ', systemId, instanceId, blockRef, e.message);
-                const logs: LogEntry[] = [
-                    {
-                        source: 'stdout',
-                        level: 'ERROR',
-                        message: e.message,
-                        time: Date.now(),
-                    },
-                ];
+                        const out = await this.saveInternalInstance({
+                            ...instance,
+                            type: InstanceType.UNKNOWN,
+                            pid: null,
+                            health: null,
+                            portType: DEFAULT_HEALTH_PORT_TYPE,
+                            status: InstanceStatus.FAILED,
+                            errorMessage: e.message ?? 'Failed to start - Check logs for details.',
+                        });
 
-                const out = await this.saveInternalInstance({
-                    ...instance,
-                    type: InstanceType.UNKNOWN,
-                    pid: null,
-                    health: null,
-                    portType: DEFAULT_HEALTH_PORT_TYPE,
-                    status: InstanceStatus.FAILED,
-                    errorMessage: e.message ?? 'Failed to start - Check logs for details.',
-                });
+                        this.emitInstanceEvent(systemId, instanceId, EVENT_INSTANCE_LOG, logs[0]);
 
-                this.emitInstanceEvent(systemId, instanceId, EVENT_INSTANCE_LOG, logs[0]);
+                        this.emitInstanceEvent(systemId, blockInstance.id, EVENT_INSTANCE_EXITED, {
+                            error: `Failed to start instance: ${e.message}`,
+                            status: EVENT_INSTANCE_EXITED,
+                            instanceId: blockInstance.id,
+                        });
 
-                this.emitInstanceEvent(systemId, blockInstance.id, EVENT_INSTANCE_EXITED, {
-                    error: `Failed to start instance: ${e.message}`,
-                    status: EVENT_INSTANCE_EXITED,
-                    instanceId: blockInstance.id,
-                });
+                        return out;
+                    }
+                },
+                {
+                    name: `Starting instance: ${instance.name}`,
+                    systemId,
+                }
+            );
 
-                return out;
-            }
+            return task;
         });
     }
 

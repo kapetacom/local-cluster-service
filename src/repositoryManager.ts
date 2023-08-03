@@ -10,6 +10,9 @@ import { progressListener } from './progressListener';
 import { Dependency } from '@kapeta/schemas';
 import { Actions, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
+import { Task, taskManager } from './taskManager';
+import { normalizeKapetaUri } from './utils/utils';
+import { assetManager } from './assetManager';
 
 const INSTALL_ATTEMPTED: { [p: string]: boolean } = {};
 
@@ -18,14 +21,12 @@ class RepositoryManager {
     private _registryService: RegistryService;
     private _cache: { [key: string]: boolean };
     private watcher?: () => void;
-    private _installQueue: (() => Promise<void>)[];
-    private _processing: boolean = false;
+
     constructor() {
         this.changeEventsEnabled = true;
         this.listenForChanges();
         this._registryService = new RegistryService(Config.data.registry.url);
         this._cache = {};
-        this._installQueue = [];
     }
 
     setChangeEventsEnabled(enabled: boolean) {
@@ -113,75 +114,69 @@ class RepositoryManager {
         this.watcher = undefined;
     }
 
-    private async _install(refs: string[]): Promise<void> {
+    private async _install(refs: string[]): Promise<Task[]> {
         //We make sure to only install one asset at a time - otherwise unexpected things might happen
-        const out = new Promise<void>((resolve, reject) => {
-            this._installQueue.push(async () => {
+        const createInstaller = (ref: string) => {
+            return async () => {
+                if (INSTALL_ATTEMPTED[ref]) {
+                    return;
+                }
+
+                if (definitionsManager.exists(ref)) {
+                    return;
+                }
+                console.log(`Installing asset: ${ref}`);
+                INSTALL_ATTEMPTED[ref] = true;
+                //Auto-install missing asset
                 try {
-                    const normalizedRefs = refs.map((ref) => parseKapetaUri(ref).id);
-                    const filteredRefs = normalizedRefs
-                        .filter((ref) => !INSTALL_ATTEMPTED[ref])
-                        .filter((ref) => !definitionsManager.exists(ref));
-                    if (filteredRefs.length > 0) {
-                        console.log(`Auto-installing dependencies: ${filteredRefs.join(', ')}`);
-                        filteredRefs.forEach((ref) => (INSTALL_ATTEMPTED[ref] = true));
-                        //Auto-install missing asset
-                        try {
-                            //We change to a temp dir to avoid issues with the current working directory
-                            process.chdir(os.tmpdir());
-                            //Disable change events while installing
-                            this.setChangeEventsEnabled(false);
-                            socketManager.emit(`install`, 'install:action', {
-                                type: 'start',
-                                refs,
-                            });
-                            await Actions.install(progressListener, normalizedRefs, {});
-                            socketManager.emit(`install`, 'install:action', {
-                                type: 'done',
-                                refs,
-                            });
-                        } catch (e: any) {
-                            socketManager.emit(`install`, 'install:action', {
-                                type: 'failed',
-                                refs,
-                                error: e.message,
-                            });
-                        } finally {
-                            this.setChangeEventsEnabled(true);
-                        }
-                    }
-                    resolve();
-                } catch (e) {
-                    reject(e);
+                    //We change to a temp dir to avoid issues with the current working directory
+                    process.chdir(os.tmpdir());
+                    //Disable change events while installing
+                    this.setChangeEventsEnabled(false);
+                    await Actions.install(progressListener, [ref], {});
                 } finally {
-                    this._processNext().catch((e) => console.error(e));
+                    this.setChangeEventsEnabled(true);
                 }
-            });
-        });
+                definitionsManager.clearCache();
+                assetManager.clearCache();
+                console.log(`Asset installed: ${ref}`);
+            };
+        };
 
-        this._processNext().catch((e) => console.error(e));
+        const tasks: Task[] = [];
 
-        return out;
-    }
-
-    async _processNext() {
-        if (this._processing) {
-            return;
-        }
-        this._processing = true;
-        try {
-            while (this._installQueue.length > 0) {
-                const item = this._installQueue.shift();
-                if (item) {
-                    await item();
-                }
+        while (refs.length > 0) {
+            let ref = refs.shift();
+            if (!ref) {
+                continue;
             }
-        } finally {
-            this._processing = false;
+            ref = normalizeKapetaUri(ref);
+
+            if (INSTALL_ATTEMPTED[ref]) {
+                continue;
+            }
+
+            if (definitionsManager.exists(ref)) {
+                continue;
+            }
+
+            const task = taskManager.add(`asset:install:${ref}`, createInstaller(ref), {
+                name: `Installing ${ref}`,
+                group: 'asset:install:',
+            });
+
+            tasks.push(task);
         }
+
+        return tasks;
     }
 
-    async ensureAsset(handle: string, name: string, version: string) {
+    async ensureAsset(
+        handle: string,
+        name: string,
+        version: string,
+        wait: boolean = true
+    ): Promise<undefined | Task[]> {
         const fullName = `${handle}/${name}`;
         const ref = `${fullName}:${version}`;
 
@@ -219,15 +214,22 @@ class RepositoryManager {
         }
 
         this._cache[ref] = true;
+        let tasks: Task[] | undefined = undefined;
         if (!installedAsset) {
-            await this._install([ref]);
+            tasks = await this._install([ref]);
         } else {
             //Ensure dependencies are installed
             const refs = assetVersion.dependencies.map((dep: Dependency) => dep.name);
             if (refs.length > 0) {
-                await this._install(refs);
+                tasks = await this._install(refs);
             }
         }
+
+        if (tasks && wait) {
+            await Promise.all(tasks.map((t) => t.future.promise));
+        }
+
+        return tasks;
     }
 }
 
