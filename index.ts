@@ -17,8 +17,13 @@ import AssetsRoutes from './src/assets/routes';
 import ProviderRoutes from './src/providers/routes';
 import AttachmentRoutes from './src/attachments/routes';
 import TaskRoutes from './src/tasks/routes';
+import APIRoutes from './src/api';
 import { getBindHost } from './src/utils/utils';
 import request from 'request';
+import ClusterConfiguration from "@kapeta/local-cluster-config";
+import {KapetaAPI} from "@kapeta/nodejs-api-client";
+import {corsHandler} from "./src/middleware/cors";
+
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 
@@ -38,6 +43,8 @@ function createServer() {
     app.use('/providers', ProviderRoutes);
     app.use('/attachments', AttachmentRoutes);
     app.use('/tasks', TaskRoutes);
+    app.use('/api', APIRoutes);
+
     app.get('/status', async (req, res) => {
         res.send({
             ok: true,

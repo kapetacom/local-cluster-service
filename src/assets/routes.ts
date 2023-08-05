@@ -32,7 +32,7 @@ router.use('/', stringBody);
  * Get all local assets available
  */
 router.get('/', (req: Request, res: Response) => {
-    res.send(assetManager.getAssets());
+    res.send(assetManager.getAssets([]));
 });
 
 /**

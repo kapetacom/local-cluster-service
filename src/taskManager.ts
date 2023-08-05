@@ -189,7 +189,6 @@ class TaskManager {
             );
 
             if (existingTaskInGroup) {
-                console.log('existingTaskInGroup', existingTaskInGroup.toData());
                 return;
             }
         }
@@ -215,7 +214,6 @@ class TaskManager {
                 (t) => t.id !== task.id && t.metadata.group === task.metadata.group && t.status === TaskStatus.PENDING
             );
             if (nextTaskInGroup) {
-                console.log('nextTaskInGroup', nextTaskInGroup.toData());
                 return this.invokeTask(nextTaskInGroup);
             }
         }
