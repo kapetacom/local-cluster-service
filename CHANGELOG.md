@@ -1,3 +1,10 @@
+# [0.14.0](https://github.com/kapetacom/local-cluster-service/compare/v0.13.0...v0.14.0) (2023-08-05)
+
+
+### Features
+
+* Added api proxy for remote services ([#56](https://github.com/kapetacom/local-cluster-service/issues/56)) ([ea2cba8](https://github.com/kapetacom/local-cluster-service/commit/ea2cba8936b422e4b17197c35ef656b501b740a5))
+
 # [0.13.0](https://github.com/kapetacom/local-cluster-service/compare/v0.12.1...v0.13.0) (2023-08-03)
 
 
