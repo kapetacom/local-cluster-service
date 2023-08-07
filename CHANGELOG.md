@@ -1,3 +1,10 @@
+## [0.14.1](https://github.com/kapetacom/local-cluster-service/compare/v0.14.0...v0.14.1) (2023-08-07)
+
+
+### Bug Fixes
+
+* Generate code in the background ([#57](https://github.com/kapetacom/local-cluster-service/issues/57)) ([2e14827](https://github.com/kapetacom/local-cluster-service/commit/2e1482713ee52a19aed8edb9810107f1f340537c))
+
 # [0.14.0](https://github.com/kapetacom/local-cluster-service/compare/v0.13.0...v0.14.0) (2023-08-05)
 
 
