@@ -12,6 +12,7 @@ import { BlockDefinition } from '@kapeta/schemas';
 import { Actions } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { normalizeKapetaUri } from './utils/utils';
+import {taskManager} from "./taskManager";
 
 export interface EnrichedAsset {
     ref: string;
@@ -141,19 +142,24 @@ class AssetManager {
             FSExtra.mkdirpSync(dirName);
         }
 
+        console.log('Wrote to ' + path);
         FS.writeFileSync(path, YAML.stringify(yaml));
 
         const asset = await this.importFile(path);
+        console.log('Imported');
 
-        if (codeGeneratorManager.canGenerateCode(yaml)) {
-            await codeGeneratorManager.generate(path, yaml);
-        }
         this.cache.flushAll();
+        definitionsManager.clearCache();
+
+        const ref = `kapeta://${yaml.metadata.name}:local`;
+
+        this.maybeGenerateCode(ref, path, yaml);
+
         return asset;
     }
 
     async updateAsset(ref: string, yaml: BlockDefinition) {
-        const asset = await this.getAsset(ref, true);
+        const asset = await this.getAsset(ref, true, false);
         if (!asset) {
             throw new Error('Attempted to update unknown asset: ' + ref);
         }
@@ -166,13 +172,26 @@ class AssetManager {
             throw new Error('Attempted to update corrupted asset: ' + ref);
         }
 
+        console.log('Wrote to ' + asset.ymlPath);
         FS.writeFileSync(asset.ymlPath, YAML.stringify(yaml));
         this.cache.flushAll();
-        if (codeGeneratorManager.canGenerateCode(yaml)) {
-            await codeGeneratorManager.generate(asset.ymlPath, yaml);
-        } else {
-            console.log('Could not generate code for %s', yaml.kind ? yaml.kind : 'unknown yaml');
+        definitionsManager.clearCache();
+
+        this.maybeGenerateCode(asset.ref, asset.ymlPath, yaml);
+    }
+
+    private maybeGenerateCode(ref:string, ymlPath:string, block: BlockDefinition) {
+        ref = normalizeKapetaUri(ref);
+        if (codeGeneratorManager.canGenerateCode(block)) {
+            const assetTitle = block.metadata.title ? block.metadata.title : parseKapetaUri(block.metadata.name).name;
+            taskManager.add(`codegen:${ref}`, async () => {
+                await codeGeneratorManager.generate(ymlPath, block);
+            },{
+                name: `Generating code for ${assetTitle}`,
+            });
+            return true;
         }
+        return false;
     }
 
     async importFile(filePath: string) {
