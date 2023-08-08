@@ -1,3 +1,10 @@
+## [0.14.2](https://github.com/kapetacom/local-cluster-service/compare/v0.14.1...v0.14.2) (2023-08-08)
+
+
+### Bug Fixes
+
+* Use kapeta std lib for child process ([#58](https://github.com/kapetacom/local-cluster-service/issues/58)) ([43254ce](https://github.com/kapetacom/local-cluster-service/commit/43254cef67c86f8260150073d44b5803cd20e527))
+
 ## [0.14.1](https://github.com/kapetacom/local-cluster-service/compare/v0.14.0...v0.14.1) (2023-08-07)
 
 
