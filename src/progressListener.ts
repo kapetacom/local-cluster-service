@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn } from '@kapeta/nodejs-process';
 import { SocketManager, socketManager } from './socketManager';
 class ProgressListener {
     private socketManager: SocketManager;
@@ -14,21 +14,17 @@ class ProgressListener {
         });
 
         return new Promise((resolve, reject) => {
-            const child = spawn(command, {
+            const child = spawn(command, [],{
                 cwd: directory ? directory : process.cwd(),
                 detached: true,
                 shell: true,
             });
 
-            child.stdout.on('data', (data) => {
-                this.socketManager.emit(`install`, 'install:log', { type: 'info', message: data.toString() });
+            child.onData((data) => {
+                this.socketManager.emit(`install`, 'install:log', { type: 'info', message: data.line });
             });
 
-            child.stderr.on('data', (data) => {
-                this.socketManager.emit(`install`, 'install:log', { type: 'info', message: data.toString() });
-            });
-
-            child.on('exit', (exit, signal) => {
+            child.process.on('exit', (exit, signal) => {
                 if (exit !== 0) {
                     this.socketManager.emit(`install`, 'install:log', {
                         type: 'info',
@@ -44,7 +40,7 @@ class ProgressListener {
                 }
             });
 
-            child.on('error', (err) => {
+            child.process.on('error', (err) => {
                 this.socketManager.emit(`install`, 'install:log', {
                     type: 'info',
                     message: `"${command}" failed: "${err.message}"`,
