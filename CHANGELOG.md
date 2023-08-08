@@ -1,3 +1,10 @@
+## [0.14.3](https://github.com/kapetacom/local-cluster-service/compare/v0.14.2...v0.14.3) (2023-08-08)
+
+
+### Bug Fixes
+
+* Improve cross platform handling of child processes ([c2483f7](https://github.com/kapetacom/local-cluster-service/commit/c2483f78378fe5d6c379eb49ac12d1bf487181ad))
+
 ## [0.14.2](https://github.com/kapetacom/local-cluster-service/compare/v0.14.1...v0.14.2) (2023-08-08)
 
 
