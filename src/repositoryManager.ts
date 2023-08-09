@@ -14,6 +14,9 @@ import { Task, taskManager } from './taskManager';
 import { normalizeKapetaUri } from './utils/utils';
 import { assetManager } from './assetManager';
 
+const EVENT_DEFAULT_PROVIDERS_START= 'default-providers-start';
+const EVENT_DEFAULT_PROVIDERS_END= 'default-providers-end';
+
 const DEFAULT_PROVIDERS = [
     'kapeta/block-type-service',
     'kapeta/block-type-frontend',
@@ -130,7 +133,11 @@ class RepositoryManager {
     }
 
     public ensureDefaultProviders(): void {
-        this._install(DEFAULT_PROVIDERS);
+        socketManager.emitGlobal(EVENT_DEFAULT_PROVIDERS_START, {providers:DEFAULT_PROVIDERS});
+        const tasks = this._install(DEFAULT_PROVIDERS);
+        Promise.allSettled(tasks.map(t => t.wait())).then(() => {
+            socketManager.emitGlobal(EVENT_DEFAULT_PROVIDERS_END, {});
+        });
     }
 
     private _install(refs: string[]): Task[] {
