@@ -1,3 +1,10 @@
+# [0.15.0](https://github.com/kapetacom/local-cluster-service/compare/v0.14.4...v0.15.0) (2023-08-09)
+
+
+### Features
+
+* auto-install core providers and cli when starting ([6495dce](https://github.com/kapetacom/local-cluster-service/commit/6495dcea33218fb214ee9df682ef327b91ebf817))
+
 ## [0.14.4](https://github.com/kapetacom/local-cluster-service/compare/v0.14.3...v0.14.4) (2023-08-09)
 
 
