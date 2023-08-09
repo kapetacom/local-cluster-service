@@ -1,3 +1,10 @@
+## [0.15.1](https://github.com/kapetacom/local-cluster-service/compare/v0.15.0...v0.15.1) (2023-08-09)
+
+
+### Bug Fixes
+
+* Move providers into TS file - compile doesnt copy json ([1e2681a](https://github.com/kapetacom/local-cluster-service/commit/1e2681ab85592366e6eb99aab72a514b4a1503c4))
+
 # [0.15.0](https://github.com/kapetacom/local-cluster-service/compare/v0.14.4...v0.15.0) (2023-08-09)
 
 
