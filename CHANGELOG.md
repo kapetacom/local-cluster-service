@@ -1,3 +1,10 @@
+## [0.14.4](https://github.com/kapetacom/local-cluster-service/compare/v0.14.3...v0.14.4) (2023-08-09)
+
+
+### Bug Fixes
+
+* Handle missing authentication gracefully ([329d091](https://github.com/kapetacom/local-cluster-service/commit/329d09148261da3c624defcc252f2f700b3b4dc2))
+
 ## [0.14.3](https://github.com/kapetacom/local-cluster-service/compare/v0.14.2...v0.14.3) (2023-08-08)
 
 
