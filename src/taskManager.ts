@@ -106,6 +106,9 @@ function createFuture<T>(): Future<T> {
         reject = rej;
     });
 
+    // Ignore unhandled promise rejections
+    promise.catch(() => {});
+
     return {
         promise,
         resolve,
@@ -193,6 +196,7 @@ class TaskManager {
             }
         }
 
+        const startTime = Date.now();
         try {
             task.status = TaskStatus.RUNNING;
             task.emitUpdate();
@@ -207,6 +211,7 @@ class TaskManager {
             task.emitUpdate();
         } finally {
             this.remove(task.id);
+            console.log(`Task ${task.id} completed in ${Date.now() - startTime}ms`);
         }
 
         if (task.metadata.group) {

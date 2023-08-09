@@ -1,0 +1,14 @@
+[
+    "kapeta/block-type-service",
+    "kapeta/block-type-frontend",
+    "kapeta/block-type-gateway-http",
+    "kapeta/resource-type-rest-api",
+    "kapeta/resource-type-rest-client",
+    "kapeta/resource-type-web-page",
+    "kapeta/resource-type-web-fragment",
+    "kapeta/resource-type-mongodb",
+    "kapeta/resource-type-postgresql",
+    "kapeta/language-target-react-ts",
+    "kapeta/language-target-nodejs",
+    "kapeta/language-target-java-spring-boot"
+]

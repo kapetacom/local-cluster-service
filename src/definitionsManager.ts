@@ -58,6 +58,9 @@ class DefinitionsManager {
     public getDefinition(ref: string) {
         const uri = parseKapetaUri(ref);
         return this.getDefinitions().find((d) => {
+            if (!uri.version) {
+                return d.definition.metadata.name === uri.fullName;
+            }
             return parseKapetaUri(`${d.definition.metadata.name}:${d.version}`).id === uri.id;
         });
     }

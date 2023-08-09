@@ -7,46 +7,61 @@ class ProgressListener {
         this.socketManager = socketManager;
     }
 
-    run(command: string, directory?: string): Promise<{ exit: number; signal: NodeJS.Signals | null }> {
+    run(command: string, directory?: string): Promise<{ exit: number; signal: NodeJS.Signals | null; output: string }> {
         this.socketManager.emit(`install`, 'install:log', {
             type: 'info',
             message: `Running command "${command}"`,
         });
 
-        return new Promise((resolve, reject) => {
-            const child = spawn(command, [],{
-                cwd: directory ? directory : process.cwd(),
-                detached: true,
-                shell: true,
-            });
+        const firstCommand = command.split(' ')[0];
 
-            child.onData((data) => {
-                this.socketManager.emit(`install`, 'install:log', { type: 'info', message: data.line });
-            });
-
-            child.process.on('exit', (exit, signal) => {
-                if (exit !== 0) {
-                    this.socketManager.emit(`install`, 'install:log', {
-                        type: 'info',
-                        message: `"${command}" failed: "${exit}"`,
-                    });
-                    reject(new Error(`Command "${command}" exited with code ${exit}`));
-                } else {
-                    this.socketManager.emit(`install`, 'install:log', {
-                        type: 'info',
-                        message: `Command OK: "${command}"`,
-                    });
-                    resolve({ exit, signal });
-                }
-            });
-
-            child.process.on('error', (err) => {
-                this.socketManager.emit(`install`, 'install:log', {
-                    type: 'info',
-                    message: `"${command}" failed: "${err.message}"`,
+        return new Promise(async (resolve, reject) => {
+            try {
+                const chunks: Buffer[] = [];
+                const child = spawn(command, [], {
+                    cwd: directory ? directory : process.cwd(),
+                    detached: true,
+                    shell: true,
                 });
-                reject(err);
-            });
+
+                child.onData((data) => {
+                    this.socketManager.emit(`install`, 'install:log', { type: 'info', message: data.line });
+                });
+
+                if (child.process.stdout) {
+                    child.process.stdout.on('data', (data) => {
+                        chunks.push(data);
+                    });
+                }
+
+                child.process.on('exit', (exit, signal) => {
+                    if (exit !== 0) {
+                        this.socketManager.emit(`install`, 'install:log', {
+                            type: 'info',
+                            message: `"${command}" failed: "${exit}"`,
+                        });
+                        reject(new Error(`Command "${command}" exited with code ${exit}`));
+                    } else {
+                        this.socketManager.emit(`install`, 'install:log', {
+                            type: 'info',
+                            message: `Command OK: "${command}"`,
+                        });
+                        resolve({ exit, signal, output: Buffer.concat(chunks).toString() });
+                    }
+                });
+
+                child.process.on('error', (err) => {
+                    this.socketManager.emit(`install`, 'install:log', {
+                        type: 'info',
+                        message: `"${command}" failed: "${err.message}"`,
+                    });
+                    reject(err);
+                });
+
+                await child.wait();
+            } catch (e) {
+                reject(e);
+            }
         });
     }
 

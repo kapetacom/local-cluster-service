@@ -252,13 +252,14 @@ class ContainerManager {
             const api = new KapetaAPI();
             const accessToken = api.hasToken() ? await api.getAccessToken() : null;
 
-            const auth = accessToken && image.startsWith('docker.kapeta.com/')
-                ? {
-                      username: 'kapeta',
-                      password: accessToken,
-                      serveraddress: 'docker.kapeta.com',
-                  }
-                : {};
+            const auth =
+                accessToken && image.startsWith('docker.kapeta.com/')
+                    ? {
+                          username: 'kapeta',
+                          password: accessToken,
+                          serveraddress: 'docker.kapeta.com',
+                      }
+                    : {};
 
             const stream = (await this.docker().image.create(auth, {
                 fromImage: imageName,

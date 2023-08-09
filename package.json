@@ -46,7 +46,7 @@
         "@kapeta/codegen": "<2",
         "@kapeta/local-cluster-config": ">= 0.2.3 <2",
         "@kapeta/nodejs-api-client": "<2",
-        "@kapeta/nodejs-process": "^1.1.0",
+        "@kapeta/nodejs-process": "<2",
         "@kapeta/nodejs-registry-utils": "<2",
         "@kapeta/nodejs-utils": "<2",
         "@kapeta/schemas": "^0.0.58",

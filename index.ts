@@ -20,10 +20,8 @@ import TaskRoutes from './src/tasks/routes';
 import APIRoutes from './src/api';
 import { getBindHost } from './src/utils/utils';
 import request from 'request';
-import ClusterConfiguration from "@kapeta/local-cluster-config";
-import {KapetaAPI} from "@kapeta/nodejs-api-client";
-import {corsHandler} from "./src/middleware/cors";
-
+import { repositoryManager } from './src/repositoryManager';
+import { ensureCLI } from './src/utils/commandLineUtils';
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 
@@ -175,9 +173,22 @@ export default {
 
             const bindHost = getBindHost(host);
 
-            currentServer.listen(port, bindHost, () =>
-                resolve({ host, port, dockerStatus: containerManager.isAlive() })
-            );
+            currentServer.listen(port, bindHost, () => {
+                try {
+                    ensureCLI().catch((e: any) => console.error('Failed to install CLI.', e));
+                } catch (e: any) {
+                    console.error('Failed to install CLI.', e);
+                }
+
+                try {
+                    // Start installation process for all default providers
+                    repositoryManager.ensureDefaultProviders();
+                } catch (e: any) {
+                    console.error('Failed to install default providers.', e);
+                }
+
+                resolve({ host, port, dockerStatus: containerManager.isAlive() });
+            });
             currentServer.host = host;
             currentServer.port = port;
         });

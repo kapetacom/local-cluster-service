@@ -12,7 +12,7 @@ import { BlockDefinition } from '@kapeta/schemas';
 import { Actions } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { normalizeKapetaUri } from './utils/utils';
-import {taskManager} from "./taskManager";
+import { taskManager } from './taskManager';
 
 export interface EnrichedAsset {
     ref: string;
@@ -180,15 +180,19 @@ class AssetManager {
         this.maybeGenerateCode(asset.ref, asset.ymlPath, yaml);
     }
 
-    private maybeGenerateCode(ref:string, ymlPath:string, block: BlockDefinition) {
+    private maybeGenerateCode(ref: string, ymlPath: string, block: BlockDefinition) {
         ref = normalizeKapetaUri(ref);
         if (codeGeneratorManager.canGenerateCode(block)) {
             const assetTitle = block.metadata.title ? block.metadata.title : parseKapetaUri(block.metadata.name).name;
-            taskManager.add(`codegen:${ref}`, async () => {
-                await codeGeneratorManager.generate(ymlPath, block);
-            },{
-                name: `Generating code for ${assetTitle}`,
-            });
+            taskManager.add(
+                `codegen:${ref}`,
+                async () => {
+                    await codeGeneratorManager.generate(ymlPath, block);
+                },
+                {
+                    name: `Generating code for ${assetTitle}`,
+                }
+            );
             return true;
         }
         return false;

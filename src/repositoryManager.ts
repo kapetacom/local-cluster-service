@@ -114,7 +114,12 @@ class RepositoryManager {
         this.watcher = undefined;
     }
 
-    private async _install(refs: string[]): Promise<Task[]> {
+    public ensureDefaultProviders(): void {
+        const providers = require('../default-providers.json') as string[];
+        this._install(providers);
+    }
+
+    private _install(refs: string[]): Task[] {
         //We make sure to only install one asset at a time - otherwise unexpected things might happen
         const createInstaller = (ref: string) => {
             return async () => {
@@ -125,7 +130,7 @@ class RepositoryManager {
                 if (definitionsManager.exists(ref)) {
                     return;
                 }
-                console.log(`Installing asset: ${ref}`);
+                //console.log(`Installing asset: ${ref}`);
                 INSTALL_ATTEMPTED[ref] = true;
                 //Auto-install missing asset
                 try {
@@ -134,12 +139,15 @@ class RepositoryManager {
                     //Disable change events while installing
                     this.setChangeEventsEnabled(false);
                     await Actions.install(progressListener, [ref], {});
+                } catch (e) {
+                    console.error(`Failed to install asset: ${ref}`, e);
+                    throw e;
                 } finally {
                     this.setChangeEventsEnabled(true);
                 }
                 definitionsManager.clearCache();
                 assetManager.clearCache();
-                console.log(`Asset installed: ${ref}`);
+                //console.log(`Asset installed: ${ref}`);
             };
         };
 
@@ -162,7 +170,7 @@ class RepositoryManager {
 
             const task = taskManager.add(`asset:install:${ref}`, createInstaller(ref), {
                 name: `Installing ${ref}`,
-                group: 'asset:install:',
+                group: 'asset:install:', //Group prevents multiple tasks from running at the same time
             });
 
             tasks.push(task);
@@ -216,17 +224,17 @@ class RepositoryManager {
         this._cache[ref] = true;
         let tasks: Task[] | undefined = undefined;
         if (!installedAsset) {
-            tasks = await this._install([ref]);
+            tasks = this._install([ref]);
         } else {
             //Ensure dependencies are installed
             const refs = assetVersion.dependencies.map((dep: Dependency) => dep.name);
             if (refs.length > 0) {
-                tasks = await this._install(refs);
+                tasks = this._install(refs);
             }
         }
 
         if (tasks && wait) {
-            await Promise.all(tasks.map((t) => t.future.promise));
+            await Promise.all(tasks.map((t) => t.wait()));
         }
 
         return tasks;
