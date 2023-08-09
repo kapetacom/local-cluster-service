@@ -1,3 +1,10 @@
+## [0.15.2](https://github.com/kapetacom/local-cluster-service/compare/v0.15.1...v0.15.2) (2023-08-09)
+
+
+### Bug Fixes
+
+* Emit events for default providers ([8308eea](https://github.com/kapetacom/local-cluster-service/commit/8308eeab0a1bbaf64c3c448d0b645a86dc8f8f9a))
+
 ## [0.15.1](https://github.com/kapetacom/local-cluster-service/compare/v0.15.0...v0.15.1) (2023-08-09)
 
 
