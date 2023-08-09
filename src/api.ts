@@ -14,7 +14,11 @@ router.use('/registry', createAPIRoute(remoteServices.registry ?? 'https://regis
     nonce: false,
     userAgent: `KapetaDesktopCluster/${packageJson.version}`,
     tokenFetcher: () => {
-        return new KapetaAPI().getAccessToken();
+        const api = new KapetaAPI();
+        if (api.hasToken()) {
+            return api.getAccessToken();
+        }
+        return null;
     }
 }));
 

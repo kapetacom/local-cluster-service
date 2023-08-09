@@ -18,6 +18,14 @@ function getBaseUrl() {
 router.use('/', corsHandler);
 
 router.put('/:handle/:name', async (req: Request, res: Response) => {
+    if (!api.hasToken()) {
+        res.status(401).send({
+            status: 401,
+            error: 'Unauthorized',
+        });
+        return;
+    }
+
     const endpoint = getBaseUrl();
     if (!req.headers['content-type']) {
         res.status(400).send({

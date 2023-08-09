@@ -11,7 +11,11 @@ router.use('/', corsHandler);
 
 router.get('/current', async (req: Request, res: Response) => {
     try {
-        res.send(await api.getCurrentIdentity());
+        if (api.hasToken()) {
+            res.send(await api.getCurrentIdentity());
+        } else {
+            res.status(404).send();
+        }
     } catch (e: any) {
         res.status(e.status ?? 500).send(e);
     }
@@ -19,7 +23,11 @@ router.get('/current', async (req: Request, res: Response) => {
 
 router.get('/:identityId/memberships', async (req: Request, res: Response) => {
     try {
-        res.send(await api.getMemberships(req.params.identityId));
+        if (api.hasToken()) {
+            res.send(await api.getMemberships(req.params.identityId));
+        } else {
+            res.send([]);
+        }
     } catch (e: any) {
         res.status(e.status ?? 500).send(e);
     }

@@ -250,9 +250,9 @@ class ContainerManager {
         const processor = async (task: Task) => {
             const timeStarted = Date.now();
             const api = new KapetaAPI();
-            const accessToken = await api.getAccessToken();
+            const accessToken = api.hasToken() ? await api.getAccessToken() : null;
 
-            const auth = image.startsWith('docker.kapeta.com/')
+            const auth = accessToken && image.startsWith('docker.kapeta.com/')
                 ? {
                       username: 'kapeta',
                       password: accessToken,
