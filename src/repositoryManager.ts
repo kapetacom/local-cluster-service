@@ -14,6 +14,21 @@ import { Task, taskManager } from './taskManager';
 import { normalizeKapetaUri } from './utils/utils';
 import { assetManager } from './assetManager';
 
+const DEFAULT_PROVIDERS = [
+    'kapeta/block-type-service',
+    'kapeta/block-type-frontend',
+    'kapeta/block-type-gateway-http',
+    'kapeta/resource-type-rest-api',
+    'kapeta/resource-type-rest-client',
+    'kapeta/resource-type-web-page',
+    'kapeta/resource-type-web-fragment',
+    'kapeta/resource-type-mongodb',
+    'kapeta/resource-type-postgresql',
+    'kapeta/language-target-react-ts',
+    'kapeta/language-target-nodejs',
+    'kapeta/language-target-java-spring-boot',
+];
+
 const INSTALL_ATTEMPTED: { [p: string]: boolean } = {};
 
 class RepositoryManager {
@@ -115,8 +130,7 @@ class RepositoryManager {
     }
 
     public ensureDefaultProviders(): void {
-        const providers = require('../default-providers.json') as string[];
-        this._install(providers);
+        this._install(DEFAULT_PROVIDERS);
     }
 
     private _install(refs: string[]): Task[] {
