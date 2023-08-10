@@ -11,13 +11,8 @@ import uuid from 'node-uuid';
 import md5 from 'md5';
 import { getBlockInstanceContainerName } from './utils/utils';
 import { InstanceInfo, LogEntry, LogSource } from './types';
-import { socketManager } from './socketManager';
-import { handlers as ArtifactHandlers } from '@kapeta/nodejs-registry-utils';
-import { progressListener } from './progressListener';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
 import { taskManager, Task } from './taskManager';
-
-const EVENT_IMAGE_PULL = 'docker-image-pull';
 
 type StringMap = { [key: string]: string };
 

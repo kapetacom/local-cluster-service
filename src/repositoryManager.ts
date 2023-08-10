@@ -6,16 +6,16 @@ import FSExtra from 'fs-extra';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { socketManager } from './socketManager';
-import { progressListener } from './progressListener';
 import { Dependency } from '@kapeta/schemas';
 import { Actions, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
 import { normalizeKapetaUri } from './utils/utils';
 import { assetManager } from './assetManager';
+import { ProgressListener } from './progressListener';
 
-const EVENT_DEFAULT_PROVIDERS_START= 'default-providers-start';
-const EVENT_DEFAULT_PROVIDERS_END= 'default-providers-end';
+const EVENT_DEFAULT_PROVIDERS_START = 'default-providers-start';
+const EVENT_DEFAULT_PROVIDERS_END = 'default-providers-end';
 
 const DEFAULT_PROVIDERS = [
     'kapeta/block-type-service',
@@ -133,9 +133,9 @@ class RepositoryManager {
     }
 
     public ensureDefaultProviders(): void {
-        socketManager.emitGlobal(EVENT_DEFAULT_PROVIDERS_START, {providers:DEFAULT_PROVIDERS});
+        socketManager.emitGlobal(EVENT_DEFAULT_PROVIDERS_START, { providers: DEFAULT_PROVIDERS });
         const tasks = this._install(DEFAULT_PROVIDERS);
-        Promise.allSettled(tasks.map(t => t.wait())).then(() => {
+        Promise.allSettled(tasks.map((t) => t.wait())).then(() => {
             socketManager.emitGlobal(EVENT_DEFAULT_PROVIDERS_END, {});
         });
     }
@@ -159,7 +159,7 @@ class RepositoryManager {
                     process.chdir(os.tmpdir());
                     //Disable change events while installing
                     this.setChangeEventsEnabled(false);
-                    await Actions.install(progressListener, [ref], {});
+                    await Actions.install(new ProgressListener(), [ref], {});
                 } catch (e) {
                     console.error(`Failed to install asset: ${ref}`, e);
                     throw e;

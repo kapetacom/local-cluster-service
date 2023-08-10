@@ -1,19 +1,38 @@
 import { spawn } from '@kapeta/nodejs-process';
-import { SocketManager, socketManager } from './socketManager';
-class ProgressListener {
-    private socketManager: SocketManager;
+import { socketManager } from './socketManager';
+import { LogEntry } from './types';
+import { format } from 'node:util';
 
-    constructor(socketManager: SocketManager) {
-        this.socketManager = socketManager;
+export class ProgressListener {
+    private readonly systemId: string | undefined;
+    private readonly instanceId: string | undefined;
+
+    constructor(systemId?: string, instanceId?: string) {
+        this.systemId = systemId;
+        this.instanceId = instanceId;
+    }
+
+    private emitLog(payload: Omit<LogEntry, 'time' | 'source'>) {
+        const logEntry: LogEntry = {
+            ...payload,
+            source: 'stdout',
+            time: Date.now(),
+        };
+        if (this.systemId && this.instanceId) {
+            socketManager.emitInstanceLog(this.systemId, this.instanceId, logEntry);
+            return;
+        }
+
+        if (this.systemId) {
+            socketManager.emitSystemLog(this.systemId, logEntry);
+            return;
+        }
+
+        socketManager.emitGlobalLog(logEntry);
     }
 
     run(command: string, directory?: string): Promise<{ exit: number; signal: NodeJS.Signals | null; output: string }> {
-        this.socketManager.emit(`install`, 'install:log', {
-            type: 'info',
-            message: `Running command "${command}"`,
-        });
-
-        const firstCommand = command.split(' ')[0];
+        this.info(`Running command "${command}"`);
 
         return new Promise(async (resolve, reject) => {
             try {
@@ -25,7 +44,10 @@ class ProgressListener {
                 });
 
                 child.onData((data) => {
-                    this.socketManager.emit(`install`, 'install:log', { type: 'info', message: data.line });
+                    this.emitLog({
+                        level: data.type === 'stdout' ? 'INFO' : 'WARN',
+                        message: data.line,
+                    });
                 });
 
                 if (child.process.stdout) {
@@ -36,25 +58,16 @@ class ProgressListener {
 
                 child.process.on('exit', (exit, signal) => {
                     if (exit !== 0) {
-                        this.socketManager.emit(`install`, 'install:log', {
-                            type: 'info',
-                            message: `"${command}" failed: "${exit}"`,
-                        });
+                        this.warn(`Command "${command}" failed: ${exit}`);
                         reject(new Error(`Command "${command}" exited with code ${exit}`));
                     } else {
-                        this.socketManager.emit(`install`, 'install:log', {
-                            type: 'info',
-                            message: `Command OK: "${command}"`,
-                        });
+                        this.info(`Command OK: "${command}"`);
                         resolve({ exit, signal, output: Buffer.concat(chunks).toString() });
                     }
                 });
 
                 child.process.on('error', (err) => {
-                    this.socketManager.emit(`install`, 'install:log', {
-                        type: 'info',
-                        message: `"${command}" failed: "${err.message}"`,
-                    });
+                    this.warn(`"${command}" failed: "${err.message}"`);
                     reject(err);
                 });
 
@@ -66,48 +79,55 @@ class ProgressListener {
     }
 
     async progress(label: string, callback: () => void | Promise<void>) {
-        this.socketManager.emit(`install`, 'install:log', { type: 'info', message: `${label}: started` });
+        this.info(`${label}: started`);
         try {
             const result = await callback();
-            this.socketManager.emit(`install`, 'install:log', { type: 'info', message: `${label}: done` });
+            this.info(`${label}: done`);
             return result;
         } catch (e: any) {
-            this.socketManager.emit(`install`, 'install:log', {
-                type: 'info',
-                message: `${label}: failed. ${e.message}`,
-            });
+            this.warn(`${label}: failed. ${e.message}`);
             throw e;
         }
     }
 
     async check(message: string, ok: boolean | Promise<boolean> | (() => Promise<boolean>)) {
         const wasOk = await ok;
-        this.socketManager.emit(`install`, 'install:log', { type: 'info', message: `${message}: ${wasOk}` });
+        this.info(`${message}: ${wasOk}`);
     }
 
     start(label: string) {
-        this.socketManager.emit(`install`, 'install:log', { type: 'info', message: label });
+        this.info(label);
     }
 
     showValue(label: string, value: any) {
-        this.socketManager.emit(`install`, 'install:log', { type: 'info', message: `${label}: ${value}` });
+        this.info(`${label}: ${value}`);
     }
 
     error(msg: string, ...args: any[]) {
-        this.socketManager.emit(`install`, 'install:log', { type: 'error', message: msg });
+        this.emitLog({
+            message: format(msg, args),
+            level: 'ERROR',
+        });
     }
 
     warn(msg: string, ...args: any[]) {
-        this.socketManager.emit(`install`, 'install:log', { type: 'warn', message: msg });
+        this.emitLog({
+            message: format(msg, args),
+            level: 'WARN',
+        });
     }
 
     info(msg: string, ...args: any[]) {
-        this.socketManager.emit(`install`, 'install:log', { type: 'info', message: msg });
+        this.emitLog({
+            message: format(msg, args),
+            level: 'INFO',
+        });
     }
 
     debug(msg: string, ...args: any[]) {
-        this.socketManager.emit(`install`, 'install:log', { type: 'debug', message: msg });
+        this.emitLog({
+            message: format(msg, args),
+            level: 'DEBUG',
+        });
     }
 }
-
-export const progressListener = new ProgressListener(socketManager);

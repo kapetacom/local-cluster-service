@@ -3,9 +3,9 @@ import FS from 'node:fs';
 import FSExtra from 'fs-extra';
 import YAML from 'yaml';
 import NodeCache from 'node-cache';
-import ClusterConfiguration, { Definition, DefinitionInfo } from '@kapeta/local-cluster-config';
+import { Definition, DefinitionInfo } from '@kapeta/local-cluster-config';
 import { codeGeneratorManager } from './codeGeneratorManager';
-import { progressListener } from './progressListener';
+import { ProgressListener } from './progressListener';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { repositoryManager } from './repositoryManager';
 import { BlockDefinition } from '@kapeta/schemas';
@@ -209,7 +209,7 @@ class AssetManager {
 
         const assetInfos = YAML.parseAllDocuments(FS.readFileSync(filePath).toString()).map((doc) => doc.toJSON());
 
-        await Actions.link(progressListener, Path.dirname(filePath));
+        await Actions.link(new ProgressListener(), Path.dirname(filePath));
 
         const version = 'local';
         const refs = assetInfos.map((assetInfo) => `kapeta://${assetInfo.metadata.name}:${version}`);
@@ -223,7 +223,7 @@ class AssetManager {
             throw new Error('Asset does not exists: ' + ref);
         }
         this.cache.flushAll();
-        await Actions.uninstall(progressListener, [asset.ref]);
+        await Actions.uninstall(new ProgressListener(), [asset.ref]);
     }
 
     async installAsset(ref: string) {

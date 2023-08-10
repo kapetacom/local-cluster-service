@@ -3,7 +3,13 @@ import request from 'request';
 import AsyncLock from 'async-lock';
 import { BlockInstanceRunner } from './utils/BlockInstanceRunner';
 import { storageService } from './storageService';
-import { socketManager } from './socketManager';
+import {
+    EVENT_INSTANCE_CREATED,
+    EVENT_INSTANCE_EXITED,
+    EVENT_INSTANCE_LOG,
+    EVENT_STATUS_CHANGED,
+    socketManager,
+} from './socketManager';
 import { serviceManager } from './serviceManager';
 import { assetManager } from './assetManager';
 import { containerManager, HEALTH_CHECK_TIMEOUT } from './containerManager';
@@ -19,10 +25,6 @@ import { Task, taskManager } from './taskManager';
 const CHECK_INTERVAL = 5000;
 const DEFAULT_HEALTH_PORT_TYPE = 'rest';
 
-const EVENT_STATUS_CHANGED = 'status-changed';
-const EVENT_INSTANCE_CREATED = 'instance-created';
-const EVENT_INSTANCE_EXITED = 'instance-exited';
-const EVENT_INSTANCE_LOG = 'instance-log';
 const MIN_TIME_RUNNING = 30000; //If something didnt run for more than 30 secs - it failed
 
 export class InstanceManager {
@@ -153,10 +155,10 @@ export class InstanceManager {
         if (existingInstance) {
             const ix = this._instances.indexOf(existingInstance);
             this._instances.splice(ix, 1, instance);
-            this.emitSystemEvent(instance.systemId, EVENT_STATUS_CHANGED, instance);
+            socketManager.emitSystemEvent(instance.systemId, EVENT_STATUS_CHANGED, instance);
         } else {
             this._instances.push(instance);
-            this.emitSystemEvent(instance.systemId, EVENT_INSTANCE_CREATED, instance);
+            socketManager.emitSystemEvent(instance.systemId, EVENT_INSTANCE_CREATED, instance);
         }
 
         this.save();
@@ -222,7 +224,7 @@ export class InstanceManager {
                     instance.health = healthUrl;
                 }
 
-                this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+                socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
             } else {
                 //If instance was not found - then we're receiving an externally started instance
                 instance = {
@@ -239,7 +241,7 @@ export class InstanceManager {
 
                 this._instances.push(instance);
 
-                this.emitSystemEvent(systemId, EVENT_INSTANCE_CREATED, instance);
+                socketManager.emitSystemEvent(systemId, EVENT_INSTANCE_CREATED, instance);
             }
 
             this.save();
@@ -268,7 +270,7 @@ export class InstanceManager {
                 instance.status = InstanceStatus.STOPPED;
                 instance.pid = null;
                 instance.health = null;
-                this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+                socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
                 this.save();
             }
         });
@@ -343,7 +345,7 @@ export class InstanceManager {
 
             instance.status = InstanceStatus.STOPPING;
 
-            this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+            socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
             console.log('Stopping instance: %s::%s [desired: %s]', systemId, instanceId, instance.desiredStatus);
             this.save();
 
@@ -355,7 +357,7 @@ export class InstanceManager {
                         try {
                             await container.stop();
                             instance.status = InstanceStatus.STOPPED;
-                            this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+                            socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
                             this.save();
                         } catch (e) {
                             console.error('Failed to stop container', e);
@@ -374,7 +376,7 @@ export class InstanceManager {
 
                 process.kill(instance.pid as number, 'SIGTERM');
                 instance.status = InstanceStatus.STOPPED;
-                this.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+                socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
                 this.save();
             } catch (e) {
                 console.error('Failed to stop process', e);
@@ -528,9 +530,9 @@ export class InstanceManager {
                             errorMessage: e.message ?? 'Failed to start - Check logs for details.',
                         });
 
-                        this.emitInstanceEvent(systemId, instanceId, EVENT_INSTANCE_LOG, logs[0]);
+                        socketManager.emitInstanceLog(systemId, instanceId, logs[0]);
 
-                        this.emitInstanceEvent(systemId, blockInstance.id, EVENT_INSTANCE_EXITED, {
+                        socketManager.emitInstanceEvent(systemId, blockInstance.id, EVENT_INSTANCE_EXITED, {
                             error: `Failed to start instance: ${e.message}`,
                             status: EVENT_INSTANCE_EXITED,
                             instanceId: blockInstance.id,
@@ -645,7 +647,7 @@ export class InstanceManager {
                             oldStatus,
                             instance.status
                         );
-                        this.emitSystemEvent(instance.systemId, EVENT_STATUS_CHANGED, instance);
+                        socketManager.emitSystemEvent(instance.systemId, EVENT_STATUS_CHANGED, instance);
                         changed = true;
                     }
                 }
@@ -801,24 +803,6 @@ export class InstanceManager {
                 resolve(InstanceStatus.READY);
             });
         });
-    }
-
-    private emitSystemEvent(systemId: string, type: string, payload: any) {
-        systemId = normalizeKapetaUri(systemId);
-        try {
-            socketManager.emit(`${systemId}/instances`, type, payload);
-        } catch (e: any) {
-            console.warn('Failed to emit instance event: %s', e.message);
-        }
-    }
-
-    private emitInstanceEvent(systemId: string, instanceId: string, type: string, payload: any) {
-        systemId = normalizeKapetaUri(systemId);
-        try {
-            socketManager.emit(`${systemId}/instances/${instanceId}`, type, payload);
-        } catch (e: any) {
-            console.warn('Failed to emit instance event: %s', e.message);
-        }
     }
 }
 

@@ -5,12 +5,13 @@ import { corsHandler } from '../middleware/cors';
 import { Request, Response } from 'express';
 
 const router = Router();
-const api = new KapetaAPI();
+
 
 router.use('/', corsHandler);
 
 router.get('/current', async (req: Request, res: Response) => {
     try {
+        const api = new KapetaAPI();
         if (api.hasToken()) {
             res.send(await api.getCurrentIdentity());
         } else {
@@ -23,6 +24,7 @@ router.get('/current', async (req: Request, res: Response) => {
 
 router.get('/:identityId/memberships', async (req: Request, res: Response) => {
     try {
+        const api = new KapetaAPI();
         if (api.hasToken()) {
             res.send(await api.getMemberships(req.params.identityId));
         } else {
