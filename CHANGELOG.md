@@ -1,3 +1,10 @@
+## [0.15.3](https://github.com/kapetacom/local-cluster-service/compare/v0.15.2...v0.15.3) (2023-08-10)
+
+
+### Bug Fixes
+
+* Use fresh API every time ([05851db](https://github.com/kapetacom/local-cluster-service/commit/05851dbf8c2a690c790a2ba93b7c0a8d24a93b06))
+
 ## [0.15.2](https://github.com/kapetacom/local-cluster-service/compare/v0.15.1...v0.15.2) (2023-08-09)
 
 
