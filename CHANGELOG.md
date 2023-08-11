@@ -1,3 +1,10 @@
+## [0.16.1](https://github.com/kapetacom/local-cluster-service/compare/v0.16.0...v0.16.1) (2023-08-11)
+
+
+### Bug Fixes
+
+* Instead of ignoring we set source-of-change ([ecd23c4](https://github.com/kapetacom/local-cluster-service/commit/ecd23c4c3316a189038a1f2f2f2c8794f6153261))
+
 # [0.16.0](https://github.com/kapetacom/local-cluster-service/compare/v0.15.3...v0.16.0) (2023-08-11)
 
 
