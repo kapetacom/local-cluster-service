@@ -26,7 +26,7 @@ export function readYML(path: string) {
     try {
         return YAML.parse(rawYaml.toString());
     } catch (err) {
-        throw new Error('Failed to parse plan YAML: ' + err);
+        throw new Error(`Failed to parse plan YAML: ${err}`);
     }
 }
 

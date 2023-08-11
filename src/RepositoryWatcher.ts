@@ -8,13 +8,9 @@ import _ from 'lodash';
 import { socketManager } from './socketManager';
 import { definitionsManager } from './definitionsManager';
 import { assetManager } from './assetManager';
+import { SourceOfChange, WatchEventName } from './types';
+import { cacheManager } from './cacheManager';
 
-function clearAllCaches() {
-    definitionsManager.clearCache();
-    assetManager.clearCache();
-}
-
-type WatchEventName = 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir';
 interface AssetIdentity {
     handle: string;
     name: string;
@@ -27,7 +23,7 @@ export class RepositoryWatcher {
     private readonly baseDir: string;
     private allDefinitions: DefinitionInfo[] = [];
     private symbolicLinks: { [link: string]: string } = {};
-    private ignoredFiles: Set<string> = new Set<string>();
+    private sourceOfChange: Map<string, SourceOfChange> = new Map();
     constructor() {
         this.baseDir = ClusterConfiguration.getRepositoryBasedir();
     }
@@ -66,19 +62,19 @@ export class RepositoryWatcher {
         }
     }
 
-    async ignoreChangesFor(file: string) {
-        this.ignoredFiles.add(file);
+    async setSourceOfChangeFor(file: string, source: SourceOfChange) {
+        this.sourceOfChange.set(file, source);
         const realPath = await FS.realpath(file);
         if (realPath !== file) {
-            this.ignoredFiles.add(realPath);
+            this.sourceOfChange.set(realPath, source);
         }
     }
 
-    async resumeChangedFor(file: string) {
-        this.ignoredFiles.delete(file);
+    async clearSourceOfChangeFor(file: string) {
+        this.sourceOfChange.delete(file);
         const realPath = await FS.realpath(file);
         if (realPath !== file) {
-            this.ignoredFiles.delete(realPath);
+            this.sourceOfChange.delete(realPath);
         }
     }
 
@@ -139,10 +135,6 @@ export class RepositoryWatcher {
             return;
         }
 
-        if (this.ignoredFiles.has(path)) {
-            return;
-        }
-
         //console.log('File changed', eventName, path);
 
         const assetIdentity = await this.getAssetIdentity(path);
@@ -172,10 +164,14 @@ export class RepositoryWatcher {
             }
         }
 
-        await this.checkForChange(assetIdentity);
+        const sourceOfChange = this.sourceOfChange.get(path) ?? 'filesystem';
+        await this.checkForChange(assetIdentity, sourceOfChange);
+
+        // We consume the sourceOfChange when the file is changed
+        this.sourceOfChange.delete(path);
     }
 
-    private async checkForChange(assetIdentity: AssetIdentity) {
+    private async checkForChange(assetIdentity: AssetIdentity, sourceOfChange: SourceOfChange) {
         const ymlPath = Path.join(
             this.baseDir,
             assetIdentity.handle,
@@ -219,13 +215,15 @@ export class RepositoryWatcher {
             type,
             definition: newDefinition?.definition ?? currentDefinition?.definition,
             asset: assetIdentity,
+            sourceOfChange,
         };
 
         this.allDefinitions = newDefinitions;
 
         //console.log('Asset changed', payload);
         socketManager.emitGlobal('asset-change', payload);
-        clearAllCaches();
+
+        cacheManager.flush();
     }
 
     private async exists(path: string): Promise<boolean> {

@@ -1,7 +1,6 @@
 import Path from 'node:path';
 import FS from 'fs-extra';
 import YAML from 'yaml';
-import NodeCache from 'node-cache';
 import { Definition, DefinitionInfo } from '@kapeta/local-cluster-config';
 import { codeGeneratorManager } from './codeGeneratorManager';
 import { ProgressListener } from './progressListener';
@@ -12,11 +11,10 @@ import { Actions } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { normalizeKapetaUri } from './utils/utils';
 import { taskManager } from './taskManager';
+import { SourceOfChange } from './types';
+import { cacheManager } from './cacheManager';
 
-function clearAllCaches() {
-    definitionsManager.clearCache();
-    assetManager.clearCache();
-}
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 export interface EnrichedAsset {
     ref: string;
@@ -59,18 +57,6 @@ function parseRef(ref: string) {
 }
 
 class AssetManager {
-    private cache: NodeCache;
-
-    constructor() {
-        this.cache = new NodeCache({
-            stdTTL: 60 * 60, // 1 hour
-        });
-    }
-
-    public clearCache() {
-        this.cache.flushAll();
-    }
-
     /**
      *
      * @param {string[]} [assetKinds]
@@ -114,8 +100,8 @@ class AssetManager {
     ): Promise<EnrichedAsset | undefined> {
         ref = normalizeKapetaUri(ref);
         const cacheKey = `getAsset:${ref}`;
-        if (!noCache && this.cache.has(cacheKey)) {
-            return this.cache.get(cacheKey);
+        if (!noCache && cacheManager.has(cacheKey)) {
+            return cacheManager.get(cacheKey);
         }
         const uri = parseKapetaUri(ref);
         if (autoFetch) {
@@ -130,13 +116,17 @@ class AssetManager {
             throw new Error('Asset not found: ' + ref);
         }
         if (asset) {
-            this.cache.set(cacheKey, asset);
+            cacheManager.set(cacheKey, asset, CACHE_TTL);
         }
 
         return asset;
     }
 
-    async createAsset(path: string, yaml: BlockDefinition): Promise<EnrichedAsset[]> {
+    async createAsset(
+        path: string,
+        yaml: BlockDefinition,
+        sourceOfChange: SourceOfChange = 'filesystem'
+    ): Promise<EnrichedAsset[]> {
         if (await FS.pathExists(path)) {
             throw new Error('File already exists: ' + path);
         }
@@ -145,11 +135,11 @@ class AssetManager {
         if (!(await FS.pathExists(dirName))) {
             await FS.mkdirp(dirName);
         }
-
+        await repositoryManager.setSourceOfChangeFor(path, sourceOfChange);
         await FS.writeFile(path, YAML.stringify(yaml));
         const asset = await this.importFile(path);
 
-        clearAllCaches();
+        cacheManager.flush();
 
         const ref = `kapeta://${yaml.metadata.name}:local`;
 
@@ -158,7 +148,7 @@ class AssetManager {
         return asset;
     }
 
-    async updateAsset(ref: string, yaml: BlockDefinition) {
+    async updateAsset(ref: string, yaml: BlockDefinition, sourceOfChange: SourceOfChange = 'filesystem') {
         const asset = await this.getAsset(ref, true, false);
         if (!asset) {
             throw new Error('Attempted to update unknown asset: ' + ref);
@@ -172,39 +162,13 @@ class AssetManager {
             throw new Error('Attempted to update corrupted asset: ' + ref);
         }
 
-        const path = asset.ymlPath;
-        try {
-            await repositoryManager.ignoreChangesFor(path);
-            await FS.writeFile(asset.ymlPath, YAML.stringify(yaml));
-            console.log('Wrote to ' + asset.ymlPath);
-            clearAllCaches();
-            this.maybeGenerateCode(asset.ref, asset.ymlPath, yaml);
-        } finally {
-            //We need to wait a bit for the disk to settle before we can resume watching
-            setTimeout(async () => {
-                try {
-                    await repositoryManager.resumeChangedFor(path);
-                } catch (e) {}
-            }, 500);
-        }
-    }
+        await repositoryManager.setSourceOfChangeFor(asset.ymlPath, sourceOfChange);
+        await FS.writeFile(asset.ymlPath, YAML.stringify(yaml));
+        console.log('Wrote to ' + asset.ymlPath);
 
-    private maybeGenerateCode(ref: string, ymlPath: string, block: BlockDefinition) {
-        ref = normalizeKapetaUri(ref);
-        if (codeGeneratorManager.canGenerateCode(block)) {
-            const assetTitle = block.metadata.title ? block.metadata.title : parseKapetaUri(block.metadata.name).name;
-            taskManager.add(
-                `codegen:${ref}`,
-                async () => {
-                    await codeGeneratorManager.generate(ymlPath, block);
-                },
-                {
-                    name: `Generating code for ${assetTitle}`,
-                }
-            );
-            return true;
-        }
-        return false;
+        cacheManager.flush();
+
+        this.maybeGenerateCode(asset.ref, asset.ymlPath, yaml);
     }
 
     async importFile(filePath: string) {
@@ -224,7 +188,7 @@ class AssetManager {
         const version = 'local';
         const refs = assetInfos.map((assetInfo) => `kapeta://${assetInfo.metadata.name}:${version}`);
 
-        clearAllCaches();
+        cacheManager.flush();
 
         return this.getAssets().filter((a) => refs.some((ref) => compareRefs(ref, a.ref)));
     }
@@ -235,7 +199,7 @@ class AssetManager {
             throw new Error('Asset does not exists: ' + ref);
         }
 
-        clearAllCaches();
+        cacheManager.flush();
 
         await Actions.uninstall(new ProgressListener(), [asset.ref]);
     }
@@ -249,6 +213,24 @@ class AssetManager {
         console.log('Installing %s', ref);
 
         return await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, false);
+    }
+
+    private maybeGenerateCode(ref: string, ymlPath: string, block: BlockDefinition) {
+        ref = normalizeKapetaUri(ref);
+        if (codeGeneratorManager.canGenerateCode(block)) {
+            const assetTitle = block.metadata.title ? block.metadata.title : parseKapetaUri(block.metadata.name).name;
+            taskManager.add(
+                `codegen:${ref}`,
+                async () => {
+                    await codeGeneratorManager.generate(ymlPath, block);
+                },
+                {
+                    name: `Generating code for ${assetTitle}`,
+                }
+            );
+            return true;
+        }
+        return false;
     }
 }
 

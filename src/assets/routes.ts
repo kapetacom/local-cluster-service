@@ -70,7 +70,7 @@ router.post('/create', async (req: Request, res: Response) => {
     const content = parseBody(req);
 
     try {
-        const assets = await assetManager.createAsset(req.query.path as string, content);
+        const assets = await assetManager.createAsset(req.query.path as string, content, 'user');
 
         res.status(200).send(assets);
     } catch (err: any) {
@@ -91,7 +91,7 @@ router.put('/update', async (req: Request, res: Response) => {
     const content = parseBody(req);
 
     try {
-        await assetManager.updateAsset(req.query.ref as string, content);
+        await assetManager.updateAsset(req.query.ref as string, content, 'user');
 
         res.sendStatus(204);
     } catch (err: any) {

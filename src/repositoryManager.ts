@@ -5,15 +5,10 @@ import { Actions, Config, RegistryService } from '@kapeta/nodejs-registry-utils'
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
 import { normalizeKapetaUri } from './utils/utils';
-
 import { ProgressListener } from './progressListener';
 import { RepositoryWatcher } from './RepositoryWatcher';
-import { assetManager } from './assetManager';
-
-function clearAllCaches() {
-    definitionsManager.clearCache();
-    assetManager.clearCache();
-}
+import { SourceOfChange } from './types';
+import { cacheManager } from './cacheManager';
 
 const EVENT_DEFAULT_PROVIDERS_START = 'default-providers-start';
 const EVENT_DEFAULT_PROVIDERS_END = 'default-providers-end';
@@ -55,12 +50,16 @@ class RepositoryManager {
         return this.watcher.unwatch();
     }
 
-    ignoreChangesFor(file: string) {
-        return this.watcher.ignoreChangesFor(file);
+    /**
+     * Setting the source of change helps us know
+     * how to react to changes in the UI.
+     */
+    setSourceOfChangeFor(file: string, source: SourceOfChange) {
+        return this.watcher.setSourceOfChangeFor(file, source);
     }
 
-    resumeChangedFor(file: string) {
-        return this.watcher.resumeChangedFor(file);
+    clearSourceOfChangeFor(file: string) {
+        return this.watcher.clearSourceOfChangeFor(file);
     }
 
     public ensureDefaultProviders(): void {
@@ -93,7 +92,7 @@ class RepositoryManager {
                     console.error(`Failed to install asset: ${ref}`, e);
                     throw e;
                 }
-                clearAllCaches();
+                cacheManager.flush();
                 //console.log(`Asset installed: ${ref}`);
             };
         };

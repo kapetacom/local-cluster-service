@@ -1,17 +1,9 @@
 import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
-
-const CACHE_TTL = 60 * 1000; // 1 min
-
-interface DefinitionCacheEntry {
-    expires: number;
-    definitions: DefinitionInfo[];
-}
+import { doCached } from './cacheManager';
 
 class DefinitionsManager {
-    private cache: { [key: string]: DefinitionCacheEntry } = {};
-
-    private getKey(kindFilter?: string | string[]) {
+    private getHash(kindFilter?: string | string[]) {
         if (kindFilter) {
             if (Array.isArray(kindFilter)) {
                 return kindFilter.join(',');
@@ -21,38 +13,22 @@ class DefinitionsManager {
         return 'none';
     }
 
-    public clearCache() {
-        this.cache = {};
+    private getFullKey(kindFilter?: string | string[]) {
+        return `DefinitionsManager:${this.getHash(kindFilter)}`;
     }
 
-    private doCached(key: string, getter: () => DefinitionInfo[]) {
-        if (this.cache[key]) {
-            if (this.cache[key].expires > Date.now()) {
-                return this.cache[key].definitions;
-            }
-            delete this.cache[key];
-        }
+    public getDefinitions(kindFilter?: string | string[]): DefinitionInfo[] {
+        const key = this.getFullKey(kindFilter);
 
-        this.cache[key] = {
-            expires: Date.now() + CACHE_TTL,
-            definitions: getter(),
-        };
-
-        return this.cache[key].definitions;
-    }
-
-    public getDefinitions(kindFilter?: string | string[]) {
-        const key = this.getKey(kindFilter);
-
-        return this.doCached(key, () => ClusterConfiguration.getDefinitions(kindFilter));
+        return doCached<DefinitionInfo[]>(key, () => ClusterConfiguration.getDefinitions(kindFilter));
     }
 
     public exists(ref: string) {
         return !!this.getDefinition(ref);
     }
 
-    public getProviderDefinitions() {
-        return this.doCached('providers', () => ClusterConfiguration.getProviderDefinitions());
+    public getProviderDefinitions(): DefinitionInfo[] {
+        return doCached<DefinitionInfo[]>('providers', () => ClusterConfiguration.getProviderDefinitions());
     }
 
     public getDefinition(ref: string) {

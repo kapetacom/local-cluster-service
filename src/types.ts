@@ -1,4 +1,3 @@
-import EventEmitter from 'events';
 import express from 'express';
 import { Resource } from '@kapeta/schemas';
 import { StringBodyRequest } from './middleware/stringBody';
@@ -6,7 +5,8 @@ import { KapetaRequest } from './middleware/kapeta';
 
 export type StringMap = { [key: string]: string };
 export type AnyMap = { [key: string]: any };
-
+export type SourceOfChange = 'user' | 'filesystem';
+export type WatchEventName = 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir';
 export type LogLevel = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE' | 'FATAL';
 export type LogSource = 'stdout' | 'stderr';
 export type EnvironmentType = 'docker' | 'process';
