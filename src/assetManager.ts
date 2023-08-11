@@ -1,6 +1,5 @@
 import Path from 'node:path';
-import FS from 'node:fs';
-import FSExtra from 'fs-extra';
+import FS from 'fs-extra';
 import YAML from 'yaml';
 import NodeCache from 'node-cache';
 import { Definition, DefinitionInfo } from '@kapeta/local-cluster-config';
@@ -13,6 +12,11 @@ import { Actions } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { normalizeKapetaUri } from './utils/utils';
 import { taskManager } from './taskManager';
+
+function clearAllCaches() {
+    definitionsManager.clearCache();
+    assetManager.clearCache();
+}
 
 export interface EnrichedAsset {
     ref: string;
@@ -133,23 +137,19 @@ class AssetManager {
     }
 
     async createAsset(path: string, yaml: BlockDefinition): Promise<EnrichedAsset[]> {
-        if (FS.existsSync(path)) {
+        if (await FS.pathExists(path)) {
             throw new Error('File already exists: ' + path);
         }
 
         const dirName = Path.dirname(path);
-        if (!FS.existsSync(dirName)) {
-            FSExtra.mkdirpSync(dirName);
+        if (!(await FS.pathExists(dirName))) {
+            await FS.mkdirp(dirName);
         }
 
-        console.log('Wrote to ' + path);
-        FS.writeFileSync(path, YAML.stringify(yaml));
-
+        await FS.writeFile(path, YAML.stringify(yaml));
         const asset = await this.importFile(path);
-        console.log('Imported');
 
-        this.cache.flushAll();
-        definitionsManager.clearCache();
+        clearAllCaches();
 
         const ref = `kapeta://${yaml.metadata.name}:local`;
 
@@ -172,12 +172,21 @@ class AssetManager {
             throw new Error('Attempted to update corrupted asset: ' + ref);
         }
 
-        console.log('Wrote to ' + asset.ymlPath);
-        FS.writeFileSync(asset.ymlPath, YAML.stringify(yaml));
-        this.cache.flushAll();
-        definitionsManager.clearCache();
-
-        this.maybeGenerateCode(asset.ref, asset.ymlPath, yaml);
+        const path = asset.ymlPath;
+        try {
+            await repositoryManager.ignoreChangesFor(path);
+            await FS.writeFile(asset.ymlPath, YAML.stringify(yaml));
+            console.log('Wrote to ' + asset.ymlPath);
+            clearAllCaches();
+            this.maybeGenerateCode(asset.ref, asset.ymlPath, yaml);
+        } finally {
+            //We need to wait a bit for the disk to settle before we can resume watching
+            setTimeout(async () => {
+                try {
+                    await repositoryManager.resumeChangedFor(path);
+                } catch (e) {}
+            }, 500);
+        }
     }
 
     private maybeGenerateCode(ref: string, ymlPath: string, block: BlockDefinition) {
@@ -203,17 +212,20 @@ class AssetManager {
             filePath = filePath.substring('file://'.length);
         }
 
-        if (!FS.existsSync(filePath)) {
+        if (!(await FS.pathExists(filePath))) {
             throw new Error('File not found: ' + filePath);
         }
+        const content = await FS.readFile(filePath);
 
-        const assetInfos = YAML.parseAllDocuments(FS.readFileSync(filePath).toString()).map((doc) => doc.toJSON());
+        const assetInfos = YAML.parseAllDocuments(content.toString()).map((doc) => doc.toJSON());
 
         await Actions.link(new ProgressListener(), Path.dirname(filePath));
 
         const version = 'local';
         const refs = assetInfos.map((assetInfo) => `kapeta://${assetInfo.metadata.name}:${version}`);
-        this.cache.flushAll();
+
+        clearAllCaches();
+
         return this.getAssets().filter((a) => refs.some((ref) => compareRefs(ref, a.ref)));
     }
 
@@ -222,7 +234,9 @@ class AssetManager {
         if (!asset) {
             throw new Error('Asset does not exists: ' + ref);
         }
-        this.cache.flushAll();
+
+        clearAllCaches();
+
         await Actions.uninstall(new ProgressListener(), [asset.ref]);
     }
 
