@@ -6,7 +6,6 @@ import { Request, Response } from 'express';
 
 const router = Router();
 
-
 router.use('/', corsHandler);
 
 router.get('/current', async (req: Request, res: Response) => {

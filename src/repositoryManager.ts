@@ -1,18 +1,19 @@
-import FS from 'node:fs';
 import os from 'node:os';
-import Path from 'node:path';
-import watch from 'recursive-watch';
-import FSExtra from 'fs-extra';
-import ClusterConfiguration from '@kapeta/local-cluster-config';
-import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { socketManager } from './socketManager';
 import { Dependency } from '@kapeta/schemas';
 import { Actions, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
 import { normalizeKapetaUri } from './utils/utils';
-import { assetManager } from './assetManager';
+
 import { ProgressListener } from './progressListener';
+import { RepositoryWatcher } from './RepositoryWatcher';
+import { assetManager } from './assetManager';
+
+function clearAllCaches() {
+    definitionsManager.clearCache();
+    assetManager.clearCache();
+}
 
 const EVENT_DEFAULT_PROVIDERS_START = 'default-providers-start';
 const EVENT_DEFAULT_PROVIDERS_END = 'default-providers-end';
@@ -35,101 +36,31 @@ const DEFAULT_PROVIDERS = [
 const INSTALL_ATTEMPTED: { [p: string]: boolean } = {};
 
 class RepositoryManager {
-    private changeEventsEnabled: boolean;
     private _registryService: RegistryService;
     private _cache: { [key: string]: boolean };
-    private watcher?: () => void;
+    private watcher: RepositoryWatcher;
 
     constructor() {
-        this.changeEventsEnabled = true;
-        this.listenForChanges();
         this._registryService = new RegistryService(Config.data.registry.url);
         this._cache = {};
-    }
-
-    setChangeEventsEnabled(enabled: boolean) {
-        this.changeEventsEnabled = enabled;
+        this.watcher = new RepositoryWatcher();
+        this.listenForChanges();
     }
 
     listenForChanges() {
-        const baseDir = ClusterConfiguration.getRepositoryBasedir();
-        if (!FS.existsSync(baseDir)) {
-            FSExtra.mkdirpSync(baseDir);
-        }
-
-        let allDefinitions = ClusterConfiguration.getDefinitions();
-
-        console.log('Watching local repository for provider changes: %s', baseDir);
-        try {
-            this.watcher = watch(baseDir, (filename: string) => {
-                if (!filename) {
-                    return;
-                }
-
-                const [handle, name, version] = filename.toString().split(/\//g);
-                if (!name || !version) {
-                    return;
-                }
-
-                if (!this.changeEventsEnabled) {
-                    return;
-                }
-
-                const ymlPath = Path.join(baseDir, handle, name, version, 'kapeta.yml');
-                const newDefinitions = ClusterConfiguration.getDefinitions();
-
-                const newDefinition = newDefinitions.find((d) => d.ymlPath === ymlPath);
-                let currentDefinition = allDefinitions.find((d) => d.ymlPath === ymlPath);
-                const ymlExists = FS.existsSync(ymlPath);
-                let type;
-                if (ymlExists) {
-                    if (currentDefinition) {
-                        type = 'updated';
-                    } else if (newDefinition) {
-                        type = 'added';
-                        currentDefinition = newDefinition;
-                    } else {
-                        //Other definition was added / updated - ignore
-                        return;
-                    }
-                } else {
-                    if (currentDefinition) {
-                        const ref = parseKapetaUri(
-                            `${currentDefinition.definition.metadata.name}:${currentDefinition.version}`
-                        ).id;
-                        delete INSTALL_ATTEMPTED[ref];
-                        //Something was removed
-                        type = 'removed';
-                    } else {
-                        //Other definition was removed - ignore
-                        return;
-                    }
-                }
-
-                const payload = {
-                    type,
-                    definition: currentDefinition?.definition,
-                    asset: { handle, name, version },
-                };
-
-                allDefinitions = newDefinitions;
-                socketManager.emit(`assets`, 'changed', payload);
-                definitionsManager.clearCache();
-            });
-        } catch (e) {
-            // Fallback to run without watch mode due to potential platform issues.
-            // https://nodejs.org/docs/latest/api/fs.html#caveats
-            console.log('Unable to watch for changes. Changes to assets will not update automatically.', e);
-            return;
-        }
+        this.watcher.watch();
     }
 
-    stopListening() {
-        if (!this.watcher) {
-            return;
-        }
-        this.watcher();
-        this.watcher = undefined;
+    async stopListening() {
+        return this.watcher.unwatch();
+    }
+
+    ignoreChangesFor(file: string) {
+        return this.watcher.ignoreChangesFor(file);
+    }
+
+    resumeChangedFor(file: string) {
+        return this.watcher.resumeChangedFor(file);
     }
 
     public ensureDefaultProviders(): void {
@@ -157,17 +88,12 @@ class RepositoryManager {
                 try {
                     //We change to a temp dir to avoid issues with the current working directory
                     process.chdir(os.tmpdir());
-                    //Disable change events while installing
-                    this.setChangeEventsEnabled(false);
                     await Actions.install(new ProgressListener(), [ref], {});
                 } catch (e) {
                     console.error(`Failed to install asset: ${ref}`, e);
                     throw e;
-                } finally {
-                    this.setChangeEventsEnabled(true);
                 }
-                definitionsManager.clearCache();
-                assetManager.clearCache();
+                clearAllCaches();
                 //console.log(`Asset installed: ${ref}`);
             };
         };

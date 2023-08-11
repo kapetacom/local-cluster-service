@@ -74,8 +74,11 @@ export class InstanceManager {
         }
 
         const plan = planInfo.definition as Plan;
+        if (!plan?.spec?.blocks) {
+            return [];
+        }
 
-        const instanceIds = plan.spec.blocks.map((block) => block.id);
+        const instanceIds = plan.spec?.blocks?.map((block) => block.id) || [];
 
         return this._instances.filter(
             (instance) => instance.systemId === systemId && instanceIds.includes(instance.instanceId)
