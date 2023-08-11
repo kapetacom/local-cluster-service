@@ -1,3 +1,10 @@
+# [0.16.0](https://github.com/kapetacom/local-cluster-service/compare/v0.15.3...v0.16.0) (2023-08-11)
+
+
+### Features
+
+* Use chokidar lib for watching for changes on disk ([#60](https://github.com/kapetacom/local-cluster-service/issues/60)) ([f2af855](https://github.com/kapetacom/local-cluster-service/commit/f2af85554fc2a23133ce27a4f8989cabdea097d7))
+
 ## [0.15.3](https://github.com/kapetacom/local-cluster-service/compare/v0.15.2...v0.15.3) (2023-08-10)
 
 
