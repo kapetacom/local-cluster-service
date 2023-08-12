@@ -1,3 +1,10 @@
+## [0.16.2](https://github.com/kapetacom/local-cluster-service/compare/v0.16.1...v0.16.2) (2023-08-12)
+
+
+### Bug Fixes
+
+* Be smarter about caching ([086ffe4](https://github.com/kapetacom/local-cluster-service/commit/086ffe416a044a8d9dc5e33aa879960d3e3c2b1a))
+
 ## [0.16.1](https://github.com/kapetacom/local-cluster-service/compare/v0.16.0...v0.16.1) (2023-08-11)
 
 
