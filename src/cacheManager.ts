@@ -5,7 +5,7 @@ export interface CacheEntry<T = any> {
     expires: number;
     data: T;
 }
-class CacheManager {
+export class CacheManager {
     private cache: NodeCache = new NodeCache();
 
     public flush() {
@@ -36,6 +36,15 @@ class CacheManager {
 
     public remove(key: string) {
         return this.cache.del(key);
+    }
+
+    public removePrefix(key: string) {
+        const keys = this.cache.keys();
+        for (const k of keys) {
+            if (k.startsWith(key)) {
+                this.remove(k);
+            }
+        }
     }
 }
 

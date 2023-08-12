@@ -6,8 +6,6 @@ import YAML from 'yaml';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import _ from 'lodash';
 import { socketManager } from './socketManager';
-import { definitionsManager } from './definitionsManager';
-import { assetManager } from './assetManager';
 import { SourceOfChange, WatchEventName } from './types';
 import { cacheManager } from './cacheManager';
 
@@ -64,17 +62,25 @@ export class RepositoryWatcher {
 
     async setSourceOfChangeFor(file: string, source: SourceOfChange) {
         this.sourceOfChange.set(file, source);
-        const realPath = await FS.realpath(file);
-        if (realPath !== file) {
-            this.sourceOfChange.set(realPath, source);
+        try {
+            const realPath = await FS.realpath(file);
+            if (realPath !== file) {
+                this.sourceOfChange.set(realPath, source);
+            }
+        } catch (e) {
+            // Ignore
         }
     }
 
     async clearSourceOfChangeFor(file: string) {
         this.sourceOfChange.delete(file);
-        const realPath = await FS.realpath(file);
-        if (realPath !== file) {
-            this.sourceOfChange.delete(realPath);
+        try {
+            const realPath = await FS.realpath(file);
+            if (realPath !== file) {
+                this.sourceOfChange.delete(realPath);
+            }
+        } catch (e) {
+            // Ignore
         }
     }
 

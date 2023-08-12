@@ -16,6 +16,8 @@ import { cacheManager } from './cacheManager';
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
+const toKey = (ref: string) => `assetManager:asset:${ref}`;
+
 export interface EnrichedAsset {
     ref: string;
     editable: boolean;
@@ -99,7 +101,7 @@ class AssetManager {
         autoFetch: boolean = true
     ): Promise<EnrichedAsset | undefined> {
         ref = normalizeKapetaUri(ref);
-        const cacheKey = `getAsset:${ref}`;
+        const cacheKey = toKey(ref);
         if (!noCache && cacheManager.has(cacheKey)) {
             return cacheManager.get(cacheKey);
         }
@@ -138,8 +140,14 @@ class AssetManager {
         await repositoryManager.setSourceOfChangeFor(path, sourceOfChange);
         await FS.writeFile(path, YAML.stringify(yaml));
         const asset = await this.importFile(path);
+        asset.forEach((a) => {
+            const ref = normalizeKapetaUri(a.ref);
+            const key = toKey(ref);
+            cacheManager.set(key, a, CACHE_TTL);
+        });
 
-        cacheManager.flush();
+        definitionsManager.clearCache();
+        console.log(`Created asset at: ${path}`);
 
         const ref = `kapeta://${yaml.metadata.name}:local`;
 
@@ -149,6 +157,7 @@ class AssetManager {
     }
 
     async updateAsset(ref: string, yaml: BlockDefinition, sourceOfChange: SourceOfChange = 'filesystem') {
+        ref = normalizeKapetaUri(ref);
         const asset = await this.getAsset(ref, true, false);
         if (!asset) {
             throw new Error('Attempted to update unknown asset: ' + ref);
@@ -164,9 +173,10 @@ class AssetManager {
 
         await repositoryManager.setSourceOfChangeFor(asset.ymlPath, sourceOfChange);
         await FS.writeFile(asset.ymlPath, YAML.stringify(yaml));
-        console.log('Wrote to ' + asset.ymlPath);
+        console.log(`Updated asset at: ${asset.ymlPath}`);
 
-        cacheManager.flush();
+        cacheManager.remove(toKey(ref));
+        definitionsManager.clearCache();
 
         this.maybeGenerateCode(asset.ref, asset.ymlPath, yaml);
     }
@@ -186,9 +196,15 @@ class AssetManager {
         await Actions.link(new ProgressListener(), Path.dirname(filePath));
 
         const version = 'local';
-        const refs = assetInfos.map((assetInfo) => `kapeta://${assetInfo.metadata.name}:${version}`);
+        const refs = assetInfos.map((assetInfo) =>
+            normalizeKapetaUri(`kapeta://${assetInfo.metadata.name}:${version}`)
+        );
+        refs.forEach((ref) => {
+            const key = toKey(ref);
+            cacheManager.remove(key);
+        });
 
-        cacheManager.flush();
+        definitionsManager.clearCache();
 
         return this.getAssets().filter((a) => refs.some((ref) => compareRefs(ref, a.ref)));
     }
@@ -199,7 +215,9 @@ class AssetManager {
             throw new Error('Asset does not exists: ' + ref);
         }
 
-        cacheManager.flush();
+        const key = toKey(ref);
+        cacheManager.remove(key);
+        definitionsManager.clearCache();
 
         await Actions.uninstall(new ProgressListener(), [asset.ref]);
     }
@@ -211,6 +229,9 @@ class AssetManager {
         }
         const uri = parseKapetaUri(ref);
         console.log('Installing %s', ref);
+        const key = toKey(ref);
+        cacheManager.remove(key);
+        definitionsManager.clearCache();
 
         return await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, false);
     }

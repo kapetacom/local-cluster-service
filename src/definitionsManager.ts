@@ -1,6 +1,6 @@
 import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
-import { doCached } from './cacheManager';
+import { cacheManager, doCached } from './cacheManager';
 
 class DefinitionsManager {
     private getHash(kindFilter?: string | string[]) {
@@ -14,7 +14,7 @@ class DefinitionsManager {
     }
 
     private getFullKey(kindFilter?: string | string[]) {
-        return `DefinitionsManager:${this.getHash(kindFilter)}`;
+        return `definitionsManager:${this.getHash(kindFilter)}`;
     }
 
     public getDefinitions(kindFilter?: string | string[]): DefinitionInfo[] {
@@ -39,6 +39,10 @@ class DefinitionsManager {
             }
             return parseKapetaUri(`${d.definition.metadata.name}:${d.version}`).id === uri.id;
         });
+    }
+
+    public clearCache() {
+        cacheManager.removePrefix('definitionsManager:');
     }
 }
 
