@@ -26,6 +26,13 @@ router.get('/:systemId/instances', (req: Request, res: Response) => {
 });
 
 /**
+ * Get single instance in a plan
+ */
+router.get('/:systemId/instances/:instanceId', (req: Request, res: Response) => {
+    res.send(instanceManager.getInstance(req.params.systemId, req.params.instanceId));
+});
+
+/**
  * Start all instances in a plan
  */
 router.post('/:systemId/start', async (req: Request, res: Response) => {
