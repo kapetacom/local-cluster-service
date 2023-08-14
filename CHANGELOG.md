@@ -1,3 +1,10 @@
+## [0.16.3](https://github.com/kapetacom/local-cluster-service/compare/v0.16.2...v0.16.3) (2023-08-14)
+
+
+### Bug Fixes
+
+* Add route for getting status for a single instance ([00159e2](https://github.com/kapetacom/local-cluster-service/commit/00159e255015b519d741c6528a6c9ed3a586dc25))
+
 ## [0.16.2](https://github.com/kapetacom/local-cluster-service/compare/v0.16.1...v0.16.2) (2023-08-12)
 
 
