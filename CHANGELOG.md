@@ -1,3 +1,10 @@
+## [0.16.5](https://github.com/kapetacom/local-cluster-service/compare/v0.16.4...v0.16.5) (2023-08-14)
+
+
+### Bug Fixes
+
+* Avoid detached spawn ([5114bed](https://github.com/kapetacom/local-cluster-service/commit/5114bed57158808fa9856f0975a5226b6c9ed154))
+
 ## [0.16.4](https://github.com/kapetacom/local-cluster-service/compare/v0.16.3...v0.16.4) (2023-08-14)
 
 
