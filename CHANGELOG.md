@@ -1,3 +1,10 @@
+## [0.16.4](https://github.com/kapetacom/local-cluster-service/compare/v0.16.3...v0.16.4) (2023-08-14)
+
+
+### Bug Fixes
+
+* Avoid multiple layers of cache ([#61](https://github.com/kapetacom/local-cluster-service/issues/61)) ([e8efcd2](https://github.com/kapetacom/local-cluster-service/commit/e8efcd26184c792a8798781eb6bd9952ccfa0fec))
+
 ## [0.16.3](https://github.com/kapetacom/local-cluster-service/compare/v0.16.2...v0.16.3) (2023-08-14)
 
 
