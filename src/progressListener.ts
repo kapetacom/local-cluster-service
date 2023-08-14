@@ -39,7 +39,6 @@ export class ProgressListener {
                 const chunks: Buffer[] = [];
                 const child = spawn(command, [], {
                     cwd: directory ? directory : process.cwd(),
-                    detached: true,
                     shell: true,
                 });
 
