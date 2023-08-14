@@ -4,23 +4,24 @@ import { repositoryManager } from './repositoryManager';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { StringMap } from './types';
 import { definitionsManager } from './definitionsManager';
+import {cacheManager} from "./cacheManager";
 
 class ProviderManager {
-    private _webAssetCache: StringMap;
-    constructor() {
-        this._webAssetCache = {};
-    }
+
 
     getWebProviders() {
         return definitionsManager.getProviderDefinitions().filter((providerDefinition) => providerDefinition.hasWeb);
     }
 
-    async getAsset(handle: string, name: string, version: string, sourceMap: boolean = false) {
+    async getProviderWebJS(handle: string, name: string, version: string, sourceMap: boolean = false) {
         const fullName = `${handle}/${name}`;
         const id = `${handle}/${name}/${version}/web.js${sourceMap ? '.map' : ''}`;
 
-        if (this._webAssetCache[id] && (await FSExtra.pathExists(this._webAssetCache[id]))) {
-            return FSExtra.readFile(this._webAssetCache[id], 'utf8');
+        const cacheKey = `provider:web:${id}`;
+
+        const file = cacheManager.get<string>(cacheKey);
+        if (file && await FSExtra.pathExists(file)) {
+            return FSExtra.readFile(file, 'utf8');
         }
 
         await repositoryManager.ensureAsset(handle, name, version, true);
@@ -33,8 +34,7 @@ class ProviderManager {
             //Check locally installed providers
             const path = Path.join(installedProvider.path, 'web', handle, `${name}.js${sourceMap ? '.map' : ''}`);
             if (await FSExtra.pathExists(path)) {
-                this._webAssetCache[id] = path;
-
+                cacheManager.set(cacheKey, path, 24* 60 * 60 * 1000);
                 return FSExtra.readFile(path);
             }
         }

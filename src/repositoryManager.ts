@@ -28,16 +28,12 @@ const DEFAULT_PROVIDERS = [
     'kapeta/language-target-java-spring-boot',
 ];
 
-const INSTALL_ATTEMPTED: { [p: string]: boolean } = {};
-
 class RepositoryManager {
     private _registryService: RegistryService;
-    private _cache: { [key: string]: boolean };
     private watcher: RepositoryWatcher;
 
     constructor() {
         this._registryService = new RegistryService(Config.data.registry.url);
-        this._cache = {};
         this.watcher = new RepositoryWatcher();
         this.listenForChanges();
     }
@@ -74,15 +70,10 @@ class RepositoryManager {
         //We make sure to only install one asset at a time - otherwise unexpected things might happen
         const createInstaller = (ref: string) => {
             return async () => {
-                if (INSTALL_ATTEMPTED[ref]) {
-                    return;
-                }
-
                 if (definitionsManager.exists(ref)) {
                     return;
                 }
                 //console.log(`Installing asset: ${ref}`);
-                INSTALL_ATTEMPTED[ref] = true;
                 //Auto-install missing asset
                 try {
                     //We change to a temp dir to avoid issues with the current working directory
@@ -105,10 +96,6 @@ class RepositoryManager {
                 continue;
             }
             ref = normalizeKapetaUri(ref);
-
-            if (INSTALL_ATTEMPTED[ref]) {
-                continue;
-            }
 
             if (definitionsManager.exists(ref)) {
                 continue;
@@ -144,19 +131,10 @@ class RepositoryManager {
             (d) => d.definition.metadata.name === fullName && d.version === version
         );
 
-        if (installedAsset && this._cache[ref] === true) {
-            return;
-        }
-
-        if (!installedAsset && this._cache[ref] === false) {
-            return;
-        }
-
         let assetVersion;
         try {
             assetVersion = await this._registryService.getVersion(fullName, version);
             if (!assetVersion) {
-                this._cache[ref] = false;
                 return;
             }
         } catch (e) {
@@ -167,7 +145,6 @@ class RepositoryManager {
             throw e;
         }
 
-        this._cache[ref] = true;
         let tasks: Task[] | undefined = undefined;
         if (!installedAsset) {
             tasks = this._install([ref]);

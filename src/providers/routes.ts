@@ -16,7 +16,7 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/asset/:handle/:name/:version/web.js', async (req: Request, res: Response) => {
     const { handle, name, version } = req.params;
-    let result = await providerManager.getAsset(handle, name, version);
+    let result = await providerManager.getProviderWebJS(handle, name, version);
 
     if (!result) {
         res.status(404).send('');
@@ -30,7 +30,7 @@ router.get('/asset/:handle/:name/:version/web.js', async (req: Request, res: Res
 
 router.get('/asset/:handle/:name/:version/web.js.map', async (req: Request, res: Response) => {
     const { handle, name, version } = req.params;
-    const result = await providerManager.getAsset(handle, name, version, true);
+    const result = await providerManager.getProviderWebJS(handle, name, version, true);
 
     if (!result) {
         res.status(404).send('');
