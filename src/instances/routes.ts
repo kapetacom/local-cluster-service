@@ -25,6 +25,9 @@ router.get('/:systemId/instances', (req: Request, res: Response) => {
     res.send(instanceManager.getInstancesForPlan(req.params.systemId));
 });
 
+/**
+ * Get single instance in a plan
+ */
 router.get('/:systemId/instances/:instanceId', (req: Request, res: Response) => {
     res.send(instanceManager.getInstance(req.params.systemId, req.params.instanceId));
 });
