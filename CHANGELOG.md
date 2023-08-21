@@ -1,3 +1,10 @@
+## [0.16.6](https://github.com/kapetacom/local-cluster-service/compare/v0.16.5...v0.16.6) (2023-08-21)
+
+
+### Bug Fixes
+
+* Add timeout when testing docker ([#62](https://github.com/kapetacom/local-cluster-service/issues/62)) ([c6e373e](https://github.com/kapetacom/local-cluster-service/commit/c6e373eab81f466b5a4fd8dbd9ca9f085f9b91de))
+
 ## [0.16.5](https://github.com/kapetacom/local-cluster-service/compare/v0.16.4...v0.16.5) (2023-08-14)
 
 
