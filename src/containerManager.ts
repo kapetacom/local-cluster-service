@@ -110,7 +110,10 @@ class ContainerManager {
                   ];
         for (const opts of connectOptions) {
             try {
-                const client = new Docker(opts);
+                const client = new Docker({
+                    ...opts,
+                    timeout: 10000,
+                });
                 await client.ping();
                 this._docker = client;
                 const versionInfo: any = await client.version();

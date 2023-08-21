@@ -4,11 +4,9 @@ import { repositoryManager } from './repositoryManager';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { StringMap } from './types';
 import { definitionsManager } from './definitionsManager';
-import {cacheManager} from "./cacheManager";
+import { cacheManager } from './cacheManager';
 
 class ProviderManager {
-
-
     getWebProviders() {
         return definitionsManager.getProviderDefinitions().filter((providerDefinition) => providerDefinition.hasWeb);
     }
@@ -20,7 +18,7 @@ class ProviderManager {
         const cacheKey = `provider:web:${id}`;
 
         const file = cacheManager.get<string>(cacheKey);
-        if (file && await FSExtra.pathExists(file)) {
+        if (file && (await FSExtra.pathExists(file))) {
             return FSExtra.readFile(file, 'utf8');
         }
 
@@ -34,7 +32,7 @@ class ProviderManager {
             //Check locally installed providers
             const path = Path.join(installedProvider.path, 'web', handle, `${name}.js${sourceMap ? '.map' : ''}`);
             if (await FSExtra.pathExists(path)) {
-                cacheManager.set(cacheKey, path, 24* 60 * 60 * 1000);
+                cacheManager.set(cacheKey, path, 24 * 60 * 60 * 1000);
                 return FSExtra.readFile(path);
             }
         }
@@ -56,6 +54,7 @@ if (providerDefinitions.length > 0) {
         );
         console.log('   from %s', providerDefinition.path);
     });
+    console.log('##');
 } else {
     console.log('## No providers found ##');
 }
