@@ -114,6 +114,7 @@ export default {
         }
 
         try {
+            console.log('Testing docker runtime...');
             await containerManager.initialize();
         } catch (e: any) {
             console.error(
