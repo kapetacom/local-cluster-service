@@ -1,3 +1,10 @@
+## [0.16.7](https://github.com/kapetacom/local-cluster-service/compare/v0.16.6...v0.16.7) (2023-08-24)
+
+
+### Bug Fixes
+
+* Load JS from provider endpoints if not available locally ([#63](https://github.com/kapetacom/local-cluster-service/issues/63)) ([83c7cb4](https://github.com/kapetacom/local-cluster-service/commit/83c7cb4a176a2b23ee5bf5e8a312e8a64abd9ea6))
+
 ## [0.16.6](https://github.com/kapetacom/local-cluster-service/compare/v0.16.5...v0.16.6) (2023-08-21)
 
 
