@@ -1,10 +1,10 @@
 import Path from 'path';
 import FSExtra from 'fs-extra';
-import { repositoryManager } from './repositoryManager';
-import ClusterConfiguration from '@kapeta/local-cluster-config';
-import { StringMap } from './types';
 import { definitionsManager } from './definitionsManager';
 import { cacheManager } from './cacheManager';
+import request from 'request';
+
+const PROVIDER_FILE_BASE = 'https://providers.kapeta.com/files';
 
 class ProviderManager {
     getWebProviders() {
@@ -22,8 +22,6 @@ class ProviderManager {
             return FSExtra.readFile(file, 'utf8');
         }
 
-        await repositoryManager.ensureAsset(handle, name, version, true);
-
         const installedProvider = this.getWebProviders().find((providerDefinition) => {
             return providerDefinition.definition.metadata.name === fullName && providerDefinition.version === version;
         });
@@ -37,7 +35,31 @@ class ProviderManager {
             }
         }
 
-        return null;
+        if (version === 'local') {
+            return null;
+        }
+
+        const url = `${PROVIDER_FILE_BASE}/${id}`;
+        return new Promise((resolve, reject) => {
+            console.log('Loading provider from %s', url);
+            request.get(url, (error, response, body) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                if (response.statusCode === 404) {
+                    resolve(null);
+                    return;
+                }
+
+                if (response.statusCode !== 200) {
+                    reject(new Error(`Failed to load provider from ${url}: ${body}`));
+                    return;
+                }
+
+                resolve(body);
+            });
+        });
     }
 }
 
