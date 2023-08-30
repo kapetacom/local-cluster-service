@@ -3,13 +3,7 @@ import request from 'request';
 import AsyncLock from 'async-lock';
 import { BlockInstanceRunner } from './utils/BlockInstanceRunner';
 import { storageService } from './storageService';
-import {
-    EVENT_INSTANCE_CREATED,
-    EVENT_INSTANCE_EXITED,
-    EVENT_INSTANCE_LOG,
-    EVENT_STATUS_CHANGED,
-    socketManager,
-} from './socketManager';
+import { EVENT_INSTANCE_CREATED, EVENT_INSTANCE_EXITED, EVENT_STATUS_CHANGED, socketManager } from './socketManager';
 import { serviceManager } from './serviceManager';
 import { assetManager } from './assetManager';
 import { containerManager, HEALTH_CHECK_TIMEOUT } from './containerManager';
@@ -604,6 +598,38 @@ export class InstanceManager {
                 instance.systemId = normalizeKapetaUri(instance.systemId);
                 if (instance.ref) {
                     instance.ref = normalizeKapetaUri(instance.ref);
+                }
+
+                if (instance.desiredStatus === DesiredInstanceStatus.RUN) {
+                    // Check if the plan still exists and the instance is still in the plan
+                    // - and that the block definition exists
+                    try {
+                        const plan = await assetManager.getAsset(instance.systemId, true, false);
+                        if (!plan) {
+                            instance.desiredStatus = DesiredInstanceStatus.STOP;
+                            changed = true;
+                            return;
+                        }
+
+                        const planData = plan.data as Plan;
+                        const planInstance = planData?.spec?.blocks?.find((b) => b.id === instance.instanceId);
+                        if (!planInstance || !planInstance?.block?.ref) {
+                            instance.desiredStatus = DesiredInstanceStatus.STOP;
+                            changed = true;
+                            return;
+                        }
+
+                        const blockDef = await assetManager.getAsset(instance.ref, true, false);
+                        if (!blockDef) {
+                            instance.desiredStatus = DesiredInstanceStatus.STOP;
+                            changed = true;
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn('Failed to check assets', instance.systemId, e);
+                        instance.desiredStatus = DesiredInstanceStatus.STOP;
+                        return;
+                    }
                 }
 
                 const newStatus = await this.requestInstanceStatus(instance);
