@@ -1,3 +1,10 @@
+## [0.16.8](https://github.com/kapetacom/local-cluster-service/compare/v0.16.7...v0.16.8) (2023-08-30)
+
+
+### Bug Fixes
+
+* Gracefully handled instances that have been deleted ([#64](https://github.com/kapetacom/local-cluster-service/issues/64)) ([e26ed35](https://github.com/kapetacom/local-cluster-service/commit/e26ed353e474b7417939008fb1eadec891d5ead9))
+
 ## [0.16.7](https://github.com/kapetacom/local-cluster-service/compare/v0.16.6...v0.16.7) (2023-08-24)
 
 
