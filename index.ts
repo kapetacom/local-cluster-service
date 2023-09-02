@@ -22,6 +22,7 @@ import { getBindHost } from './src/utils/utils';
 import request from 'request';
 import { repositoryManager } from './src/repositoryManager';
 import { ensureCLI } from './src/utils/commandLineUtils';
+import { defaultProviderInstaller } from './src/utils/DefaultProviderInstaller';
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 
@@ -121,6 +122,8 @@ export default {
                 'Could not ping docker runtime: ' + e.toString() + '. Make sure docker is running and working.'
             );
         }
+
+        await defaultProviderInstaller.checkForDefault();
 
         const clusterPort = storageService.get('cluster', 'port');
         if (clusterPort) {
