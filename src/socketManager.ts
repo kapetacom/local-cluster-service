@@ -37,10 +37,16 @@ export class SocketManager {
     }
 
     emit(context: string, type: string, payload: any) {
+        if (!this._io) {
+            return;
+        }
         this.io.to(context).emit(type, { context, payload });
     }
 
     emitGlobal(type: string, payload: any) {
+        if (!this._io) {
+            return;
+        }
         this.io.emit(type, payload);
     }
 

@@ -22,7 +22,7 @@ const DEFAULT_HEALTH_PORT_TYPE = 'rest';
 const MIN_TIME_RUNNING = 30000; //If something didnt run for more than 30 secs - it failed
 
 export class InstanceManager {
-    private _interval: NodeJS.Timer | undefined = undefined;
+    private _interval: any = undefined;
 
     private readonly _instances: InstanceInfo[] = [];
 
