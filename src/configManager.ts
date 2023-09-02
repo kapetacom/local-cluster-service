@@ -80,7 +80,7 @@ class ConfigManager {
         if (systemId) {
             systemId = normalizeKapetaUri(systemId);
         }
-        const planAssets = assetManager.getPlans();
+        const planAssets = await assetManager.getPlans();
 
         const blockUri = parseKapetaUri(blockRef);
 
@@ -132,7 +132,7 @@ class ConfigManager {
     async verifyIdentity(blockRef: string, systemId: string, instanceId: string) {
         blockRef = normalizeKapetaUri(blockRef);
         systemId = normalizeKapetaUri(systemId);
-        const planAssets = assetManager.getPlans();
+        const planAssets = await assetManager.getPlans();
         const systemUri = systemId ? parseKapetaUri(systemId) : null;
         const blockUri = parseKapetaUri(blockRef);
         let found = false;

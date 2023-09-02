@@ -21,8 +21,8 @@ router.get('/', (req: Request, res: Response) => {
 /**
  * Get all instances
  */
-router.get('/:systemId/instances', (req: Request, res: Response) => {
-    res.send(instanceManager.getInstancesForPlan(req.params.systemId));
+router.get('/:systemId/instances', async (req: Request, res: Response) => {
+    res.send(await instanceManager.getInstancesForPlan(req.params.systemId));
 });
 
 /**

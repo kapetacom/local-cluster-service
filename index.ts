@@ -23,6 +23,7 @@ import request from 'request';
 import { repositoryManager } from './src/repositoryManager';
 import { ensureCLI } from './src/utils/commandLineUtils';
 import { defaultProviderInstaller } from './src/utils/DefaultProviderInstaller';
+import { authManager } from './src/authManager';
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 
@@ -147,6 +148,7 @@ export default {
         }
 
         await clusterService.init();
+        await authManager.listenForChanges();
 
         currentServer = createServer();
 
@@ -177,7 +179,7 @@ export default {
 
             const bindHost = getBindHost(host);
 
-            currentServer.listen(port, bindHost, () => {
+            currentServer.listen(port, bindHost, async () => {
                 try {
                     ensureCLI().catch((e: any) => console.error('Failed to install CLI.', e));
                 } catch (e: any) {
@@ -186,7 +188,7 @@ export default {
 
                 try {
                     // Start installation process for all default providers
-                    repositoryManager.ensureDefaultProviders();
+                    await repositoryManager.ensureDefaultProviders();
                 } catch (e: any) {
                     console.error('Failed to install default providers.', e);
                 }

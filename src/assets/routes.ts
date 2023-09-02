@@ -31,8 +31,8 @@ router.use('/', stringBody);
 /**
  * Get all local assets available
  */
-router.get('/', (req: Request, res: Response) => {
-    res.send(assetManager.getAssets([]));
+router.get('/', async (req: Request, res: Response) => {
+    res.send(await assetManager.getAssets([]));
 });
 
 /**

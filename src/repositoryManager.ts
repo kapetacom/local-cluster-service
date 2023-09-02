@@ -58,19 +58,19 @@ class RepositoryManager {
         return this.watcher.clearSourceOfChangeFor(file);
     }
 
-    public ensureDefaultProviders(): void {
+    public async ensureDefaultProviders(): Promise<void> {
         socketManager.emitGlobal(EVENT_DEFAULT_PROVIDERS_START, { providers: DEFAULT_PROVIDERS });
-        const tasks = this._install(DEFAULT_PROVIDERS);
+        const tasks = await this.scheduleInstallation(DEFAULT_PROVIDERS);
         Promise.allSettled(tasks.map((t) => t.wait())).then(() => {
             socketManager.emitGlobal(EVENT_DEFAULT_PROVIDERS_END, {});
         });
     }
 
-    private _install(refs: string[]): Task[] {
+    private async scheduleInstallation(refs: string[]): Promise<Task[]> {
         //We make sure to only install one asset at a time - otherwise unexpected things might happen
         const createInstaller = (ref: string) => {
             return async () => {
-                if (definitionsManager.exists(ref)) {
+                if (await definitionsManager.exists(ref)) {
                     return;
                 }
                 //console.log(`Installing asset: ${ref}`);
@@ -97,7 +97,7 @@ class RepositoryManager {
             }
             ref = normalizeKapetaUri(ref);
 
-            if (definitionsManager.exists(ref)) {
+            if (await definitionsManager.exists(ref)) {
                 continue;
             }
 
@@ -126,10 +126,7 @@ class RepositoryManager {
             return;
         }
 
-        const definitions = definitionsManager.getDefinitions();
-        const installedAsset = definitions.find(
-            (d) => d.definition.metadata.name === fullName && d.version === version
-        );
+        const installedAsset = await definitionsManager.getDefinition(`${fullName}:${version}`);
 
         let assetVersion;
         try {
@@ -147,12 +144,12 @@ class RepositoryManager {
 
         let tasks: Task[] | undefined = undefined;
         if (!installedAsset) {
-            tasks = this._install([ref]);
+            tasks = await this.scheduleInstallation([ref]);
         } else {
             //Ensure dependencies are installed
             const refs = assetVersion.dependencies.map((dep: Dependency) => dep.name);
             if (refs.length > 0) {
-                tasks = this._install(refs);
+                tasks = await this.scheduleInstallation(refs);
             }
         }
 
