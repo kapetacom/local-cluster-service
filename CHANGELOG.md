@@ -1,3 +1,10 @@
+# [0.18.0](https://github.com/kapetacom/local-cluster-service/compare/v0.17.0...v0.18.0) (2023-09-02)
+
+
+### Features
+
+* Auto-rename sample plan when available ([#66](https://github.com/kapetacom/local-cluster-service/issues/66)) ([d95b844](https://github.com/kapetacom/local-cluster-service/commit/d95b844baff7e5bfceb354c854526881051f2308))
+
 # [0.17.0](https://github.com/kapetacom/local-cluster-service/compare/v0.16.8...v0.17.0) (2023-09-02)
 
 
