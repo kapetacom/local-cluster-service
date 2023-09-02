@@ -1,3 +1,16 @@
+# [0.17.0](https://github.com/kapetacom/local-cluster-service/compare/v0.16.8...v0.17.0) (2023-09-02)
+
+
+### Bug Fixes
+
+* Bump dependencies ([273a75b](https://github.com/kapetacom/local-cluster-service/commit/273a75b4727cbfc19fa186849a81aebba9b85b00))
+* TS 5.2 is more strict with build options ([d5a27be](https://github.com/kapetacom/local-cluster-service/commit/d5a27bed4d89d1ed557517b5ae9bfcc1dccabbb0))
+
+
+### Features
+
+* Add default provider and sample installations ([#65](https://github.com/kapetacom/local-cluster-service/issues/65)) ([ea4fe89](https://github.com/kapetacom/local-cluster-service/commit/ea4fe899988cbbaeb5a1020517e7e88ac967e6b9))
+
 ## [0.16.8](https://github.com/kapetacom/local-cluster-service/compare/v0.16.7...v0.16.8) (2023-08-30)
 
 
