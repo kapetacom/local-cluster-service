@@ -3,12 +3,14 @@ import FSExtra from 'fs-extra';
 import { definitionsManager } from './definitionsManager';
 import { cacheManager } from './cacheManager';
 import request from 'request';
+import { DefinitionInfo } from '@kapeta/local-cluster-config';
 
 const PROVIDER_FILE_BASE = 'https://providers.kapeta.com/files';
 
 class ProviderManager {
-    getWebProviders() {
-        return definitionsManager.getProviderDefinitions().filter((providerDefinition) => providerDefinition.hasWeb);
+    async getWebProviders(): Promise<DefinitionInfo[]> {
+        const providers = await definitionsManager.getProviderDefinitions();
+        return providers.filter((providerDefinition) => providerDefinition.hasWeb);
     }
 
     async getProviderWebJS(handle: string, name: string, version: string, sourceMap: boolean = false) {
@@ -22,7 +24,8 @@ class ProviderManager {
             return FSExtra.readFile(file, 'utf8');
         }
 
-        const installedProvider = this.getWebProviders().find((providerDefinition) => {
+        const providers = await this.getWebProviders();
+        const installedProvider = providers.find((providerDefinition) => {
             return providerDefinition.definition.metadata.name === fullName && providerDefinition.version === version;
         });
 
@@ -63,22 +66,27 @@ class ProviderManager {
     }
 }
 
-const providerDefinitions = definitionsManager.getProviderDefinitions();
-
-if (providerDefinitions.length > 0) {
-    console.log('## Loaded the following providers ##');
-    providerDefinitions.forEach((providerDefinition) => {
-        console.log(
-            ' - %s[%s:%s]',
-            providerDefinition.definition.kind,
-            providerDefinition.definition.metadata.name,
-            providerDefinition.version
-        );
-        console.log('   from %s', providerDefinition.path);
+definitionsManager
+    .getProviderDefinitions()
+    .then((providerDefinitions) => {
+        if (providerDefinitions.length > 0) {
+            console.log('## Loaded the following providers ##');
+            providerDefinitions.forEach((providerDefinition) => {
+                console.log(
+                    ' - %s[%s:%s]',
+                    providerDefinition.definition.kind,
+                    providerDefinition.definition.metadata.name,
+                    providerDefinition.version
+                );
+                console.log('   from %s', providerDefinition.path);
+            });
+            console.log('##');
+        } else {
+            console.log('## No providers found ##');
+        }
+    })
+    .catch((e) => {
+        console.error('Failed to load providers', e);
     });
-    console.log('##');
-} else {
-    console.log('## No providers found ##');
-}
 
 export const providerManager = new ProviderManager();

@@ -10,7 +10,7 @@ const BLOCK_TYPE_KIND = 'core/block-type';
 class CodeGeneratorManager {
     async reload() {
         Targets.reset();
-        const languageTargets = definitionsManager.getDefinitions(TARGET_KIND);
+        const languageTargets = await definitionsManager.getDefinitions(TARGET_KIND);
         for (const languageTarget of languageTargets) {
             const key = `${languageTarget.definition.metadata.name}:${languageTarget.version}`;
             try {
@@ -26,13 +26,13 @@ class CodeGeneratorManager {
         }
     }
 
-    canGenerateCode(yamlContent: BlockDefinition): boolean {
+    async canGenerateCode(yamlContent: BlockDefinition): Promise<boolean> {
         if (!yamlContent.spec.target?.kind) {
             //Not all block types have targets
             return false;
         }
 
-        const blockTypes = definitionsManager.getDefinitions(BLOCK_TYPE_KIND);
+        const blockTypes = await definitionsManager.getDefinitions(BLOCK_TYPE_KIND);
         const blockTypeKinds = blockTypes.map(
             (blockType) => blockType.definition.metadata.name.toLowerCase() + ':' + blockType.version
         );

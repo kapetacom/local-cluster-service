@@ -15,6 +15,7 @@ import AsyncLock from 'async-lock';
 import { taskManager } from './taskManager';
 
 export const KIND_OPERATOR = 'core/resource-type-operator';
+const KIND_PLAN = 'core/plan';
 
 class Operator {
     private readonly _data: DefinitionInfo;
@@ -57,8 +58,8 @@ class OperatorManager {
      * @param {string} version
      * @return {Operator}
      */
-    getOperator(resourceType: string, version: string) {
-        const operators = definitionsManager.getDefinitions(KIND_OPERATOR);
+    async getOperator(resourceType: string, version: string) {
+        const operators = await definitionsManager.getDefinitions(KIND_OPERATOR);
 
         const operator: DefinitionInfo | undefined = operators.find(
             (operator) =>
@@ -92,7 +93,7 @@ class OperatorManager {
         environment?: EnvironmentType
     ): Promise<OperatorInfo> {
         systemId = normalizeKapetaUri(systemId);
-        const plans = definitionsManager.getDefinitions('core/plan');
+        const plans = await definitionsManager.getDefinitions(KIND_PLAN);
 
         const planUri = parseKapetaUri(systemId);
         const currentPlan = plans.find(
@@ -109,13 +110,7 @@ class OperatorManager {
             throw new Error(`Unknown instance: ${fromServiceId} in plan ${systemId}`);
         }
 
-        const blockUri = parseKapetaUri(currentInstance.block.ref);
-        const blockDefinition = definitionsManager
-            .getDefinitions()
-            .find(
-                (definition) =>
-                    definition.version === blockUri.version && definition.definition.metadata.name === blockUri.fullName
-            );
+        const blockDefinition = await definitionsManager.getDefinition(currentInstance.block.ref);
 
         if (!blockDefinition) {
             throw new Error(`Unknown block: ${currentInstance.block.ref} in plan ${systemId}`);
@@ -129,7 +124,7 @@ class OperatorManager {
         }
 
         const kindUri = parseKapetaUri(blockResource.kind);
-        const operator = this.getOperator(resourceType, kindUri.version);
+        const operator = await this.getOperator(resourceType, kindUri.version);
         const credentials = operator.getCredentials();
         const container = await this.ensureResource(systemId, resourceType, kindUri.version);
         const portInfo = await container.getPort(portType);
@@ -164,7 +159,7 @@ class OperatorManager {
         systemId = normalizeKapetaUri(systemId);
         const key = `${systemId}#${resourceType}:${version}`;
         return await this.operatorLock.acquire(key, async () => {
-            const operator = this.getOperator(resourceType, version);
+            const operator = await this.getOperator(resourceType, version);
 
             const operatorData = operator.getLocalData();
 

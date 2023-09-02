@@ -25,8 +25,9 @@ const DOCKER_ENV_VARS = [
     `KAPETA_ENVIRONMENT_TYPE=docker`,
 ];
 
-function getProvider(uri: KapetaURI) {
-    return definitionsManager.getProviderDefinitions().find((provider) => {
+async function getProvider(uri: KapetaURI) {
+    const providers = await definitionsManager.getProviderDefinitions();
+    return providers.find((provider) => {
         const ref = `${provider.definition.metadata.name}:${provider.version}`;
         return parseKapetaUri(ref).id === uri.id;
     });
@@ -87,10 +88,7 @@ export class BlockInstanceRunner {
             blockUri.version = 'local';
         }
 
-        const assetVersion = definitionsManager.getDefinitions().find((definitions) => {
-            const ref = `${definitions.definition.metadata.name}:${definitions.version}`;
-            return parseKapetaUri(ref).id === blockUri.id;
-        });
+        const assetVersion = await definitionsManager.getDefinition(blockUri.id);
 
         if (!assetVersion) {
             throw new Error(`Block definition not found: ${blockUri.id}`);
@@ -98,7 +96,7 @@ export class BlockInstanceRunner {
 
         const kindUri = parseKapetaUri(assetVersion.definition.kind);
 
-        const providerVersion = getProvider(kindUri);
+        const providerVersion = await getProvider(kindUri);
 
         if (!providerVersion) {
             throw new Error(`Kind not found: ${kindUri.id}`);
@@ -150,7 +148,7 @@ export class BlockInstanceRunner {
 
         const kindUri = parseKapetaUri(assetVersion.definition.spec?.target?.kind);
 
-        const targetVersion = getProvider(kindUri);
+        const targetVersion = await getProvider(kindUri);
 
         if (!targetVersion) {
             throw new Error(`Target not found: ${kindUri.id}`);

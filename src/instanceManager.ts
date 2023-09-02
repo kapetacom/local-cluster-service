@@ -54,14 +54,14 @@ export class InstanceManager {
         return [...this._instances];
     }
 
-    public getInstancesForPlan(systemId: string) {
+    public async getInstancesForPlan(systemId: string) {
         if (!this._instances) {
             return [];
         }
 
         systemId = normalizeKapetaUri(systemId);
 
-        const planInfo = definitionsManager.getDefinition(systemId);
+        const planInfo = await definitionsManager.getDefinition(systemId);
 
         if (!planInfo) {
             return [];
@@ -458,9 +458,9 @@ export class InstanceManager {
 
             const blockSpec = blockAsset.data.spec as BlockDefinitionSpec;
             if (blockSpec.consumers) {
-                const promises = blockSpec.consumers.map((consumer) => {
+                const promises = blockSpec.consumers.map(async (consumer) => {
                     const consumerUri = parseKapetaUri(consumer.kind);
-                    const asset = definitionsManager.getDefinition(consumer.kind);
+                    const asset = await definitionsManager.getDefinition(consumer.kind);
                     if (!asset) {
                         // Definition not found
                         return Promise.resolve();

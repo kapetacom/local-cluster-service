@@ -64,9 +64,9 @@ class AssetManager {
      * @param {string[]} [assetKinds]
      * @returns {{path: *, ref: string, data: *, editable: boolean, kind: *, exists: boolean}[]}
      */
-    getAssets(assetKinds?: string[]): EnrichedAsset[] {
+    async getAssets(assetKinds?: string[]): Promise<EnrichedAsset[]> {
         if (!assetKinds) {
-            const blockTypeProviders = definitionsManager.getDefinitions([
+            const blockTypeProviders = await definitionsManager.getDefinitions([
                 'core/block-type',
                 'core/block-type-operator',
             ]);
@@ -76,12 +76,12 @@ class AssetManager {
             assetKinds.push('core/plan');
         }
 
-        const assets = definitionsManager.getDefinitions(assetKinds);
+        const assets = await definitionsManager.getDefinitions(assetKinds);
 
         return assets.map(enrichAsset);
     }
 
-    getPlans(): EnrichedAsset[] {
+    async getPlans(): Promise<EnrichedAsset[]> {
         return this.getAssets(['core/plan']);
     }
 
@@ -110,18 +110,18 @@ class AssetManager {
             await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, true);
         }
 
-        let asset = definitionsManager
-            .getDefinitions()
-            .map(enrichAsset)
-            .find((a) => parseKapetaUri(a.ref).equals(uri));
-        if (autoFetch && !asset) {
+        const definitionInfo = await definitionsManager.getDefinition(ref);
+        if (autoFetch && !definitionInfo) {
             throw new Error('Asset not found: ' + ref);
         }
-        if (asset) {
+
+        if (definitionInfo) {
+            const asset = enrichAsset(definitionInfo);
             cacheManager.set(cacheKey, asset, CACHE_TTL);
+            return asset;
         }
 
-        return asset;
+        return undefined;
     }
 
     async createAsset(
@@ -151,7 +151,7 @@ class AssetManager {
 
         const ref = `kapeta://${yaml.metadata.name}:local`;
 
-        this.maybeGenerateCode(ref, path, yaml);
+        await this.maybeGenerateCode(ref, path, yaml);
 
         return asset;
     }
@@ -178,7 +178,7 @@ class AssetManager {
         cacheManager.remove(toKey(ref));
         definitionsManager.clearCache();
 
-        this.maybeGenerateCode(asset.ref, asset.ymlPath, yaml);
+        await this.maybeGenerateCode(asset.ref, asset.ymlPath, yaml);
     }
 
     async importFile(filePath: string) {
@@ -206,7 +206,9 @@ class AssetManager {
 
         definitionsManager.clearCache();
 
-        return this.getAssets().filter((a) => refs.some((ref) => compareRefs(ref, a.ref)));
+        const assets = await this.getAssets();
+
+        return assets.filter((a) => refs.some((ref) => compareRefs(ref, a.ref)));
     }
 
     async unregisterAsset(ref: string) {
@@ -236,9 +238,9 @@ class AssetManager {
         return await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, false);
     }
 
-    private maybeGenerateCode(ref: string, ymlPath: string, block: BlockDefinition) {
+    private async maybeGenerateCode(ref: string, ymlPath: string, block: BlockDefinition) {
         ref = normalizeKapetaUri(ref);
-        if (codeGeneratorManager.canGenerateCode(block)) {
+        if (await codeGeneratorManager.canGenerateCode(block)) {
             const assetTitle = block.metadata.title ? block.metadata.title : parseKapetaUri(block.metadata.name).name;
             taskManager.add(
                 `codegen:${ref}`,
