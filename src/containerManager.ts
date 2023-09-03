@@ -13,6 +13,7 @@ import { getBlockInstanceContainerName } from './utils/utils';
 import { InstanceInfo, LogEntry, LogSource } from './types';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
 import { taskManager, Task } from './taskManager';
+import { EventEmitter } from 'node:events';
 
 type StringMap = { [key: string]: string };
 
@@ -78,6 +79,7 @@ class ContainerManager {
     private _mountDir: string;
     private _version: string;
     private _lastDockerAccessCheck: number = 0;
+    private logStreams: { [p: string]: { stream?: ClosableLogStream; timer?: NodeJS.Timeout } } = {};
 
     constructor() {
         this._docker = null;
@@ -607,6 +609,193 @@ class ContainerManager {
 
         return containerInfo.getLogs();
     }
+
+    async stopLogListening(systemId: string, instanceId: string) {
+        const containerName = getBlockInstanceContainerName(systemId, instanceId);
+        if (this.logStreams[containerName]) {
+            if (this.logStreams[containerName]?.timer) {
+                clearTimeout(this.logStreams[containerName].timer);
+            }
+
+            console.log('Stopped listening for logs on container: %s', containerName);
+            try {
+                const stream = this.logStreams[containerName].stream;
+                if (stream) {
+                    await stream.close();
+                }
+            } catch (err) {
+                // Ignore
+            }
+            delete this.logStreams[containerName];
+        }
+    }
+
+    async ensureLogListening(systemId: string, instanceId: string, handler: (log: LogEntry) => void) {
+        const containerName = getBlockInstanceContainerName(systemId, instanceId);
+        try {
+            if (this.logStreams[containerName]?.stream) {
+                // Already listening - will shut itself down
+                return;
+            }
+
+            if (this.logStreams[containerName]?.timer) {
+                clearTimeout(this.logStreams[containerName].timer);
+            }
+
+            const tryLater = () => {
+                this.logStreams[containerName] = {
+                    timer: setTimeout(() => {
+                        // Keep trying until user decides to not listen anymore
+                        this.ensureLogListening(systemId, instanceId, handler);
+                    }, 5000),
+                };
+            };
+
+            const containerInfo = await this.getContainerByName(containerName);
+            if (!containerInfo || !(await containerInfo.isRunning())) {
+                // Container not currently running - try again in 5 seconds
+                tryLater();
+                return;
+            }
+
+            const stream = await containerInfo.getLogStream();
+            stream.onLog((log) => {
+                try {
+                    handler(log);
+                } catch (err) {
+                    console.warn('Error handling log', err);
+                }
+            });
+            stream.onEnd(() => {
+                // We get here if the container is stopped
+                delete this.logStreams[containerName];
+                tryLater();
+            });
+            stream.onError((err) => {
+                // We get here if the container crashes
+                delete this.logStreams[containerName];
+                tryLater();
+            });
+
+            this.logStreams[containerName] = {
+                stream,
+            };
+        } catch (err) {
+            // Ignore
+        }
+    }
+}
+
+function readLogBuffer(logBuffer: Buffer) {
+    const out: LogEntry[] = [];
+    let offset = 0;
+    while (offset < logBuffer.length) {
+        try {
+            // Read the docker log format - explained here:
+            // https://docs.docker.com/engine/api/v1.41/#operation/ContainerAttach
+            // or here : https://ahmet.im/blog/docker-logs-api-binary-format-explained/
+
+            // First byte is stream type
+            const streamTypeInt = logBuffer.readInt8(offset);
+            const streamType: LogSource = streamTypeInt === 1 ? 'stdout' : 'stderr';
+            if (streamTypeInt !== 1 && streamTypeInt !== 2) {
+                console.error('Unknown stream type: %s', streamTypeInt, out[out.length - 1]);
+                break;
+            }
+
+            // Bytes 4-8 is frame size
+            const messageLength = logBuffer.readInt32BE(offset + 4);
+
+            // After that is the message - with the message length
+            const dataWithoutStreamType = logBuffer.subarray(offset + 8, offset + 8 + messageLength);
+            const raw = dataWithoutStreamType.toString();
+
+            // Split the message into date and message
+            const firstSpaceIx = raw.indexOf(' ');
+            const dateString = raw.substring(0, firstSpaceIx);
+            const line = raw.substring(firstSpaceIx + 1);
+            offset = offset + messageLength + 8;
+            if (!dateString) {
+                break;
+            }
+            out.push({
+                time: new Date(dateString).getTime(),
+                message: line,
+                level: 'INFO',
+                source: streamType,
+            });
+        } catch (err) {
+            console.error('Error parsing log entry', err);
+            offset = logBuffer.length;
+            break;
+        }
+    }
+    return out;
+}
+
+class ClosableLogStream {
+    private readonly stream: FSExtra.ReadStream;
+
+    private readonly eventEmitter: EventEmitter;
+
+    constructor(stream: FSExtra.ReadStream) {
+        this.stream = stream;
+        this.eventEmitter = new EventEmitter();
+        stream.on('data', (data) => {
+            const logs = readLogBuffer(data as Buffer);
+            logs.forEach((log) => {
+                this.eventEmitter.emit('log', log);
+            });
+        });
+
+        stream.on('end', () => {
+            this.eventEmitter.emit('end');
+        });
+
+        stream.on('error', (error) => {
+            this.eventEmitter.emit('error', error);
+        });
+
+        stream.on('close', () => {
+            this.eventEmitter.emit('end');
+        });
+    }
+
+    onLog(listener: (log: LogEntry) => void) {
+        this.eventEmitter.on('log', listener);
+        return () => {
+            this.eventEmitter.removeListener('log', listener);
+        };
+    }
+
+    onEnd(listener: () => void) {
+        this.eventEmitter.on('end', listener);
+        return () => {
+            this.eventEmitter.removeListener('end', listener);
+        };
+    }
+
+    onError(listener: (error: Error) => void) {
+        this.eventEmitter.on('error', listener);
+        return () => {
+            this.eventEmitter.removeListener('error', listener);
+        };
+    }
+
+    close() {
+        return new Promise<void>((resolve, reject) => {
+            try {
+                this.stream.close((err) => {
+                    if (err) {
+                        console.warn('Error closing log stream', err);
+                    }
+                    resolve();
+                });
+            } catch (err) {
+                // Ignore
+            }
+        });
+    }
 }
 
 export class ContainerInfo {
@@ -718,56 +907,37 @@ export class ContainerInfo {
         return ports;
     }
 
+    async getLogStream() {
+        try {
+            const logStream = (await this.native.logs({
+                stdout: true,
+                stderr: true,
+                follow: true,
+                tail: 0,
+                timestamps: true,
+            })) as ReadStream;
+
+            return new ClosableLogStream(logStream);
+        } catch (err) {
+            console.log('Error getting log stream', err);
+            throw err;
+        }
+    }
+
     async getLogs(): Promise<LogEntry[]> {
         const logStream = (await this.native.logs({
             stdout: true,
             stderr: true,
             follow: false,
-            tail: 100,
             timestamps: true,
         })) as ReadStream;
 
-        const out = [] as LogEntry[];
+        const chunks: Buffer[] = [];
         await promisifyStream(logStream, (data) => {
-            const buf = data as Buffer;
-            let offset = 0;
-            while (offset < buf.length) {
-                try {
-                    // Read the docker log format - explained here:
-                    // https://docs.docker.com/engine/api/v1.41/#operation/ContainerAttach
-                    // or here : https://ahmet.im/blog/docker-logs-api-binary-format-explained/
-
-                    // First byte is stream type
-                    const streamTypeInt = buf.readInt8(offset);
-                    const streamType: LogSource = streamTypeInt === 1 ? 'stdout' : 'stderr';
-
-                    // Bytes 4-8 is frame size
-                    const messageLength = buf.readInt32BE(offset + 4);
-
-                    // After that is the message - with the message length
-                    const dataWithoutStreamType = buf.subarray(offset + 8, offset + 8 + messageLength);
-                    const raw = dataWithoutStreamType.toString();
-
-                    // Split the message into date and message
-                    const firstSpaceIx = raw.indexOf(' ');
-                    const dateString = raw.substring(0, firstSpaceIx);
-                    const line = raw.substring(firstSpaceIx + 1);
-                    offset = offset + messageLength + 8;
-                    if (!dateString) {
-                        continue;
-                    }
-                    out.push({
-                        time: new Date(dateString).getTime(),
-                        message: line,
-                        level: 'INFO',
-                        source: streamType,
-                    });
-                } catch (err) {
-                    console.error('Error parsing log entry', err);
-                    offset = buf.length;
-                }
-            }
+            chunks.push(data as Buffer);
         });
+
+        const out = readLogBuffer(Buffer.concat(chunks));
 
         if (out.length === 0) {
             out.push({

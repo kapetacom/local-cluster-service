@@ -529,12 +529,6 @@ export class InstanceManager {
 
                         socketManager.emitInstanceLog(systemId, instanceId, logs[0]);
 
-                        socketManager.emitInstanceEvent(systemId, blockInstance.id, EVENT_INSTANCE_EXITED, {
-                            error: `Failed to start instance: ${e.message}`,
-                            status: EVENT_INSTANCE_EXITED,
-                            instanceId: blockInstance.id,
-                        });
-
                         return out;
                     }
                 },
@@ -606,6 +600,7 @@ export class InstanceManager {
                     try {
                         const plan = await assetManager.getAsset(instance.systemId, true, false);
                         if (!plan) {
+                            console.log('Plan not found - reset to stop', instance.ref, instance.systemId);
                             instance.desiredStatus = DesiredInstanceStatus.STOP;
                             changed = true;
                             return;
@@ -614,6 +609,7 @@ export class InstanceManager {
                         const planData = plan.data as Plan;
                         const planInstance = planData?.spec?.blocks?.find((b) => b.id === instance.instanceId);
                         if (!planInstance || !planInstance?.block?.ref) {
+                            console.log('Plan instance not found - reset to stop', instance.ref, instance.systemId);
                             instance.desiredStatus = DesiredInstanceStatus.STOP;
                             changed = true;
                             return;
@@ -621,6 +617,7 @@ export class InstanceManager {
 
                         const blockDef = await assetManager.getAsset(instance.ref, true, false);
                         if (!blockDef) {
+                            console.log('Block definition not found - reset to stop', instance.ref, instance.systemId);
                             instance.desiredStatus = DesiredInstanceStatus.STOP;
                             changed = true;
                             return;
@@ -836,7 +833,3 @@ export class InstanceManager {
 }
 
 export const instanceManager = new InstanceManager();
-
-process.on('exit', async () => {
-    await instanceManager.stopAll();
-});
