@@ -1,3 +1,10 @@
+# [0.19.0](https://github.com/kapetacom/local-cluster-service/compare/v0.18.0...v0.19.0) (2023-09-03)
+
+
+### Features
+
+* Listen for docker logs when user joins room ([#67](https://github.com/kapetacom/local-cluster-service/issues/67)) ([53bd6b6](https://github.com/kapetacom/local-cluster-service/commit/53bd6b6b6de27dc2f9011887176f270d60a0d9dc))
+
 # [0.18.0](https://github.com/kapetacom/local-cluster-service/compare/v0.17.0...v0.18.0) (2023-09-02)
 
 
