@@ -616,8 +616,6 @@ class ContainerManager {
             if (this.logStreams[containerName]?.timer) {
                 clearTimeout(this.logStreams[containerName].timer);
             }
-
-            console.log('Stopped listening for logs on container: %s', containerName);
             try {
                 const stream = this.logStreams[containerName].stream;
                 if (stream) {
