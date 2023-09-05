@@ -1,29 +1,58 @@
 import Path from 'path';
 import { registry as Targets, BlockCodeGenerator, CodeWriter } from '@kapeta/codegen';
-import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { BlockDefinition } from '@kapeta/schemas';
 import { definitionsManager } from './definitionsManager';
+import { Definition } from '@kapeta/local-cluster-config';
+import { assetManager } from './assetManager';
+import { normalizeKapetaUri } from './utils/utils';
+import { repositoryManager } from './repositoryManager';
 
 const TARGET_KIND = 'core/language-target';
 const BLOCK_TYPE_KIND = 'core/block-type';
 
 class CodeGeneratorManager {
+    private async ensureLanguageTargetInRegistry(path: string, version: string, definition: Definition) {
+        const key = `${definition.metadata.name}:${version}`;
+
+        try {
+            if (await Targets.get(key)) {
+                return;
+            }
+        } catch (e) {}
+
+        try {
+            const target = require(path);
+            if (target.default) {
+                Targets.register(key, target.default);
+            } else {
+                Targets.register(key, target);
+            }
+        } catch (e) {
+            console.error('Failed to load target: %s', key, e);
+        }
+    }
     async reload() {
         Targets.reset();
         const languageTargets = await definitionsManager.getDefinitions(TARGET_KIND);
         for (const languageTarget of languageTargets) {
-            const key = `${languageTarget.definition.metadata.name}:${languageTarget.version}`;
-            try {
-                const target = require(languageTarget.path);
-                if (target.default) {
-                    Targets.register(key, target.default);
-                } else {
-                    Targets.register(key, target);
-                }
-            } catch (e) {
-                console.error('Failed to load target: %s', key, e);
-            }
+            await this.ensureLanguageTargetInRegistry(
+                languageTarget.path,
+                languageTarget.version,
+                languageTarget.definition
+            );
         }
+    }
+
+    async initialize() {
+        await this.reload();
+        repositoryManager.on('change', async () => {
+            // Reload code generators when the repository changes
+            try {
+                await this.reload();
+            } catch (e) {
+                console.error('Failed to reload code generators', e);
+            }
+        });
     }
 
     async canGenerateCode(yamlContent: BlockDefinition): Promise<boolean> {
@@ -40,6 +69,22 @@ class CodeGeneratorManager {
     }
 
     async generate(yamlFile: string, yamlContent: BlockDefinition) {
+        if (!yamlContent.spec.target?.kind) {
+            //Not all block types have targets
+            return;
+        }
+
+        const targetRef = normalizeKapetaUri(yamlContent.spec.target?.kind);
+
+        // Automatically downloads target if not available
+        const targetAsset = await assetManager.getAsset(targetRef);
+
+        if (!targetAsset) {
+            console.error('Language target not found: %s', yamlContent.spec.target?.kind);
+            return;
+        }
+
+        await this.ensureLanguageTargetInRegistry(targetAsset?.path, targetAsset?.version, targetAsset?.data);
         const baseDir = Path.dirname(yamlFile);
         console.log('Generating code for path: %s', baseDir);
         const codeGenerator = new BlockCodeGenerator(yamlContent);
@@ -55,4 +100,3 @@ class CodeGeneratorManager {
 }
 
 export const codeGeneratorManager = new CodeGeneratorManager();
-codeGeneratorManager.reload();

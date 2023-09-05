@@ -9,6 +9,7 @@ import { ProgressListener } from './progressListener';
 import { RepositoryWatcher } from './RepositoryWatcher';
 import { SourceOfChange } from './types';
 import { cacheManager } from './cacheManager';
+import { EventEmitter } from 'node:events';
 
 const EVENT_DEFAULT_PROVIDERS_START = 'default-providers-start';
 const EVENT_DEFAULT_PROVIDERS_END = 'default-providers-end';
@@ -28,14 +29,19 @@ const DEFAULT_PROVIDERS = [
     'kapeta/language-target-java-spring-boot',
 ];
 
-class RepositoryManager {
+class RepositoryManager extends EventEmitter {
     private _registryService: RegistryService;
     private watcher: RepositoryWatcher;
 
     constructor() {
+        super();
         this._registryService = new RegistryService(Config.data.registry.url);
         this.watcher = new RepositoryWatcher();
         this.listenForChanges();
+
+        this.watcher.on('change', (file: string, source: SourceOfChange) => {
+            this.emit('change', file, source);
+        });
     }
 
     listenForChanges() {
