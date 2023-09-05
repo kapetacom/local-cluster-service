@@ -13,6 +13,7 @@ import { normalizeKapetaUri } from './utils/utils';
 import { taskManager } from './taskManager';
 import { SourceOfChange } from './types';
 import { cacheManager } from './cacheManager';
+import uuid from 'node-uuid';
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
@@ -242,13 +243,17 @@ class AssetManager {
         ref = normalizeKapetaUri(ref);
         if (await codeGeneratorManager.canGenerateCode(block)) {
             const assetTitle = block.metadata.title ? block.metadata.title : parseKapetaUri(block.metadata.name).name;
+            const taskId = `codegen:${uuid.v4()}`;
+            const group = `codegen:${ref}`;
+            // We group the codegen tasks since we want to run them all but only 1 at a time per block
             taskManager.add(
-                `codegen:${ref}`,
+                taskId,
                 async () => {
                     await codeGeneratorManager.generate(ymlPath, block);
                 },
                 {
                     name: `Generating code for ${assetTitle}`,
+                    group, //Group prevents multiple tasks from running at the same time
                 }
             );
             return true;
