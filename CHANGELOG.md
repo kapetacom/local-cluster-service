@@ -1,3 +1,10 @@
+## [0.19.2](https://github.com/kapetacom/local-cluster-service/compare/v0.19.1...v0.19.2) (2023-09-05)
+
+
+### Bug Fixes
+
+* Control boot order and reload code gen targets when repo changes ([#68](https://github.com/kapetacom/local-cluster-service/issues/68)) ([5557259](https://github.com/kapetacom/local-cluster-service/commit/5557259dda10f509a2b8cc45c0b4a4631e1d975a))
+
 ## [0.19.1](https://github.com/kapetacom/local-cluster-service/compare/v0.19.0...v0.19.1) (2023-09-03)
 
 
