@@ -12,9 +12,12 @@ import Path from 'path';
 
 export const SAMPLE_PLAN_NAME = 'kapeta/sample-nodejs-plan';
 
-function applyHandleChange(definition: DefinitionInfo, targetHandle: string) {
+function getRenamed(definition: DefinitionInfo, targetHandle: string) {
     const originalUri = parseKapetaUri(definition.definition.metadata.name);
-    definition.definition.metadata.name = `${targetHandle}/${originalUri.name}`;
+    return `${targetHandle}/${originalUri.name}`;
+}
+function applyHandleChange(definition: DefinitionInfo, targetHandle: string) {
+    definition.definition.metadata.name = getRenamed(definition, targetHandle);
     return definition;
 }
 
@@ -55,10 +58,15 @@ class DefinitionsManager {
             return definitions;
         }
 
+        const newName = getRenamed(samplePlan, profile.handle);
+
+        if (definitions.some((d) => d.definition.metadata.name === newName && d.version === 'local')) {
+            // We already have a local version of the sample plan
+            return definitions;
+        }
+
         console.log('Rewriting sample plan to use handle %s', profile.handle);
-
         applyHandleChange(samplePlan, profile.handle);
-
         const planDef = samplePlan.definition as Plan;
 
         const blockRefs = new Set<string>();

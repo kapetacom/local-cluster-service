@@ -24,9 +24,9 @@ const DEFAULT_PROVIDERS = [
     'kapeta/resource-type-web-fragment',
     'kapeta/resource-type-mongodb',
     'kapeta/resource-type-postgresql',
+    'kapeta/resource-type-smtp-client',
     'kapeta/language-target-react-ts',
     'kapeta/language-target-nodejs',
-    'kapeta/language-target-java-spring-boot',
 ];
 
 class RepositoryManager extends EventEmitter {
@@ -90,7 +90,10 @@ class RepositoryManager extends EventEmitter {
                     throw e;
                 }
                 cacheManager.flush();
-                //console.log(`Asset installed: ${ref}`);
+                if (await definitionsManager.exists(ref)) {
+                    return;
+                }
+                throw new Error(`Failed to install asset: ${ref}`);
             };
         };
 
