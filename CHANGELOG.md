@@ -1,3 +1,10 @@
+## [0.19.4](https://github.com/kapetacom/local-cluster-service/compare/v0.19.3...v0.19.4) (2023-09-05)
+
+
+### Bug Fixes
+
+* Do not rename local sample if we already have ([095737e](https://github.com/kapetacom/local-cluster-service/commit/095737e7cfd94ec1e5dc8efcb178fbf88f67d783))
+
 ## [0.19.3](https://github.com/kapetacom/local-cluster-service/compare/v0.19.2...v0.19.3) (2023-09-05)
 
 
