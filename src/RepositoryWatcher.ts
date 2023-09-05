@@ -8,6 +8,7 @@ import _ from 'lodash';
 import { socketManager } from './socketManager';
 import { SourceOfChange, WatchEventName } from './types';
 import { cacheManager } from './cacheManager';
+import { EventEmitter } from 'node:events';
 
 interface AssetIdentity {
     handle: string;
@@ -15,7 +16,7 @@ interface AssetIdentity {
     version: string;
 }
 const KAPETA_YML_RX = /^kapeta.ya?ml$/;
-export class RepositoryWatcher {
+export class RepositoryWatcher extends EventEmitter {
     private watcher?: FSWatcher;
     private disabled: boolean = false;
     private readonly baseDir: string;
@@ -23,6 +24,7 @@ export class RepositoryWatcher {
     private symbolicLinks: { [link: string]: string } = {};
     private sourceOfChange: Map<string, SourceOfChange> = new Map();
     constructor() {
+        super();
         this.baseDir = ClusterConfiguration.getRepositoryBasedir();
     }
 
@@ -228,6 +230,7 @@ export class RepositoryWatcher {
 
         //console.log('Asset changed', payload);
         socketManager.emitGlobal('asset-change', payload);
+        this.emit('change', payload);
 
         cacheManager.flush();
     }
@@ -261,8 +264,13 @@ export class RepositoryWatcher {
         try {
             // Make sure we're not watching the symlink target
             await this.removeSymlinkTarget(path);
-            const stat = await FS.lstat(path);
-            if (stat.isSymbolicLink()) {
+            let symbolicLink = false;
+            try {
+                const stat = await FS.lstat(path);
+                symbolicLink = stat.isSymbolicLink();
+            } catch (e) {}
+
+            if (symbolicLink) {
                 const realPath = `${await FS.realpath(path)}/kapeta.yml`;
                 if (await this.exists(realPath)) {
                     //console.log('Watching symlink target %s => %s', path, realPath);

@@ -24,6 +24,7 @@ import { repositoryManager } from './src/repositoryManager';
 import { ensureCLI } from './src/utils/commandLineUtils';
 import { defaultProviderInstaller } from './src/utils/DefaultProviderInstaller';
 import { authManager } from './src/authManager';
+import { codeGeneratorManager } from './src/codeGeneratorManager';
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 
@@ -125,6 +126,7 @@ export default {
         }
 
         await defaultProviderInstaller.checkForDefault();
+        await codeGeneratorManager.initialize();
 
         const clusterPort = storageService.get('cluster', 'port');
         if (clusterPort) {
