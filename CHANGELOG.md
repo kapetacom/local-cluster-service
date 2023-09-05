@@ -1,3 +1,10 @@
+## [0.19.3](https://github.com/kapetacom/local-cluster-service/compare/v0.19.2...v0.19.3) (2023-09-05)
+
+
+### Bug Fixes
+
+* if codegen is already started for block - run after ([#69](https://github.com/kapetacom/local-cluster-service/issues/69)) ([a1b13ee](https://github.com/kapetacom/local-cluster-service/commit/a1b13eeab8413be8c165419ee36c26e3509338b4))
+
 ## [0.19.2](https://github.com/kapetacom/local-cluster-service/compare/v0.19.1...v0.19.2) (2023-09-05)
 
 
