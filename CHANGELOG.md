@@ -1,3 +1,10 @@
+## [0.19.5](https://github.com/kapetacom/local-cluster-service/compare/v0.19.4...v0.19.5) (2023-09-07)
+
+
+### Bug Fixes
+
+* Handle query and hash in path matching ([#70](https://github.com/kapetacom/local-cluster-service/issues/70)) ([e743cf8](https://github.com/kapetacom/local-cluster-service/commit/e743cf80c6754f43c948fd25967f04808429a784))
+
 ## [0.19.4](https://github.com/kapetacom/local-cluster-service/compare/v0.19.3...v0.19.4) (2023-09-05)
 
 
