@@ -3,6 +3,22 @@ import { StringMap } from '../types';
 const TYPE_VARIABLE = 'variable';
 const TYPE_PATH = 'path';
 
+function normalizePath(path: string) {
+    if (!path.startsWith('/')) {
+        path = '/' + path;
+    }
+
+    if (path.includes('#')) {
+        path = path.split('#')[0];
+    }
+
+    if (path.includes('?')) {
+        path = path.split('?')[0];
+    }
+
+    return path;
+}
+
 /**
  * A path template is a string that can be used to match a path and extract variables from it.
  *
@@ -71,9 +87,7 @@ export class PathTemplate {
     }
 
     parse(path: string) {
-        if (!path.startsWith('/')) {
-            path = '/' + path;
-        }
+        path = normalizePath(path);
 
         const values: StringMap = {};
 

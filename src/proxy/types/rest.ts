@@ -24,12 +24,9 @@ export function getRestMethodId(restResource: Resource, httpMethod: string, http
             path = Path.join(restResource.spec.basePath, path);
         }
 
-        const url = new URL(httpPath, "http://localhost");
-        const urlPath = url.pathname;
-
         const pathTemplate = pathTemplateParser(path);
 
-        return pathTemplate.matches(urlPath);
+        return pathTemplate.matches(httpPath);
     });
 }
 
