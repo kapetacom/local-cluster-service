@@ -10,7 +10,7 @@ import { ProxyRequestInfo, SimpleRequest, StringMap } from '../../types';
 import { StringBodyRequest } from '../../middleware/stringBody';
 import { Resource } from '@kapeta/schemas';
 
-function getRestMethodId(restResource: Resource, httpMethod: string, httpPath: string) {
+export function getRestMethodId(restResource: Resource, httpMethod: string, httpPath: string) {
     return _.findKey(restResource.spec.methods, (method) => {
         let methodType = method.method ? method.method.toUpperCase() : 'GET';
 
@@ -24,9 +24,12 @@ function getRestMethodId(restResource: Resource, httpMethod: string, httpPath: s
             path = Path.join(restResource.spec.basePath, path);
         }
 
+        const url = new URL(httpPath, "http://localhost");
+        const urlPath = url.pathname;
+
         const pathTemplate = pathTemplateParser(path);
 
-        return pathTemplate.matches(httpPath);
+        return pathTemplate.matches(urlPath);
     });
 }
 

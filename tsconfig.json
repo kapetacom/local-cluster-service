@@ -9,6 +9,6 @@
     "ts-node": {
         "files": true
     },
-    "include": ["definitions.d.ts", "src/**/*", "index.ts", "start.ts"],
+    "include": ["definitions.d.ts", "src/**/*", "index.ts", "start.ts", "test/**/*.ts"],
     "exclude": ["node_modules", "dist"]
 }
