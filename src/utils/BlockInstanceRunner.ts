@@ -171,6 +171,13 @@ export class BlockInstanceRunner {
         const homeDir = localContainer.userHome ? localContainer.userHome : '/root';
         const workingDir = localContainer.workingDir ? localContainer.workingDir : '/workspace';
 
+        const customHostConfigs = localContainer.HostConfig ?? {};
+        const customLabels = localContainer.Labels ?? {};
+        const customEnvs = localContainer.Env ?? [];
+        delete localContainer.HostConfig;
+        delete localContainer.Labels;
+        delete localContainer.Env;
+
         const { PortBindings, ExposedPorts, addonEnv } = await this.getDockerPortBindings(blockInstance, assetVersion);
 
         let HealthCheck = undefined;
@@ -179,16 +186,19 @@ export class BlockInstanceRunner {
         }
 
         return this.ensureContainer({
+            ...dockerOpts,
             Image: dockerImage,
             name: containerName,
             WorkingDir: workingDir,
             Labels: {
+                ...customLabels,
                 instance: blockInstance.id,
             },
             HealthCheck,
             ExposedPorts,
             Cmd: startCmd ? startCmd.split(/\s+/g) : [],
             Env: [
+                ...customEnvs,
                 ...DOCKER_ENV_VARS,
                 `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
                 ...Object.entries({
@@ -197,13 +207,13 @@ export class BlockInstanceRunner {
                 }).map(([key, value]) => `${key}=${value}`),
             ],
             HostConfig: {
+                ...customHostConfigs,
                 Binds: [
                     `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${homeDir}/.kapeta`,
                     `${toLocalBindVolume(baseDir)}:${workingDir}`,
                 ],
                 PortBindings,
             },
-            ...dockerOpts,
         });
     }
 
