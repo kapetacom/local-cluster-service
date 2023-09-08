@@ -1,3 +1,10 @@
+## [0.19.6](https://github.com/kapetacom/local-cluster-service/compare/v0.19.5...v0.19.6) (2023-09-08)
+
+
+### Bug Fixes
+
+* Allow more docker opts from language targets ([#71](https://github.com/kapetacom/local-cluster-service/issues/71)) ([dd9e9bb](https://github.com/kapetacom/local-cluster-service/commit/dd9e9bb91fb6aa6d082b1864b268234ece9b8920))
+
 ## [0.19.5](https://github.com/kapetacom/local-cluster-service/compare/v0.19.4...v0.19.5) (2023-09-07)
 
 
