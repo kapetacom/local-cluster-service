@@ -5,6 +5,7 @@ import { assetManager } from './assetManager';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { normalizeKapetaUri } from './utils/utils';
 
+export const SYSTEM_ID = '$plan';
 type AnyMap = { [key: string]: any };
 
 interface MatchedIdentity {
