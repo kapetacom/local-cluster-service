@@ -15,7 +15,7 @@ import {
 import { configManager } from './configManager';
 import { DesiredInstanceStatus, InstanceInfo, InstanceOwner, InstanceStatus, InstanceType, LogEntry } from './types';
 import { BlockDefinitionSpec, BlockInstance, Plan } from '@kapeta/schemas';
-import { getBlockInstanceContainerName, normalizeKapetaUri } from './utils/utils';
+import { getBlockInstanceContainerName, getResolvedConfiguration, normalizeKapetaUri } from './utils/utils';
 import { KIND_OPERATOR, operatorManager } from './operatorManager';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { definitionsManager } from './definitionsManager';
@@ -497,13 +497,18 @@ export class InstanceManager {
             }
 
             const instanceConfig = await configManager.getConfigForSection(systemId, instanceId);
+            const resolvedConfig = getResolvedConfiguration(
+                blockSpec.configuration,
+                instanceConfig,
+                blockInstance.defaultConfiguration
+            );
             const task = taskManager.add(
                 `instance:start:${systemId}:${instanceId}`,
                 async () => {
                     const runner = new BlockInstanceRunner(systemId);
                     const startTime = Date.now();
                     try {
-                        const processInfo = await runner.start(blockRef, instanceId, instanceConfig);
+                        const processInfo = await runner.start(blockRef, instanceId, resolvedConfig);
 
                         instance.status = InstanceStatus.STARTING;
 
