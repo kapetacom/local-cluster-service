@@ -1,3 +1,10 @@
+## [0.19.7](https://github.com/kapetacom/local-cluster-service/compare/v0.19.6...v0.19.7) (2023-09-10)
+
+
+### Bug Fixes
+
+* Replaced node-docker-api with dockerode and types ([#72](https://github.com/kapetacom/local-cluster-service/issues/72)) ([3d4894c](https://github.com/kapetacom/local-cluster-service/commit/3d4894c6f78dc6efe5e75587d6463f33a86ded62))
+
 ## [0.19.6](https://github.com/kapetacom/local-cluster-service/compare/v0.19.5...v0.19.6) (2023-09-08)
 
 
