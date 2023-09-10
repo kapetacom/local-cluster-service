@@ -3,10 +3,9 @@ import { storageService } from './storageService';
 import os from 'os';
 import _ from 'lodash';
 import FSExtra, { ReadStream } from 'fs-extra';
-import { Docker } from 'node-docker-api';
+import Docker from 'dockerode';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
-import { Container } from 'node-docker-api/lib/container';
 import uuid from 'node-uuid';
 import md5 from 'md5';
 import { getBlockInstanceContainerName } from './utils/utils';
@@ -14,6 +13,8 @@ import { InstanceInfo, LogEntry, LogSource } from './types';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
 import { taskManager, Task } from './taskManager';
 import { EventEmitter } from 'node:events';
+import StreamValues from 'stream-json/streamers/StreamValues';
+import { Stream } from 'stream';
 
 type StringMap = { [key: string]: string };
 
@@ -33,23 +34,40 @@ export interface DockerMounts {
     Consistency: string;
 }
 
-interface DockerState {
-    Status: 'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead';
-    Running: boolean;
-    Paused: boolean;
-    Restarting: boolean;
-    OOMKilled: boolean;
-    Dead: boolean;
-    Pid: number;
-    ExitCode: number;
-    Error: string;
-    StartedAt: string;
-    FinishedAt: string;
-    Health?: {
-        Status: 'starting' | 'healthy' | 'unhealthy' | 'none';
-        FailingStreak: number;
-        Log: any[] | null;
-    };
+interface JSONProgress {
+    // Current is the current status and value of the progress made towards Total.
+    current: number;
+    // Total is the end value describing when we made 100% progress for an operation.
+    total: number;
+    // Start is the initial value for the operation.
+    start: number;
+    // HideCounts. if true, hides the progress count indicator (xB/yB).
+    hidecounts: boolean;
+    // Units is the unit to print for progress. It defaults to "bytes" if empty.
+    units: string;
+}
+
+interface JSONError {
+    code: number;
+    message: string;
+}
+
+export type DockerContainerStatus = 'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead';
+export type DockerContainerHealth = 'starting' | 'healthy' | 'unhealthy' | 'none';
+
+interface JSONMessage<T = string> {
+    stream?: string;
+    status: T;
+    progressDetail?: JSONProgress;
+    progress?: string;
+    id: string;
+    from: string;
+    time: number;
+    timeNano: number;
+    errorDetail?: JSONError;
+    error?: string;
+    // Aux contains out-of-band data, such as digests for push signing and image id after building.
+    aux?: any;
 }
 
 interface Health {
@@ -63,14 +81,45 @@ export const CONTAINER_LABEL_PORT_PREFIX = 'kapeta_port-';
 const NANO_SECOND = 1000000;
 const HEALTH_CHECK_INTERVAL = 3000;
 const HEALTH_CHECK_MAX = 20;
+export const COMPOSE_LABEL_PROJECT = 'com.docker.compose.project';
+export const COMPOSE_LABEL_SERVICE = 'com.docker.compose.service';
 
 export const HEALTH_CHECK_TIMEOUT = HEALTH_CHECK_INTERVAL * HEALTH_CHECK_MAX * 2;
 
-const promisifyStream = (stream: ReadStream, handler: (d: string | Buffer) => void) =>
-    new Promise((resolve, reject) => {
-        stream.on('data', handler);
-        stream.on('end', resolve);
-        stream.on('error', reject);
+enum DockerPullEventTypes {
+    PreparingPhase = 'Preparing',
+    WaitingPhase = 'Waiting',
+    PullingFsPhase = 'Pulling fs layer',
+    DownloadingPhase = 'Downloading',
+    DownloadCompletePhase = 'Download complete',
+    ExtractingPhase = 'Extracting',
+    VerifyingChecksumPhase = 'Verifying Checksum',
+    AlreadyExistsPhase = 'Already exists',
+    PullCompletePhase = 'Pull complete',
+}
+
+type DockerPullEventType = DockerPullEventTypes | string;
+
+const processJsonStream = <T>(purpose: string, stream: Stream, handler: (d: JSONMessage<T>) => void) =>
+    new Promise<void>((resolve, reject) => {
+        const jsonStream = StreamValues.withParser();
+        jsonStream.on('data', (data: any) => {
+            try {
+                handler(data.value as JSONMessage<T>);
+            } catch (e) {
+                console.error('Failed while processing data for stream: %s', purpose, e);
+            }
+        });
+        jsonStream.on('end', () => {
+            console.log('Docker stream ended: %s', purpose);
+            resolve();
+        });
+        jsonStream.on('error', (err) => {
+            console.error('Docker stream failed: %s', purpose, err);
+            reject(err);
+        });
+
+        stream.pipe(jsonStream);
     });
 
 class ContainerManager {
@@ -92,7 +141,7 @@ class ContainerManager {
     async initialize() {
         // Use the value from cluster-service.yml if configured
         const dockerConfig = ClusterConfiguration.getDockerConfig();
-        const connectOptions =
+        const connectOptions: any[] =
             Object.keys(dockerConfig).length > 0
                 ? [dockerConfig]
                 : [
@@ -114,7 +163,7 @@ class ContainerManager {
             try {
                 const client = new Docker({
                     ...opts,
-                    timeout: 10000,
+                    timeout: 15 * 60 * 1000, //15 minutes should be enough for any operation
                 });
                 await client.ping();
                 this._docker = client;
@@ -210,14 +259,13 @@ class ContainerManager {
     }
 
     async getContainerByName(containerName: string): Promise<ContainerInfo | undefined> {
-        const containers = await this.docker().container.list({ all: true });
+        const containers = await this.docker().listContainers({ all: true });
         const out = containers.find((container) => {
-            const containerData = container.data as any;
-            return containerData.Names.indexOf(`/${containerName}`) > -1;
+            return container.Names.indexOf(`/${containerName}`) > -1;
         });
 
         if (out) {
-            return new ContainerInfo(out);
+            return this.get(out.Id);
         }
         return undefined;
     }
@@ -228,8 +276,7 @@ class ContainerManager {
             tag = 'latest';
         }
 
-        const imageTagList = (await this.docker().image.list())
-            .map((image) => image.data as any)
+        const imageTagList = (await this.docker().listImages({}))
             .filter((imageData) => !!imageData.RepoTags)
             .map((imageData) => imageData.RepoTags as string[]);
 
@@ -261,10 +308,9 @@ class ContainerManager {
                       }
                     : {};
 
-            const stream = (await this.docker().image.create(auth, {
-                fromImage: imageName,
-                tag: tag,
-            })) as ReadStream;
+            const stream = await this.docker().pull(image, {
+                authconfig: auth,
+            });
 
             const chunks: {
                 [p: string]: {
@@ -281,66 +327,61 @@ class ContainerManager {
             } = {};
 
             let lastEmitted = Date.now();
-            await promisifyStream(stream, (rawData) => {
-                const lines = rawData.toString().trim().split('\n');
-                lines.forEach((line) => {
-                    const data = JSON.parse(line);
-                    if (
-                        ![
-                            'Waiting',
-                            'Downloading',
-                            'Extracting',
-                            'Download complete',
-                            'Pull complete',
-                            'Already exists',
-                        ].includes(data.status)
-                    ) {
-                        return;
-                    }
+            await processJsonStream<DockerPullEventType>(`image:pull:${image}`, stream, (data) => {
+                if (!chunks[data.id]) {
+                    chunks[data.id] = {
+                        downloading: {
+                            total: 0,
+                            current: 0,
+                        },
+                        extracting: {
+                            total: 0,
+                            current: 0,
+                        },
+                        done: false,
+                    };
+                }
 
-                    if (!chunks[data.id]) {
-                        chunks[data.id] = {
-                            downloading: {
-                                total: 0,
-                                current: 0,
-                            },
-                            extracting: {
-                                total: 0,
-                                current: 0,
-                            },
-                            done: false,
+                const chunk = chunks[data.id];
+
+                switch (data.status) {
+                    case DockerPullEventTypes.PreparingPhase:
+                    case DockerPullEventTypes.WaitingPhase:
+                    case DockerPullEventTypes.PullingFsPhase:
+                        //Do nothing
+                        break;
+                    case DockerPullEventTypes.DownloadingPhase:
+                    case DockerPullEventTypes.VerifyingChecksumPhase:
+                        chunk.downloading = {
+                            total: data.progressDetail?.total ?? 0,
+                            current: data.progressDetail?.current ?? 0,
                         };
-                    }
+                        break;
+                    case DockerPullEventTypes.ExtractingPhase:
+                        chunk.extracting = {
+                            total: data.progressDetail?.total ?? 0,
+                            current: data.progressDetail?.current ?? 0,
+                        };
+                        break;
+                    case DockerPullEventTypes.DownloadCompletePhase:
+                        chunk.downloading.current = chunks[data.id].downloading.total;
+                        break;
+                    case DockerPullEventTypes.PullCompletePhase:
+                        chunk.extracting.current = chunks[data.id].extracting.total;
+                        chunk.done = true;
+                        break;
+                }
 
-                    const chunk = chunks[data.id];
-
-                    switch (data.status) {
-                        case 'Downloading':
-                            chunk.downloading = data.progressDetail;
-                            break;
-                        case 'Extracting':
-                            chunk.extracting = data.progressDetail;
-                            break;
-                        case 'Download complete':
-                            chunk.downloading.current = chunks[data.id].downloading.total;
-                            break;
-                        case 'Pull complete':
-                            chunk.extracting.current = chunks[data.id].extracting.total;
-                            chunk.done = true;
-                            break;
-                        case 'Already exists':
-                            // Force layer to be done
-                            chunk.downloading.current = 1;
-                            chunk.downloading.total = 1;
-                            chunk.extracting.current = 1;
-                            chunk.extracting.total = 1;
-                            chunk.done = true;
-                            break;
-                    }
-                });
-
-                if (Date.now() - lastEmitted < 1000) {
-                    return;
+                if (
+                    data.status === DockerPullEventTypes.AlreadyExistsPhase ||
+                    data.status.includes('Image is up to date') ||
+                    data.status.includes('Downloaded newer image')
+                ) {
+                    chunk.downloading.current = 1;
+                    chunk.downloading.total = 1;
+                    chunk.extracting.current = 1;
+                    chunk.extracting.total = 1;
+                    chunk.done = true;
                 }
 
                 const chunkList = Object.values(chunks);
@@ -353,6 +394,7 @@ class ContainerManager {
                         total: 0,
                         current: 0,
                     },
+                    percent: 0,
                     total: chunkList.length,
                     done: 0,
                 };
@@ -379,15 +421,19 @@ class ContainerManager {
                     }
                 });
 
-                const progress = totals.total > 0 ? (totals.done / totals.total) * 100 : 0;
+                totals.percent = totals.total > 0 ? (totals.done / totals.total) * 100 : 0;
 
                 task.metadata = {
                     ...task.metadata,
                     image,
-                    progress,
+                    progress: totals.percent,
                     status: totals,
                     timeTaken: Date.now() - timeStarted,
                 };
+
+                if (Date.now() - lastEmitted < 1000) {
+                    return;
+                }
                 task.emitUpdate();
                 lastEmitted = Date.now();
                 //console.log('Pulling image %s: %s % [done: %s, total: %s]', image, Math.round(percent), totals.done, totals.total);
@@ -406,6 +452,7 @@ class ContainerManager {
             name: taskName,
             image,
             progress: -1,
+            group: 'docker:pull', //It's faster to pull images one at a time
         });
 
         await task.wait();
@@ -462,40 +509,40 @@ class ContainerManager {
             console.log('Starting unnamed container: %s', opts.Image);
             return this.startContainer(opts);
         }
-        const containerInfo = await this.getContainerByName(opts.name);
+        const container = await this.getContainerByName(opts.name);
         if (imagePulled) {
+            // If image was pulled always recreate
             console.log('New version of image was pulled: %s', opts.Image);
         } else {
-            // If image was pulled always recreate
-            if (!containerInfo) {
+            if (!container) {
                 console.log('Starting new container: %s', opts.name);
                 return this.startContainer(opts);
             }
 
-            const containerData = containerInfo.native.data as any;
+            const containerData = await container.inspect();
 
-            if (containerData?.Labels?.HASH === opts.Labels.HASH) {
-                if (!(await containerInfo.isRunning())) {
+            if (containerData?.Config.Labels?.HASH === opts.Labels.HASH) {
+                if (!(await container.isRunning())) {
                     console.log('Starting previously created container: %s', opts.name);
-                    await containerInfo.start();
+                    await container.start();
                 } else {
                     console.log('Previously created container already running: %s', opts.name);
                 }
-                return containerInfo.native;
+                return container.native;
             }
         }
 
-        if (containerInfo) {
+        if (container) {
             // Remove the container and start a new one
             console.log('Replacing previously created container: %s', opts.name);
-            await containerInfo.remove({ force: true });
+            await container.remove({ force: true });
         }
 
         console.log('Starting new container: %s', opts.name);
         return this.startContainer(opts);
     }
 
-    async startContainer(opts: any) {
+    private async startContainer(opts: any) {
         const extraHosts = getExtraHosts(this._version);
 
         if (extraHosts && extraHosts.length > 0) {
@@ -510,12 +557,12 @@ class ContainerManager {
             opts.HostConfig.ExtraHosts = opts.HostConfig.ExtraHosts.concat(extraHosts);
         }
 
-        const dockerContainer = await this.docker().container.create(opts);
+        const dockerContainer = await this.docker().createContainer(opts);
         await dockerContainer.start();
         return dockerContainer;
     }
 
-    async waitForReady(container: Container, attempt: number = 0): Promise<void> {
+    async waitForReady(container: Docker.Container, attempt: number = 0): Promise<void> {
         if (!attempt) {
             attempt = 0;
         }
@@ -540,34 +587,33 @@ class ContainerManager {
         });
     }
 
-    async _isReady(container: Container) {
-        let info: Container;
+    async _isReady(container: Docker.Container) {
+        let info: Docker.ContainerInspectInfo;
         try {
-            info = await container.status();
+            info = await container.inspect();
         } catch (err) {
             return false;
         }
-        const infoData: any = info?.data;
-        const state = infoData?.State as DockerState;
 
-        if (state?.Status === 'exited' || state?.Status === 'removing' || state?.Status === 'dead') {
+        const state = info.State;
+
+        if (state.Status === 'exited' || state?.Status === 'removing' || state?.Status === 'dead') {
             throw new Error('Container exited unexpectedly');
         }
 
-        if (infoData?.State?.Health) {
+        if (state.Health) {
             // If container has health info - wait for it to become healthy
-            return infoData.State.Health.Status === 'healthy';
+            return state.Health.Status === 'healthy';
         } else {
-            return infoData?.State?.Running ?? false;
+            return state.Running ?? false;
         }
     }
 
-    async remove(container: Container, opts?: { force?: boolean }) {
+    async remove(container: Docker.Container, opts?: { force?: boolean }) {
         const newName = 'deleting-' + uuid.v4();
-        const containerData = container.data as any;
         // Rename the container first to avoid name conflicts if people start the same container
         await container.rename({ name: newName });
-        await container.delete({ force: !!opts?.force });
+        await container.remove({ force: !!opts?.force });
     }
 
     /**
@@ -575,19 +621,19 @@ class ContainerManager {
      * @param name
      * @return {Promise<ContainerInfo>}
      */
-    async get(name: string): Promise<ContainerInfo | null> {
+    async get(name: string): Promise<ContainerInfo | undefined> {
         let dockerContainer = null;
 
         try {
-            dockerContainer = await this.docker().container.get(name);
-            await dockerContainer.status();
+            dockerContainer = await this.docker().getContainer(name);
+            await dockerContainer.stats();
         } catch (err) {
             //Ignore
             dockerContainer = null;
         }
 
         if (!dockerContainer) {
-            return null;
+            return undefined;
         }
 
         return new ContainerInfo(dockerContainer);
@@ -797,16 +843,16 @@ class ClosableLogStream {
 }
 
 export class ContainerInfo {
-    private readonly _container: Container;
+    private readonly _container: Docker.Container;
 
     /**
      *
-     * @param {Container} dockerContainer
+     * @param {Docker.Container} dockerContainer
      */
-    constructor(dockerContainer: Container) {
+    constructor(dockerContainer: Docker.Container) {
         /**
          *
-         * @type {Container}
+         * @type {Docker.Container}
          * @private
          */
         this._container = dockerContainer;
@@ -827,14 +873,23 @@ export class ContainerInfo {
     }
 
     async start() {
+        if (await this.isRunning()) {
+            return;
+        }
         await this._container.start();
     }
 
     async restart() {
+        if (!(await this.isRunning())) {
+            return this.start();
+        }
         await this._container.restart();
     }
 
     async stop() {
+        if (!(await this.isRunning())) {
+            return;
+        }
         await this._container.stop();
     }
 
@@ -854,18 +909,16 @@ export class ContainerInfo {
 
     async inspect() {
         try {
-            const result = await this._container.status();
-
-            return result ? (result.data as any) : null;
+            return await this._container.inspect();
         } catch (err) {
-            return null;
+            return undefined;
         }
     }
 
     async status() {
         const result = await this.inspect();
 
-        return result.State as DockerState;
+        return result?.State;
     }
 
     async getPorts(): Promise<PortMap | false> {
@@ -923,19 +976,14 @@ export class ContainerInfo {
     }
 
     async getLogs(): Promise<LogEntry[]> {
-        const logStream = (await this.native.logs({
+        const logs = await this.native.logs({
             stdout: true,
             stderr: true,
             follow: false,
             timestamps: true,
-        })) as ReadStream;
-
-        const chunks: Buffer[] = [];
-        await promisifyStream(logStream, (data) => {
-            chunks.push(data as Buffer);
         });
 
-        const out = readLogBuffer(Buffer.concat(chunks));
+        const out = readLogBuffer(logs);
 
         if (out.length === 0) {
             out.push({
