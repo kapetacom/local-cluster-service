@@ -1,3 +1,10 @@
+# [0.20.0](https://github.com/kapetacom/local-cluster-service/compare/v0.19.7...v0.20.0) (2023-09-10)
+
+
+### Features
+
+* Add support for block instance default configuration ([#73](https://github.com/kapetacom/local-cluster-service/issues/73)) ([7ea0f94](https://github.com/kapetacom/local-cluster-service/commit/7ea0f94a3167f14453e6c45aab7501181bff7398))
+
 ## [0.19.7](https://github.com/kapetacom/local-cluster-service/compare/v0.19.6...v0.19.7) (2023-09-10)
 
 
