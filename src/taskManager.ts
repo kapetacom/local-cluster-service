@@ -139,7 +139,9 @@ class TaskManager {
 
         socketManager.emitGlobal(EVENT_TASK_ADDED, task.toData());
 
-        this.invokeTask(task).catch(() => {});
+        this.invokeTask(task).catch((err) => {
+            console.warn(`Task ${task.id} failed`, err);
+        });
 
         return task;
     }
@@ -205,6 +207,7 @@ class TaskManager {
             task.future.resolve(result);
             task.emitUpdate();
         } catch (e: any) {
+            console.warn(`Task ${task.id} failed while waiting for it to resolve`, e);
             task.errorMessage = e.message;
             task.status = TaskStatus.FAILED;
             task.future.reject(e);

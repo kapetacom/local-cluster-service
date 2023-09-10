@@ -4,7 +4,13 @@ import md5 from 'md5';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { serviceManager } from './serviceManager';
 import { storageService } from './storageService';
-import { CONTAINER_LABEL_PORT_PREFIX, ContainerInfo, containerManager } from './containerManager';
+import {
+    COMPOSE_LABEL_PROJECT,
+    COMPOSE_LABEL_SERVICE,
+    CONTAINER_LABEL_PORT_PREFIX,
+    ContainerInfo,
+    containerManager,
+} from './containerManager';
 import FSExtra from 'fs-extra';
 import { AnyMap, EnvironmentType, OperatorInfo, StringMap } from './types';
 import { BlockInstance, Resource } from '@kapeta/schemas';
@@ -199,8 +205,12 @@ class OperatorManager {
             const PortBindings: { [key: string]: any } = {};
             const Env: string[] = [];
 
+            const systemUri = parseKapetaUri(systemId);
+
             const Labels: StringMap = {
                 kapeta: 'true',
+                [COMPOSE_LABEL_PROJECT]: systemUri.id.replace(/[^a-z0-9]/gi, '_'),
+                [COMPOSE_LABEL_SERVICE]: [resourceType, version].join('_').replace(/[^a-z0-9]/gi, '_'),
             };
 
             const operatorMetadata = operator.getDefinitionInfo().definition.metadata;

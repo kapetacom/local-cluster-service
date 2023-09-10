@@ -6,7 +6,12 @@ import { storageService } from './storageService';
 import { EVENT_INSTANCE_CREATED, EVENT_INSTANCE_EXITED, EVENT_STATUS_CHANGED, socketManager } from './socketManager';
 import { serviceManager } from './serviceManager';
 import { assetManager } from './assetManager';
-import { containerManager, HEALTH_CHECK_TIMEOUT } from './containerManager';
+import {
+    containerManager,
+    DockerContainerHealth,
+    DockerContainerStatus,
+    HEALTH_CHECK_TIMEOUT,
+} from './containerManager';
 import { configManager } from './configManager';
 import { DesiredInstanceStatus, InstanceInfo, InstanceOwner, InstanceStatus, InstanceType, LogEntry } from './types';
 import { BlockDefinitionSpec, BlockInstance, Plan } from '@kapeta/schemas';
@@ -336,6 +341,10 @@ export class InstanceManager {
                 return;
             }
 
+            if (instance.status === InstanceStatus.STOPPING) {
+                return;
+            }
+
             if (changeDesired && instance.desiredStatus !== DesiredInstanceStatus.EXTERNAL) {
                 instance.desiredStatus = DesiredInstanceStatus.STOP;
             }
@@ -496,7 +505,7 @@ export class InstanceManager {
                     try {
                         const processInfo = await runner.start(blockRef, instanceId, instanceConfig);
 
-                        instance.status = InstanceStatus.READY;
+                        instance.status = InstanceStatus.STARTING;
 
                         return this.saveInternalInstance({
                             ...instance,
@@ -504,10 +513,10 @@ export class InstanceManager {
                             pid: processInfo.pid ?? -1,
                             health: null,
                             portType: processInfo.portType,
-                            status: InstanceStatus.READY,
+                            status: InstanceStatus.STARTING,
                         });
                     } catch (e: any) {
-                        console.warn('Failed to start instance: ', systemId, instanceId, blockRef, e.message);
+                        console.warn('Failed to start instance: ', systemId, instanceId, blockRef, e);
                         const logs: LogEntry[] = [
                             {
                                 source: 'stdout',
@@ -686,7 +695,12 @@ export class InstanceManager {
                     try {
                         await this.start(instance.systemId, instance.instanceId);
                     } catch (e: any) {
-                        console.warn('Failed to start instance', instance.systemId, instance.instanceId, e);
+                        console.warn(
+                            'Failed to start previously stopped instance',
+                            instance.systemId,
+                            instance.instanceId,
+                            e
+                        );
                     }
                     return;
                 }
@@ -738,37 +752,47 @@ export class InstanceManager {
                 return InstanceStatus.STOPPED;
             }
             const state = await container.status();
-
-            if (state.Status === 'running') {
-                if (state.Health?.Status === 'healthy') {
-                    return InstanceStatus.READY;
-                }
-                if (state.Health?.Status === 'starting') {
-                    return InstanceStatus.STARTING;
-                }
-                if (state.Health?.Status === 'unhealthy') {
-                    return InstanceStatus.UNHEALTHY;
-                }
-
-                return InstanceStatus.READY;
-            }
-            if (state.Status === 'created') {
-                return InstanceStatus.STARTING;
-            }
-
-            if (state.Status === 'exited' || state.Status === 'dead') {
+            if (!state) {
                 return InstanceStatus.STOPPED;
             }
 
-            if (state.Status === 'removing') {
+            const statusType = state.Status as DockerContainerStatus;
+
+            if (statusType === 'running') {
+                if (state.Health?.Status) {
+                    const healthStatusType = state.Health.Status as DockerContainerHealth;
+                    if (healthStatusType === 'healthy' || healthStatusType === 'none') {
+                        return InstanceStatus.READY;
+                    }
+
+                    if (healthStatusType === 'starting') {
+                        return InstanceStatus.STARTING;
+                    }
+
+                    if (healthStatusType === 'unhealthy') {
+                        return InstanceStatus.UNHEALTHY;
+                    }
+                }
+                return InstanceStatus.READY;
+            }
+
+            if (statusType === 'created') {
+                return InstanceStatus.STARTING;
+            }
+
+            if (statusType === 'exited' || statusType === 'dead') {
+                return InstanceStatus.STOPPED;
+            }
+
+            if (statusType === 'removing') {
                 return InstanceStatus.BUSY;
             }
 
-            if (state.Status === 'restarting') {
+            if (statusType === 'restarting') {
                 return InstanceStatus.BUSY;
             }
 
-            if (state.Status === 'paused') {
+            if (statusType === 'paused') {
                 return InstanceStatus.BUSY;
             }
 

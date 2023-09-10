@@ -3,12 +3,18 @@ import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
 import { getBindHost, getBlockInstanceContainerName, normalizeKapetaUri, readYML } from './utils';
 import { KapetaURI, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { serviceManager } from '../serviceManager';
-import { containerManager, DockerMounts, toLocalBindVolume } from '../containerManager';
+import {
+    COMPOSE_LABEL_PROJECT,
+    COMPOSE_LABEL_SERVICE,
+    containerManager,
+    DockerMounts,
+    toLocalBindVolume,
+} from '../containerManager';
 import { LogData } from './LogData';
 import { clusterService } from '../clusterService';
 import { AnyMap, BlockProcessParams, InstanceType, ProcessInfo, StringMap } from '../types';
-import { Container } from 'node-docker-api/lib/container';
 import { definitionsManager } from '../definitionsManager';
+import Docker from 'dockerode';
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
@@ -185,6 +191,8 @@ export class BlockInstanceRunner {
             HealthCheck = containerManager.toDockerHealth({ cmd: localContainer.healthcheck });
         }
 
+        const systemUri = parseKapetaUri(this._systemId);
+
         return this.ensureContainer({
             ...dockerOpts,
             Image: dockerImage,
@@ -193,6 +201,8 @@ export class BlockInstanceRunner {
             Labels: {
                 ...customLabels,
                 instance: blockInstance.id,
+                [COMPOSE_LABEL_PROJECT]: systemUri.id.replace(/[^a-z0-9]/gi, '_'),
+                [COMPOSE_LABEL_SERVICE]: blockInfo.id.replace(/[^a-z0-9]/gi, '_'),
             },
             HealthCheck,
             ExposedPorts,
@@ -250,6 +260,7 @@ export class BlockInstanceRunner {
 
         // For windows we need to default to root
         const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
+        const systemUri = parseKapetaUri(this._systemId);
 
         return this.ensureContainer({
             Image: dockerImage,
@@ -257,6 +268,8 @@ export class BlockInstanceRunner {
             ExposedPorts,
             Labels: {
                 instance: blockInstance.id,
+                [COMPOSE_LABEL_PROJECT]: systemUri.id.replace(/[^a-z0-9]/gi, '_'),
+                [COMPOSE_LABEL_SERVICE]: blockInfo.id.replace(/[^a-z0-9]/gi, '_'),
             },
             Env: [
                 ...DOCKER_ENV_VARS,
@@ -354,6 +367,7 @@ export class BlockInstanceRunner {
         // For windows we need to default to root
         const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
 
+        const systemUri = parseKapetaUri(this._systemId);
         logs.addLog(`Creating new container for block: ${containerName}`);
         const out = await this.ensureContainer({
             Image: dockerImage,
@@ -370,6 +384,8 @@ export class BlockInstanceRunner {
             },
             Labels: {
                 instance: blockInstance.id,
+                [COMPOSE_LABEL_PROJECT]: systemUri.id.replace(/[^a-z0-9]/gi, '_'),
+                [COMPOSE_LABEL_SERVICE]: blockUri.id.replace(/[^a-z0-9]/gi, '_'),
             },
             Env: [
                 `KAPETA_INSTANCE_NAME=${blockInstance.ref}`,
@@ -424,7 +440,7 @@ export class BlockInstanceRunner {
         return this._handleContainer(container);
     }
 
-    private async _handleContainer(container: Container): Promise<ProcessInfo> {
+    private async _handleContainer(container: Docker.Container): Promise<ProcessInfo> {
         return {
             type: InstanceType.DOCKER,
             pid: container.id,
