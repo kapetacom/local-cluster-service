@@ -1,3 +1,10 @@
+## [0.20.3](https://github.com/kapetacom/local-cluster-service/compare/v0.20.2...v0.20.3) (2023-09-12)
+
+
+### Bug Fixes
+
+* Resolve configuration when returning it for instance ([#77](https://github.com/kapetacom/local-cluster-service/issues/77)) ([e1f9ee6](https://github.com/kapetacom/local-cluster-service/commit/e1f9ee62877efcd87b8c5b21c42609f10842ece2))
+
 ## [0.20.2](https://github.com/kapetacom/local-cluster-service/compare/v0.20.1...v0.20.2) (2023-09-12)
 
 
