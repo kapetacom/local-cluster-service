@@ -407,16 +407,7 @@ export class InstanceManager {
     public async start(systemId: string, instanceId: string): Promise<InstanceInfo | Task<InstanceInfo>> {
         return this.exclusive(systemId, instanceId, async () => {
             systemId = normalizeKapetaUri(systemId);
-            const plan = await assetManager.getPlan(systemId, true);
-            if (!plan) {
-                throw new Error('Plan not found: ' + systemId);
-            }
-
-            const blockInstance = plan.spec && plan.spec.blocks ? _.find(plan.spec.blocks, { id: instanceId }) : null;
-            if (!blockInstance) {
-                throw new Error('Block instance not found: ' + instanceId);
-            }
-
+            const blockInstance = await assetManager.getBlockInstance(systemId, instanceId);
             const blockRef = normalizeKapetaUri(blockInstance.block.ref);
 
             const blockAsset = await assetManager.getAsset(blockRef, true);

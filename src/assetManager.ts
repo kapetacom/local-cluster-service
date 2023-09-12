@@ -6,7 +6,7 @@ import { codeGeneratorManager } from './codeGeneratorManager';
 import { ProgressListener } from './progressListener';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { repositoryManager } from './repositoryManager';
-import { BlockDefinition } from '@kapeta/schemas';
+import { BlockDefinition, BlockInstance, Plan } from '@kapeta/schemas';
 import { Actions } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { normalizeKapetaUri } from './utils/utils';
@@ -86,14 +86,29 @@ class AssetManager {
         return this.getAssets(['core/plan']);
     }
 
-    async getPlan(ref: string, noCache: boolean = false) {
+    async getPlan(ref: string, noCache: boolean = false): Promise<Plan> {
         const asset = await this.getAsset(ref, noCache);
+
+        if (!asset) {
+            throw new Error('Plan was not found: ' + ref);
+        }
 
         if ('core/plan' !== asset?.kind) {
             throw new Error('Asset was not a plan: ' + ref);
         }
 
-        return asset.data;
+        return asset.data as Plan;
+    }
+
+    async getBlockInstance(systemId: string, instanceId: string): Promise<BlockInstance> {
+        const plan = await this.getPlan(systemId, true);
+
+        const instance = plan.spec.blocks?.find((instance) => instance.id === instanceId);
+        if (!instance) {
+            throw new Error(`Instance not found: ${instanceId} in plan ${systemId}`);
+        }
+
+        return instance;
     }
 
     async getAsset(

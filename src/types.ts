@@ -1,5 +1,5 @@
 import express from 'express';
-import { Resource } from '@kapeta/schemas';
+import { Connection, Resource } from '@kapeta/schemas';
 import { StringBodyRequest } from './middleware/stringBody';
 import { KapetaRequest } from './middleware/kapeta';
 
@@ -80,12 +80,6 @@ interface ResourceRef {
 }
 
 export type ProxyRequestHandler = (req: StringBodyRequest, res: express.Response, info: ProxyRequestInfo) => void;
-
-export interface Connection {
-    mapping: any;
-    provider: ResourceRef;
-    consumer: ResourceRef;
-}
 
 export interface OperatorInfo {
     host: string;

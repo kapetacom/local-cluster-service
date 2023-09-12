@@ -42,7 +42,7 @@ router.all(
 
             // We can find the connection by the consumer information alone since
             // only 1 provider can be connected to a consumer resource at a time
-            const connection = _.find(plan.spec.connections, (connection) => {
+            const connection = plan.spec.connections.find((connection) => {
                 return (
                     connection.consumer.blockId.toLowerCase() === req.params.consumerInstanceId.toLowerCase() &&
                     connection.consumer.resourceName.toLowerCase() === req.params.consumerResourceName.toLowerCase()
