@@ -38,8 +38,8 @@ function enrichAsset(asset: DefinitionInfo): EnrichedAsset {
         version: asset.version,
         kind: asset.definition.kind,
         data: asset.definition,
-        path: asset.path,
-        ymlPath: asset.ymlPath,
+        path: FS.realpathSync(asset.path),
+        ymlPath: FS.realpathSync(asset.ymlPath),
     };
 }
 
