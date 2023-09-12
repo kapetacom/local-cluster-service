@@ -1,26 +1,42 @@
 import { spawn, hasApp } from '@kapeta/nodejs-process';
 import { taskManager } from '../taskManager';
 
-export async function hasCLI() {
+export function hasCLI() {
     return hasApp('kap');
 }
 
 export async function ensureCLI() {
-    if (await hasCLI()) {
-        return null;
+    if (!(await hasCLI())) {
+        await taskManager
+            .add(
+                `cli:install`,
+                () => {
+                    const process = spawn('npm', ['install', '-g', '@kapeta/kap'], {
+                        shell: true,
+                    });
+
+                    return process.wait();
+                },
+                {
+                    name: `Installing Kapeta CLI`,
+                }
+            )
+            .wait();
     }
 
-    return taskManager.add(
-        `cli:install`,
-        () => {
-            const process = spawn('npm', ['install', '-g', '@kapeta/kap'], {
-                shell: true,
-            });
+    await taskManager
+        .add(
+            `cli:init`,
+            () => {
+                const process = spawn('npm', ['exec', 'kap', 'init'], {
+                    shell: true,
+                });
 
-            return process.wait();
-        },
-        {
-            name: `Installing Kapeta CLI`,
-        }
-    );
+                return process.wait();
+            },
+            {
+                name: `Initializing Kapeta CLI`,
+            }
+        )
+        .wait();
 }
