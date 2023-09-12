@@ -1,3 +1,10 @@
+## [0.20.2](https://github.com/kapetacom/local-cluster-service/compare/v0.20.1...v0.20.2) (2023-09-12)
+
+
+### Bug Fixes
+
+* bump nodejs-registry-utils dependency ([408ec86](https://github.com/kapetacom/local-cluster-service/commit/408ec865791b7fd10170c3e27c1a174b8052d9c2))
+
 ## [0.20.1](https://github.com/kapetacom/local-cluster-service/compare/v0.20.0...v0.20.1) (2023-09-12)
 
 
