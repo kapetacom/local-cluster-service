@@ -1,6 +1,6 @@
+import { Connection } from '@kapeta/schemas';
 import uuid from 'node-uuid';
-import { Connection, SimpleRequest, SimpleResponse } from './types';
-import express from 'express';
+import { SimpleRequest, SimpleResponse } from './types';
 import { normalizeKapetaUri } from './utils/utils';
 
 class NetworkManager {

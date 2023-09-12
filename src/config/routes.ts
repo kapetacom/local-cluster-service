@@ -6,8 +6,10 @@ import { instanceManager } from '../instanceManager';
 import { corsHandler } from '../middleware/cors';
 import { kapetaHeaders, KapetaRequest } from '../middleware/kapeta';
 import { stringBody } from '../middleware/stringBody';
-import { KapetaBodyRequest } from '../types';
+import { AnyMap, KapetaBodyRequest } from '../types';
 import { Response } from 'express';
+import { getResolvedConfiguration, normalizeKapetaUri } from '../utils/utils';
+import { assetManager } from '../assetManager';
 
 const router = Router();
 
@@ -18,12 +20,21 @@ router.use('/', stringBody);
 /**
  * Returns the full configuration for a given service.
  */
-router.get('/instance', (req: KapetaBodyRequest, res: Response) => {
-    const config = req.kapeta!.instanceId
-        ? configManager.getConfigForSection(req.kapeta!.systemId, req.kapeta!.instanceId)
-        : configManager.getConfigForSystem(req.kapeta!.systemId);
+router.get('/instance', async (req: KapetaBodyRequest, res: Response) => {
+    try {
+        let config: AnyMap = {};
+        if (req.kapeta!.instanceId) {
+            config = await configManager.getConfigForBlockInstance(req.kapeta!.systemId, req.kapeta!.instanceId);
+        } else {
+            config = configManager.getConfigForSystem(req.kapeta!.systemId);
+        }
 
-    res.send(config);
+        res.send(config);
+    } catch (err: any) {
+        console.error('Failed to get instance config', err);
+        res.status(400).send({ error: err.message });
+        return;
+    }
 });
 
 /**

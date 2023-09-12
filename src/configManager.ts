@@ -3,7 +3,7 @@ import { BlockInstance } from '@kapeta/schemas';
 import { storageService } from './storageService';
 import { assetManager } from './assetManager';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';
-import { normalizeKapetaUri } from './utils/utils';
+import { getResolvedConfiguration, normalizeKapetaUri } from './utils/utils';
 
 export const SYSTEM_ID = '$plan';
 type AnyMap = { [key: string]: any };
@@ -39,6 +39,20 @@ class ConfigManager {
     getConfigForSystem(systemId: string): AnyMap {
         systemId = normalizeKapetaUri(systemId);
         return this._forSystem(systemId);
+    }
+
+    async getConfigForBlockInstance(systemId: string, instanceId: string) {
+        const blockInstance = await assetManager.getBlockInstance(systemId, instanceId);
+        const blockAsset = await assetManager.getAsset(blockInstance.block.ref, true);
+        if (!blockAsset) {
+            throw new Error(`Block definition not found: ${blockInstance.block.ref}`);
+        }
+        const instanceConfig = this.getConfigForSection(systemId, instanceId);
+        return getResolvedConfiguration(
+            blockAsset.data.spec.configuration,
+            instanceConfig,
+            blockInstance.defaultConfiguration
+        );
     }
 
     setConfigForSection(systemId: string, sectionId: string, config: AnyMap) {
