@@ -1,3 +1,10 @@
+## [0.20.1](https://github.com/kapetacom/local-cluster-service/compare/v0.20.0...v0.20.1) (2023-09-12)
+
+
+### Bug Fixes
+
+* return realpaths for assets from assetManager ([7a1f315](https://github.com/kapetacom/local-cluster-service/commit/7a1f3159a8c54fda59ff57764d2b539016c091e4))
+
 # [0.20.0](https://github.com/kapetacom/local-cluster-service/compare/v0.19.7...v0.20.0) (2023-09-10)
 
 
