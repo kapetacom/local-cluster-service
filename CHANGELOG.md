@@ -1,3 +1,10 @@
+## [0.20.4](https://github.com/kapetacom/local-cluster-service/compare/v0.20.3...v0.20.4) (2023-09-14)
+
+
+### Bug Fixes
+
+* bump/open up kapeta/schemas dependency range ([#78](https://github.com/kapetacom/local-cluster-service/issues/78)) ([4b5b7e1](https://github.com/kapetacom/local-cluster-service/commit/4b5b7e1c777b686f1190c27eb1184385659abfbc))
+
 ## [0.20.3](https://github.com/kapetacom/local-cluster-service/compare/v0.20.2...v0.20.3) (2023-09-12)
 
 
