@@ -2,9 +2,9 @@ import _ from 'lodash';
 import { clusterService } from './clusterService';
 import { storageService } from './storageService';
 import { EnvironmentType } from './types';
-import { normalizeKapetaUri } from './utils/utils';
+import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
 
-const DEFAULT_PORT_TYPE = 'rest';
+export const DEFAULT_PORT_TYPE = 'rest';
 
 class ServiceManager {
     private _systems: any;

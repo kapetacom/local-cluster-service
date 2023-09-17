@@ -1,7 +1,7 @@
 import { Connection } from '@kapeta/schemas';
 import uuid from 'node-uuid';
 import { SimpleRequest, SimpleResponse } from './types';
-import { normalizeKapetaUri } from './utils/utils';
+import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
 
 class NetworkManager {
     private _connections: { [systemId: string]: { [connectionId: string]: Traffic[] } };

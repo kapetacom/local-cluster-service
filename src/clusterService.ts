@@ -1,4 +1,4 @@
-import { normalizeKapetaUri } from './utils/utils';
+import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
 
 const net = require('net');
 const DEFAULT_SERVER_PORT = 35100;

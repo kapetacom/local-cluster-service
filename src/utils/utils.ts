@@ -10,19 +10,6 @@ export function getBlockInstanceContainerName(systemId: string, instanceId: stri
     return `kapeta-block-instance-${md5(systemId + instanceId)}`;
 }
 
-export function normalizeKapetaUri(uri: string) {
-    if (!uri) {
-        return '';
-    }
-
-    const uriObj = parseKapetaUri(uri);
-    if (!uriObj.version) {
-        return `kapeta://${parseKapetaUri(uri).fullName}`;
-    }
-
-    return `kapeta://${parseKapetaUri(uri).id}`;
-}
-
 export function readYML(path: string) {
     const rawYaml = FS.readFileSync(path);
 

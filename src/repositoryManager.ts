@@ -4,7 +4,7 @@ import { Dependency } from '@kapeta/schemas';
 import { Actions, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
-import { normalizeKapetaUri } from './utils/utils';
+import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import { ProgressListener } from './progressListener';
 import { RepositoryWatcher } from './RepositoryWatcher';
 import { SourceOfChange } from './types';

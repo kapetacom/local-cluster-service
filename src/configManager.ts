@@ -2,8 +2,8 @@ import { EnrichedAsset } from './assetManager';
 import { BlockInstance } from '@kapeta/schemas';
 import { storageService } from './storageService';
 import { assetManager } from './assetManager';
-import { parseKapetaUri } from '@kapeta/nodejs-utils';
-import { getResolvedConfiguration, normalizeKapetaUri } from './utils/utils';
+import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
+import { getResolvedConfiguration } from './utils/utils';
 
 export const SYSTEM_ID = '$plan';
 type AnyMap = { [key: string]: any };

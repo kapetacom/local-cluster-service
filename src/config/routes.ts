@@ -8,8 +8,6 @@ import { kapetaHeaders, KapetaRequest } from '../middleware/kapeta';
 import { stringBody } from '../middleware/stringBody';
 import { AnyMap, KapetaBodyRequest } from '../types';
 import { Response } from 'express';
-import { getResolvedConfiguration, normalizeKapetaUri } from '../utils/utils';
-import { assetManager } from '../assetManager';
 
 const router = Router();
 
@@ -122,10 +120,23 @@ router.get('/identity', async (req: KapetaRequest, res) => {
  * already called the endpoint the same port is returned.
  */
 router.get('/provides/:type', async (req: KapetaRequest, res) => {
-    //Get service port
-    res.send(
-        '' + (await serviceManager.ensureServicePort(req.kapeta!.systemId, req.kapeta!.instanceId, req.params.type))
-    );
+    if (req.kapeta!.environment === 'docker' && ['web', 'rest'].includes(req.params.type)) {
+        // Happens when starting a local container with no providers.
+        res.send('80');
+        return;
+    }
+
+    try {
+        const port = await serviceManager.ensureServicePort(
+            req.kapeta!.systemId,
+            req.kapeta!.instanceId,
+            req.params.type
+        );
+        res.send('' + port);
+    } catch (err: any) {
+        console.warn('Failed to resolve service port: ' + req.params.type, err);
+        res.status(400).send({ error: err.message });
+    }
 });
 
 /**

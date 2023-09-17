@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { Socket, Server } from 'socket.io';
-import { normalizeKapetaUri } from './utils/utils';
+import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import { LogEntry } from './types';
 import { containerManager } from './containerManager';
 export const EVENT_STATUS_CHANGED = 'status-changed';

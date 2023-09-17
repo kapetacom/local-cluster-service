@@ -4,7 +4,7 @@ import { BlockDefinition } from '@kapeta/schemas';
 import { definitionsManager } from './definitionsManager';
 import { Definition } from '@kapeta/local-cluster-config';
 import { assetManager } from './assetManager';
-import { normalizeKapetaUri } from './utils/utils';
+import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import { repositoryManager } from './repositoryManager';
 
 const TARGET_KIND = 'core/language-target';

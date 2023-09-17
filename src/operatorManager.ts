@@ -1,7 +1,6 @@
-import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
+import { DefinitionInfo } from '@kapeta/local-cluster-config';
 import Path from 'path';
 import md5 from 'md5';
-import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import { serviceManager } from './serviceManager';
 import { storageService } from './storageService';
 import {
@@ -15,7 +14,8 @@ import FSExtra from 'fs-extra';
 import { AnyMap, EnvironmentType, OperatorInfo, StringMap } from './types';
 import { BlockInstance, Resource } from '@kapeta/schemas';
 import { definitionsManager } from './definitionsManager';
-import { getBindHost, normalizeKapetaUri } from './utils/utils';
+import { getBindHost } from './utils/utils';
+import { parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import _ from 'lodash';
 import AsyncLock from 'async-lock';
 import { taskManager } from './taskManager';
