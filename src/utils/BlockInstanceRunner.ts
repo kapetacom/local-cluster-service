@@ -1,8 +1,8 @@
 import FS from 'node:fs';
 import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import { getBindHost, getBlockInstanceContainerName, normalizeKapetaUri, readYML } from './utils';
-import { KapetaURI, parseKapetaUri } from '@kapeta/nodejs-utils';
-import { serviceManager } from '../serviceManager';
+import { getBindHost, getBlockInstanceContainerName, readYML } from './utils';
+import { KapetaURI, parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
+import { DEFAULT_PORT_TYPE, serviceManager } from '../serviceManager';
 import {
     COMPOSE_LABEL_PROJECT,
     COMPOSE_LABEL_SERVICE,
@@ -39,14 +39,22 @@ async function getProvider(uri: KapetaURI) {
     });
 }
 
-function getProviderPorts(assetVersion: DefinitionInfo): string[] {
-    return (
+function getProviderPorts(assetVersion: DefinitionInfo, providerVersion: DefinitionInfo): string[] {
+    const out =
         assetVersion.definition?.spec?.providers
             ?.map((provider: any) => {
                 return provider.spec?.port?.type;
             })
-            .filter((t: any) => !!t) ?? []
-    );
+            .filter((t: any) => !!t) ?? [];
+
+    if (out.length === 0) {
+        if (providerVersion.definition.spec?.defaultPort?.type) {
+            return [providerVersion.definition.spec?.defaultPort?.type];
+        }
+        return [DEFAULT_PORT_TYPE];
+    }
+
+    return out;
 }
 
 export class BlockInstanceRunner {
@@ -114,7 +122,7 @@ export class BlockInstanceRunner {
             processInfo = await this._startOperatorProcess(blockInstance, blockUri, providerVersion, env);
         } else {
             //We need a port type to know how to connect to the block consistently
-            const portTypes = getProviderPorts(assetVersion);
+            const portTypes = getProviderPorts(assetVersion, providerVersion);
 
             if (blockUri.version === 'local') {
                 processInfo = await this._startLocalProcess(blockInstance, blockUri, env, assetVersion);
@@ -152,18 +160,26 @@ export class BlockInstanceRunner {
             throw new Error('Missing target kind in block definition');
         }
 
-        const kindUri = parseKapetaUri(assetVersion.definition.spec?.target?.kind);
+        const kindUri = parseKapetaUri(assetVersion.definition.kind);
 
-        const targetVersion = await getProvider(kindUri);
+        const providerVersion = await getProvider(kindUri);
+
+        if (!providerVersion) {
+            throw new Error(`Block type not found: ${kindUri.id}`);
+        }
+
+        const targetKindUri = parseKapetaUri(assetVersion.definition.spec?.target?.kind);
+
+        const targetVersion = await getProvider(targetKindUri);
 
         if (!targetVersion) {
-            throw new Error(`Target not found: ${kindUri.id}`);
+            throw new Error(`Target not found: ${targetKindUri.id}`);
         }
 
         const localContainer = targetVersion.definition.spec.local;
 
         if (!localContainer) {
-            throw new Error(`Missing local container information from target: ${kindUri.id}`);
+            throw new Error(`Missing local container information from target: ${targetKindUri.id}`);
         }
 
         const dockerImage = localContainer.image;
@@ -184,7 +200,11 @@ export class BlockInstanceRunner {
         delete localContainer.Labels;
         delete localContainer.Env;
 
-        const { PortBindings, ExposedPorts, addonEnv } = await this.getDockerPortBindings(blockInstance, assetVersion);
+        const { PortBindings, ExposedPorts, addonEnv } = await this.getDockerPortBindings(
+            blockInstance,
+            assetVersion,
+            providerVersion
+        );
 
         let HealthCheck = undefined;
         if (localContainer.healthcheck) {
@@ -254,7 +274,19 @@ export class BlockInstanceRunner {
             throw new Error(`Missing docker image information: ${JSON.stringify(versionInfo?.artifact?.details)}`);
         }
 
-        const { PortBindings, ExposedPorts, addonEnv } = await this.getDockerPortBindings(blockInstance, assetVersion);
+        const kindUri = parseKapetaUri(assetVersion.definition.kind);
+
+        const providerVersion = await getProvider(kindUri);
+
+        if (!providerVersion) {
+            throw new Error(`Block type not found: ${kindUri.id}`);
+        }
+
+        const { PortBindings, ExposedPorts, addonEnv } = await this.getDockerPortBindings(
+            blockInstance,
+            assetVersion,
+            providerVersion
+        );
 
         const containerName = getBlockInstanceContainerName(this._systemId, blockInstance.id);
 
@@ -332,20 +364,19 @@ export class BlockInstanceRunner {
         const PortBindings: AnyMap = {};
         let HealthCheck = undefined;
         let Mounts: DockerMounts[] = [];
-        const promises = Object.entries(spec.local.ports as { [p: string]: { port: string; type: string } }).map(
-            async ([portType, value]) => {
-                const dockerPort = `${value.port}/${value.type}`;
-                ExposedPorts[dockerPort] = {};
-                addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = value.port;
-                const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
-                PortBindings[dockerPort] = [
-                    {
-                        HostIp: bindHost,
-                        HostPort: `${publicPort}`,
-                    },
-                ];
-            }
-        );
+        const localPorts = spec.local.ports as { [p: string]: { port: string; type: string } };
+        const promises = Object.entries(localPorts).map(async ([portType, value]) => {
+            const dockerPort = `${value.port}/${value.type}`;
+            ExposedPorts[dockerPort] = {};
+            addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = value.port;
+            const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
+            PortBindings[dockerPort] = [
+                {
+                    HostIp: bindHost,
+                    HostPort: `${publicPort}`,
+                },
+            ];
+        });
 
         await Promise.all(promises);
 
@@ -406,13 +437,17 @@ export class BlockInstanceRunner {
         return out;
     }
 
-    private async getDockerPortBindings(blockInstance: BlockProcessParams, assetVersion: DefinitionInfo) {
+    private async getDockerPortBindings(
+        blockInstance: BlockProcessParams,
+        assetVersion: DefinitionInfo,
+        providerVersion: DefinitionInfo
+    ) {
         const bindHost = getBindHost();
         const ExposedPorts: AnyMap = {};
         const addonEnv: StringMap = {};
         const PortBindings: AnyMap = {};
 
-        const portTypes = getProviderPorts(assetVersion);
+        const portTypes = getProviderPorts(assetVersion, providerVersion);
         let port = 80;
         const promises = portTypes.map(async (portType) => {
             const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);

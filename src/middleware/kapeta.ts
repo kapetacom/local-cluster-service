@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { EnvironmentType } from '../types';
-import { parseKapetaUri } from '@kapeta/nodejs-utils';
-import { normalizeKapetaUri } from '../utils/utils';
+import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
 
 export interface KapetaRequest extends Request {
     kapeta?: {

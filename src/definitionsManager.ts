@@ -1,10 +1,9 @@
 import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import { parseKapetaUri } from '@kapeta/nodejs-utils';
+import { parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import { cacheManager, doCached } from './cacheManager';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
 import { Plan } from '@kapeta/schemas';
 import FS from 'fs-extra';
-import { normalizeKapetaUri } from './utils/utils';
 import YAML from 'yaml';
 import { Actions } from '@kapeta/nodejs-registry-utils';
 import { ProgressListener } from './progressListener';

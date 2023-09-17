@@ -3,7 +3,7 @@ import request from 'request';
 import AsyncLock from 'async-lock';
 import { BlockInstanceRunner } from './utils/BlockInstanceRunner';
 import { storageService } from './storageService';
-import { EVENT_INSTANCE_CREATED, EVENT_INSTANCE_EXITED, EVENT_STATUS_CHANGED, socketManager } from './socketManager';
+import { EVENT_INSTANCE_CREATED, EVENT_STATUS_CHANGED, socketManager } from './socketManager';
 import { serviceManager } from './serviceManager';
 import { assetManager } from './assetManager';
 import {
@@ -15,9 +15,9 @@ import {
 import { configManager } from './configManager';
 import { DesiredInstanceStatus, InstanceInfo, InstanceOwner, InstanceStatus, InstanceType, LogEntry } from './types';
 import { BlockDefinitionSpec, BlockInstance, Plan } from '@kapeta/schemas';
-import { getBlockInstanceContainerName, getResolvedConfiguration, normalizeKapetaUri } from './utils/utils';
+import { getBlockInstanceContainerName, getResolvedConfiguration } from './utils/utils';
 import { KIND_OPERATOR, operatorManager } from './operatorManager';
-import { parseKapetaUri } from '@kapeta/nodejs-utils';
+import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
 
@@ -222,8 +222,13 @@ export class InstanceManager {
                 if (info.type) {
                     instance.type = info.type;
                 }
+
                 if (healthUrl) {
                     instance.health = healthUrl;
+                }
+
+                if (info.portType) {
+                    instance.portType = info.portType;
                 }
 
                 socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
