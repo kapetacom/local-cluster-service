@@ -1,3 +1,10 @@
+# [0.21.0](https://github.com/kapetacom/local-cluster-service/compare/v0.20.4...v0.21.0) (2023-09-17)
+
+
+### Features
+
+* Use default ports from block type providers ([#79](https://github.com/kapetacom/local-cluster-service/issues/79)) ([4633a7e](https://github.com/kapetacom/local-cluster-service/commit/4633a7ee4da92aeb3b43b5f93898d443f6de1f04))
+
 ## [0.20.4](https://github.com/kapetacom/local-cluster-service/compare/v0.20.3...v0.20.4) (2023-09-14)
 
 
