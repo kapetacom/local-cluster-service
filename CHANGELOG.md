@@ -1,3 +1,10 @@
+## [0.21.1](https://github.com/kapetacom/local-cluster-service/compare/v0.21.0...v0.21.1) (2023-09-19)
+
+
+### Bug Fixes
+
+* Use mounts and real paths - otherwise it fails on windows ([#80](https://github.com/kapetacom/local-cluster-service/issues/80)) ([8e73fdd](https://github.com/kapetacom/local-cluster-service/commit/8e73fddbaafcbcef547a72fd78f2b063ceed10b8))
+
 # [0.21.0](https://github.com/kapetacom/local-cluster-service/compare/v0.20.4...v0.21.0) (2023-09-17)
 
 
