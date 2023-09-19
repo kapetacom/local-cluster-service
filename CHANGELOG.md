@@ -1,3 +1,10 @@
+## [0.21.2](https://github.com/kapetacom/local-cluster-service/compare/v0.21.1...v0.21.2) (2023-09-19)
+
+
+### Bug Fixes
+
+* Handle windows paths in watcher ([#81](https://github.com/kapetacom/local-cluster-service/issues/81)) ([a2b7c3d](https://github.com/kapetacom/local-cluster-service/commit/a2b7c3dc9efba4d1b6d0a1a64703f7cf40ea3278))
+
 ## [0.21.1](https://github.com/kapetacom/local-cluster-service/compare/v0.21.0...v0.21.1) (2023-09-19)
 
 
