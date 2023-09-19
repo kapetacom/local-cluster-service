@@ -101,7 +101,7 @@ export class RepositoryWatcher extends EventEmitter {
         if (path.startsWith(this.baseDir)) {
             const relativePath = Path.relative(this.baseDir, path);
             // Inside the repo we can use the path to determine the handle, name and version
-            [handle, name, version] = relativePath.split(/\//g);
+            [handle, name, version] = relativePath.split(Path.sep);
             if (!handle || !name || !version) {
                 // Do nothing with this
                 return;
@@ -143,8 +143,6 @@ export class RepositoryWatcher extends EventEmitter {
             return;
         }
 
-        //console.log('File changed', eventName, path);
-
         const assetIdentity = await this.getAssetIdentity(path);
         if (!assetIdentity) {
             return;
@@ -156,7 +154,7 @@ export class RepositoryWatcher extends EventEmitter {
 
         // If this is false it's because we're watching a symlink target
         const withinRepo = path.startsWith(this.baseDir);
-        if (withinRepo && assetIdentity.version === 'local' && path.endsWith('/local')) {
+        if (withinRepo && assetIdentity.version === 'local' && path.endsWith(Path.sep + 'local')) {
             // This is likely a symlink target
             if (eventName === 'add') {
                 //console.log('Checking if we should add symlink target', handle, name, version, path);
@@ -271,7 +269,7 @@ export class RepositoryWatcher extends EventEmitter {
             } catch (e) {}
 
             if (symbolicLink) {
-                const realPath = `${await FS.realpath(path)}/kapeta.yml`;
+                const realPath = Path.join(await FS.realpath(path), 'kapeta.yml');
                 if (await this.exists(realPath)) {
                     //console.log('Watching symlink target %s => %s', path, realPath);
                     this.watcher?.add(realPath);
@@ -288,7 +286,7 @@ export class RepositoryWatcher extends EventEmitter {
         if (!path.startsWith(this.baseDir)) {
             return false;
         }
-        if (path.includes('/node_modules/')) {
+        if (path.includes(Path.sep + 'node_modules' + Path.sep)) {
             return true;
         }
 
