@@ -211,6 +211,12 @@ export class BlockInstanceRunner {
             HealthCheck = containerManager.toDockerHealth({ cmd: localContainer.healthcheck });
         }
 
+        const realLocalPath = FS.realpathSync(baseDir);
+
+        const Mounts = containerManager.toDockerMounts({
+            [workingDir]: toLocalBindVolume(realLocalPath)
+        });
+
         const systemUri = parseKapetaUri(this._systemId);
 
         return this.ensureContainer({
@@ -239,10 +245,10 @@ export class BlockInstanceRunner {
             HostConfig: {
                 ...customHostConfigs,
                 Binds: [
-                    `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${homeDir}/.kapeta`,
-                    `${toLocalBindVolume(baseDir)}:${workingDir}`,
+                    `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${homeDir}/.kapeta`
                 ],
                 PortBindings,
+                Mounts
             },
         });
     }
