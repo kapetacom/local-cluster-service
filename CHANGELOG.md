@@ -1,3 +1,10 @@
+## [0.21.3](https://github.com/kapetacom/local-cluster-service/compare/v0.21.2...v0.21.3) (2023-09-20)
+
+
+### Bug Fixes
+
+* Clean up empty folders after codegen ([#82](https://github.com/kapetacom/local-cluster-service/issues/82)) ([f9185aa](https://github.com/kapetacom/local-cluster-service/commit/f9185aad168d769617bc790c825c5b901ce5f41d))
+
 ## [0.21.2](https://github.com/kapetacom/local-cluster-service/compare/v0.21.1...v0.21.2) (2023-09-19)
 
 
