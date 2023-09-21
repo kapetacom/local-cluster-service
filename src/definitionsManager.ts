@@ -17,6 +17,8 @@ function getRenamed(definition: DefinitionInfo, targetHandle: string) {
 }
 function applyHandleChange(definition: DefinitionInfo, targetHandle: string) {
     definition.definition.metadata.name = getRenamed(definition, targetHandle);
+    // We also change the visibility to private
+    definition.definition.metadata.visibility = 'private';
     return definition;
 }
 
