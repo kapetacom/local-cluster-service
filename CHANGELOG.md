@@ -1,3 +1,10 @@
+## [0.21.4](https://github.com/kapetacom/local-cluster-service/compare/v0.21.3...v0.21.4) (2023-09-21)
+
+
+### Bug Fixes
+
+* Make local sample copy private ([#83](https://github.com/kapetacom/local-cluster-service/issues/83)) ([e9591b7](https://github.com/kapetacom/local-cluster-service/commit/e9591b76f18f62e258a71a9ea10ccd28c9d51786))
+
 ## [0.21.3](https://github.com/kapetacom/local-cluster-service/compare/v0.21.2...v0.21.3) (2023-09-20)
 
 
