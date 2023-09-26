@@ -45,7 +45,7 @@
     "dependencies": {
         "@kapeta/codegen": "<2",
         "@kapeta/local-cluster-config": ">= 0.2.3 <2",
-        "@kapeta/nodejs-api-client": "<2",
+        "@kapeta/nodejs-api-client": ">=0.1.3 <2",
         "@kapeta/nodejs-process": "<2",
         "@kapeta/nodejs-registry-utils": "<2",
         "@kapeta/nodejs-utils": "<2",

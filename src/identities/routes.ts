@@ -9,28 +9,24 @@ const router = Router();
 router.use('/', corsHandler);
 
 router.get('/current', async (req: Request, res: Response) => {
-    try {
-        const api = new KapetaAPI();
-        if (api.hasToken()) {
-            res.send(await api.getCurrentIdentity());
-        } else {
-            res.status(404).send();
+    const api = new KapetaAPI();
+    if (api.hasToken()) {
+        try {
+            res.json(await api.getCurrentIdentity());
+            return;
+        } catch (e) {
+            console.error(e);
         }
-    } catch (e: any) {
-        res.status(e.status ?? 500).send(e);
     }
+    res.status(200).json(null);
 });
 
 router.get('/:identityId/memberships', async (req: Request, res: Response) => {
-    try {
-        const api = new KapetaAPI();
-        if (api.hasToken()) {
-            res.send(await api.getMemberships(req.params.identityId));
-        } else {
-            res.send([]);
-        }
-    } catch (e: any) {
-        res.status(e.status ?? 500).send(e);
+    const api = new KapetaAPI();
+    if (api.hasToken()) {
+        res.send(await api.getMemberships(req.params.identityId));
+    } else {
+        res.send([]);
     }
 });
 
