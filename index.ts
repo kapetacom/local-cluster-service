@@ -62,9 +62,21 @@ function createServer() {
 
     app.use('/', (req: express.Request, res: express.Response) => {
         console.error('Invalid request: %s %s', req.method, req.originalUrl);
-        res.status(400).send({
+        res.status(400).json({
             ok: false,
             error: 'Unknown',
+        });
+    });
+
+    /**
+     * Central error handler, allows us to return a consistent JSON response wrapper with the error.
+     */
+    app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+        console.error('Error handling request: %s %s', req.method, req.originalUrl, err);
+        res.status(err.status || 500).json({
+            ok: false,
+            error: err.message || 'Unknown error',
+            stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
         });
     });
 
