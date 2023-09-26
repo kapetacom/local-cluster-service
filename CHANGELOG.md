@@ -1,3 +1,10 @@
+## [0.21.5](https://github.com/kapetacom/local-cluster-service/compare/v0.21.4...v0.21.5) (2023-09-26)
+
+
+### Bug Fixes
+
+* handle bad token in current identity API ([#84](https://github.com/kapetacom/local-cluster-service/issues/84)) ([60ca70d](https://github.com/kapetacom/local-cluster-service/commit/60ca70d9f6aa5747d89110b03f56fae70f1c7f24))
+
 ## [0.21.4](https://github.com/kapetacom/local-cluster-service/compare/v0.21.3...v0.21.4) (2023-09-21)
 
 
