@@ -15,6 +15,7 @@ import { clusterService } from '../clusterService';
 import { AnyMap, BlockProcessParams, InstanceType, ProcessInfo, StringMap } from '../types';
 import { definitionsManager } from '../definitionsManager';
 import Docker from 'dockerode';
+import OS from 'node:os';
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
@@ -53,8 +54,8 @@ function getProviderPorts(assetVersion: DefinitionInfo, providerVersion: Definit
         }
         return [DEFAULT_PORT_TYPE];
     }
-
-    return out;
+    // Duplicated port types are not allowed
+    return Array.from(new Set<string>(out));
 }
 
 export class BlockInstanceRunner {
@@ -194,6 +195,8 @@ export class BlockInstanceRunner {
         const workingDir = localContainer.workingDir ? localContainer.workingDir : '/workspace';
 
         const customHostConfigs = localContainer.HostConfig ?? {};
+        const Binds = customHostConfigs.Binds ?? [];
+        delete customHostConfigs.Binds;
         const customLabels = localContainer.Labels ?? {};
         const customEnvs = localContainer.Env ?? [];
         delete localContainer.HostConfig;
@@ -214,7 +217,7 @@ export class BlockInstanceRunner {
         const realLocalPath = FS.realpathSync(baseDir);
 
         const Mounts = containerManager.toDockerMounts({
-            [workingDir]: toLocalBindVolume(realLocalPath)
+            [workingDir]: toLocalBindVolume(realLocalPath),
         });
 
         const systemUri = parseKapetaUri(this._systemId);
@@ -245,10 +248,25 @@ export class BlockInstanceRunner {
             HostConfig: {
                 ...customHostConfigs,
                 Binds: [
-                    `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${homeDir}/.kapeta`
+                    `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${homeDir}/.kapeta`,
+                    ...Binds.map((bind: string) => {
+                        let [host, container] = bind.split(':');
+                        if (host.startsWith('~')) {
+                            host = OS.homedir() + host.substring(1);
+                        }
+
+                        if (container.startsWith('~')) {
+                            container = homeDir + container.substring(1);
+                        }
+
+                        const out = `${toLocalBindVolume(host)}:${container}`;
+
+                        console.log('Making bind', out);
+                        return out;
+                    }),
                 ],
                 PortBindings,
-                Mounts
+                Mounts,
             },
         });
     }
