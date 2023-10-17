@@ -259,10 +259,7 @@ export class BlockInstanceRunner {
                             container = homeDir + container.substring(1);
                         }
 
-                        const out = `${toLocalBindVolume(host)}:${container}`;
-
-                        console.log('Making bind', out);
-                        return out;
+                        return `${toLocalBindVolume(host)}:${container}`;
                     }),
                 ],
                 PortBindings,
