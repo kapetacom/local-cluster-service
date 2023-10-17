@@ -1,3 +1,10 @@
+# [0.22.0](https://github.com/kapetacom/local-cluster-service/compare/v0.21.5...v0.22.0) (2023-10-17)
+
+
+### Features
+
+* Allow local containers to add Binds ([#85](https://github.com/kapetacom/local-cluster-service/issues/85)) ([c7b46e9](https://github.com/kapetacom/local-cluster-service/commit/c7b46e94412da1eec82503f7d30957fc665e71e6))
+
 ## [0.21.5](https://github.com/kapetacom/local-cluster-service/compare/v0.21.4...v0.21.5) (2023-09-26)
 
 
