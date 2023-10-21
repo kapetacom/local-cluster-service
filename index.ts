@@ -162,7 +162,8 @@ export default {
         }
 
         await clusterService.init();
-        await authManager.listenForChanges();
+
+        authManager.listenForChanges();
 
         currentServer = createServer();
 

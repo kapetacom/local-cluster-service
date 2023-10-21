@@ -59,10 +59,6 @@ class OperatorManager {
 
     /**
      * Get operator definition for resource type
-     *
-     * @param {string} resourceType
-     * @param {string} version
-     * @return {Operator}
      */
     async getOperator(resourceType: string, version: string) {
         const operators = await definitionsManager.getDefinitions(KIND_OPERATOR);
@@ -122,9 +118,13 @@ class OperatorManager {
             throw new Error(`Unknown block: ${currentInstance.block.ref} in plan ${systemId}`);
         }
 
-        const blockResource = blockDefinition.definition.spec?.consumers?.find(
-            (resource: Resource) => resource.metadata.name === name
-        );
+        const blockResource = blockDefinition.definition.spec?.consumers?.find((resource: Resource) => {
+            if (resource.metadata.name !== name) {
+                return false;
+            }
+            return parseKapetaUri(resource.kind).fullName === resourceType;
+        });
+
         if (!blockResource) {
             throw new Error(`Unknown resource: ${name} in block ${currentInstance.block.ref} in plan ${systemId}`);
         }
