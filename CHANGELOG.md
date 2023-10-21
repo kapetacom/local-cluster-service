@@ -1,3 +1,10 @@
+## [0.22.1](https://github.com/kapetacom/local-cluster-service/compare/v0.22.0...v0.22.1) (2023-10-21)
+
+
+### Bug Fixes
+
+* Bump kapeta api to fix auth ([#86](https://github.com/kapetacom/local-cluster-service/issues/86)) ([1178afc](https://github.com/kapetacom/local-cluster-service/commit/1178afce54a25cddb52944201097bc28c59b038a))
+
 # [0.22.0](https://github.com/kapetacom/local-cluster-service/compare/v0.21.5...v0.22.0) (2023-10-17)
 
 
