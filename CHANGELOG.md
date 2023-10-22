@@ -1,3 +1,10 @@
+## [0.22.2](https://github.com/kapetacom/local-cluster-service/compare/v0.22.1...v0.22.2) (2023-10-22)
+
+
+### Bug Fixes
+
+* Use quick chat as sample instead ([#87](https://github.com/kapetacom/local-cluster-service/issues/87)) ([de7e2ff](https://github.com/kapetacom/local-cluster-service/commit/de7e2ff9371cc89ca6cbe76bf46d99f802c816ff))
+
 ## [0.22.1](https://github.com/kapetacom/local-cluster-service/compare/v0.22.0...v0.22.1) (2023-10-21)
 
 
