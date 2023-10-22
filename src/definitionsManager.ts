@@ -9,7 +9,7 @@ import { Actions } from '@kapeta/nodejs-registry-utils';
 import { ProgressListener } from './progressListener';
 import Path from 'path';
 
-export const SAMPLE_PLAN_NAME = 'kapeta/sample-nodejs-plan';
+export const SAMPLE_PLAN_NAME = 'kapeta/sample-java-chat-plan';
 
 function getRenamed(definition: DefinitionInfo, targetHandle: string) {
     const originalUri = parseKapetaUri(definition.definition.metadata.name);
