@@ -239,18 +239,18 @@ class AssetManager {
         await Actions.uninstall(new ProgressListener(), [asset.ref]);
     }
 
-    async installAsset(ref: string) {
+    async installAsset(ref: string, wait: boolean = false) {
         const asset = await this.getAsset(ref, true, false);
         if (asset) {
             throw new Error('Asset already installed: ' + ref);
         }
         const uri = parseKapetaUri(ref);
-        console.log('Installing %s', ref);
+        console.log('Installing %s (sync: %s)', ref, wait);
         const key = toKey(ref);
         cacheManager.remove(key);
         definitionsManager.clearCache();
 
-        return await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, false);
+        return await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, wait);
     }
 
     private async maybeGenerateCode(ref: string, ymlPath: string, block: BlockDefinition) {
