@@ -143,7 +143,7 @@ router.put('/install', async (req: Request, res: Response) => {
     }
 
     try {
-        const tasks = await assetManager.installAsset(req.query.ref as string);
+        const tasks = await assetManager.installAsset(req.query.ref as string, !!req.query.wait);
         const taskIds = tasks?.map((t) => t.id) ?? [];
         res.status(200).send(taskIds);
     } catch (err: any) {
