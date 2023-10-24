@@ -1,3 +1,10 @@
+# [0.23.0](https://github.com/kapetacom/local-cluster-service/compare/v0.22.2...v0.23.0) (2023-10-24)
+
+
+### Features
+
+* Make it possible to wait for installation to complete from the UI ([#88](https://github.com/kapetacom/local-cluster-service/issues/88)) ([f34c807](https://github.com/kapetacom/local-cluster-service/commit/f34c807d260264e85d770dc1575d0458feae2bae))
+
 ## [0.22.2](https://github.com/kapetacom/local-cluster-service/compare/v0.22.1...v0.22.2) (2023-10-22)
 
 
