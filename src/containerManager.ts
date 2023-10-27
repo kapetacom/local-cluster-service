@@ -80,7 +80,7 @@ interface Health {
 export const CONTAINER_LABEL_PORT_PREFIX = 'kapeta_port-';
 const NANO_SECOND = 1000000;
 const HEALTH_CHECK_INTERVAL = 3000;
-const HEALTH_CHECK_MAX = 20;
+const HEALTH_CHECK_MAX = 100;
 export const COMPOSE_LABEL_PROJECT = 'com.docker.compose.project';
 export const COMPOSE_LABEL_SERVICE = 'com.docker.compose.service';
 
