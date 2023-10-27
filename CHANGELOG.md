@@ -1,3 +1,10 @@
+## [0.24.1](https://github.com/kapetacom/local-cluster-service/compare/v0.24.0...v0.24.1) (2023-10-27)
+
+
+### Bug Fixes
+
+* increase timeout to try to compensate for slow machines ([#89](https://github.com/kapetacom/local-cluster-service/issues/89)) ([98f243f](https://github.com/kapetacom/local-cluster-service/commit/98f243fddf5ab827cc5fbb91e5bfd972a2137ea9))
+
 # [0.24.0](https://github.com/kapetacom/local-cluster-service/compare/v0.23.0...v0.24.0) (2023-10-27)
 
 
