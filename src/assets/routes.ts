@@ -6,6 +6,7 @@ import { assetManager } from '../assetManager';
 import { corsHandler } from '../middleware/cors';
 
 import { stringBody, StringBodyRequest } from '../middleware/stringBody';
+import { definitionsManager } from '../definitionsManager';
 
 function parseBody(req: StringBodyRequest) {
     switch (req.headers['content-type']) {
@@ -50,6 +51,29 @@ router.get('/read', async (req: Request, res: Response) => {
         const asset = await assetManager.getAsset(req.query.ref as string, true, ensure);
         if (asset) {
             res.send(asset);
+        } else {
+            res.status(404).send({ error: 'Asset not found' });
+        }
+    } catch (err: any) {
+        res.status(400).send({ error: err.message });
+    }
+});
+
+/**
+ * Get all versions for asset name
+ */
+router.get('/versions', async (req: Request, res: Response) => {
+    if (!req.query.ref) {
+        res.status(400).send({ error: 'Query parameter "ref" is missing' });
+        return;
+    }
+
+    const ensure = req.query.ensure !== 'false';
+
+    try {
+        const versions = await definitionsManager.getVersions(req.query.ref as string);
+        if (versions) {
+            res.send(versions);
         } else {
             res.status(404).send({ error: 'Asset not found' });
         }
