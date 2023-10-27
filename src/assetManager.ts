@@ -227,7 +227,7 @@ class AssetManager {
     }
 
     async unregisterAsset(ref: string) {
-        const asset = await this.getAsset(ref, true);
+        const asset = await this.getAsset(ref, true, false);
         if (!asset) {
             throw new Error('Asset does not exists: ' + ref);
         }
