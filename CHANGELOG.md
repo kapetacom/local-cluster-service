@@ -1,3 +1,10 @@
+## [0.24.2](https://github.com/kapetacom/local-cluster-service/compare/v0.24.1...v0.24.2) (2023-10-27)
+
+
+### Bug Fixes
+
+* Do not ensure when unregistering ([#91](https://github.com/kapetacom/local-cluster-service/issues/91)) ([3957d51](https://github.com/kapetacom/local-cluster-service/commit/3957d513ce3fd9064a36cea438967ae5a0a50720))
+
 ## [0.24.1](https://github.com/kapetacom/local-cluster-service/compare/v0.24.0...v0.24.1) (2023-10-27)
 
 
