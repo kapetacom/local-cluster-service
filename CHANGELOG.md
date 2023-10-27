@@ -1,3 +1,10 @@
+# [0.24.0](https://github.com/kapetacom/local-cluster-service/compare/v0.23.0...v0.24.0) (2023-10-27)
+
+
+### Features
+
+* Add endpoint for getting all installed versions for asset ([#90](https://github.com/kapetacom/local-cluster-service/issues/90)) ([fc593ba](https://github.com/kapetacom/local-cluster-service/commit/fc593babec99a7a67d6b6855c93546eb6cadd461))
+
 # [0.23.0](https://github.com/kapetacom/local-cluster-service/compare/v0.22.2...v0.23.0) (2023-10-24)
 
 
