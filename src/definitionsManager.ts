@@ -165,6 +165,14 @@ class DefinitionsManager {
         });
     }
 
+    public async getVersions(assetName: string) {
+        const uri = parseKapetaUri(assetName);
+        const definitions = await this.getDefinitions();
+        return definitions.filter((d) => {
+            return d.definition.metadata.name === uri.fullName;
+        });
+    }
+
     public clearCache() {
         cacheManager.removePrefix('definitionsManager:');
     }
