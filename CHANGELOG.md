@@ -1,3 +1,10 @@
+## [0.24.3](https://github.com/kapetacom/local-cluster-service/compare/v0.24.2...v0.24.3) (2023-10-28)
+
+
+### Bug Fixes
+
+* Handle renaming of local assets ([#92](https://github.com/kapetacom/local-cluster-service/issues/92)) ([2a8d278](https://github.com/kapetacom/local-cluster-service/commit/2a8d2785ae45f548333d6a177ed6b6096fa39c3c))
+
 ## [0.24.2](https://github.com/kapetacom/local-cluster-service/compare/v0.24.1...v0.24.2) (2023-10-27)
 
 
