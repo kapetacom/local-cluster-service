@@ -55,7 +55,7 @@ class CodeGeneratorManager {
         });
     }
 
-    async canGenerateCode(yamlContent: BlockDefinition): Promise<boolean> {
+    async canGenerateCode(yamlContent: Definition): Promise<boolean> {
         if (!yamlContent.spec.target?.kind) {
             //Not all block types have targets
             return false;
@@ -68,7 +68,7 @@ class CodeGeneratorManager {
         return !!(yamlContent && yamlContent.kind && blockTypeKinds.indexOf(yamlContent.kind.toLowerCase()) > -1);
     }
 
-    async generate(yamlFile: string, yamlContent: BlockDefinition) {
+    async generate(yamlFile: string, yamlContent: Definition) {
         if (!yamlContent.spec.target?.kind) {
             //Not all block types have targets
             return;
@@ -87,7 +87,7 @@ class CodeGeneratorManager {
         await this.ensureLanguageTargetInRegistry(targetAsset?.path, targetAsset?.version, targetAsset?.data);
         const baseDir = Path.dirname(yamlFile);
         console.log('Generating code for path: %s', baseDir);
-        const codeGenerator = new BlockCodeGenerator(yamlContent);
+        const codeGenerator = new BlockCodeGenerator(yamlContent as BlockDefinition);
 
         const output = await codeGenerator.generate();
         const writer = new CodeWriter(baseDir, {});

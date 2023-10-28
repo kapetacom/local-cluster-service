@@ -9,6 +9,7 @@ import { socketManager } from './socketManager';
 import { SourceOfChange, WatchEventName } from './types';
 import { cacheManager } from './cacheManager';
 import { EventEmitter } from 'node:events';
+import { assetManager } from './assetManager';
 
 interface AssetIdentity {
     handle: string;
@@ -143,12 +144,12 @@ export class RepositoryWatcher extends EventEmitter {
             return;
         }
 
-        const assetIdentity = await this.getAssetIdentity(path);
-        if (!assetIdentity) {
+        if (this.disabled) {
             return;
         }
 
-        if (this.disabled) {
+        const assetIdentity = await this.getAssetIdentity(path);
+        if (!assetIdentity) {
             return;
         }
 
@@ -170,6 +171,25 @@ export class RepositoryWatcher extends EventEmitter {
             }
         }
 
+        const repoPath = this.getRepositoryPath(assetIdentity);
+
+        if (
+            eventName === 'change' &&
+            !withinRepo &&
+            assetIdentity.version === 'local' &&
+            Path.basename(path) === 'kapeta.yml' &&
+            (await this.exists(path)) &&
+            !(await this.exists(repoPath))
+        ) {
+            // This happens when a local asset is renamed
+            const oldPath = _.findKey(this.symbolicLinks, (link) => link === path);
+            if (oldPath) {
+                await FS.unlink(oldPath);
+                await assetManager.importFile(path);
+                return;
+            }
+        }
+
         const sourceOfChange = this.sourceOfChange.get(path) ?? 'filesystem';
         await this.checkForChange(assetIdentity, sourceOfChange);
 
@@ -177,18 +197,17 @@ export class RepositoryWatcher extends EventEmitter {
         this.sourceOfChange.delete(path);
     }
 
+    private getRepositoryPath(assetIdentity: AssetIdentity) {
+        return Path.join(this.baseDir, assetIdentity.handle, assetIdentity.name, assetIdentity.version);
+    }
+
     private async checkForChange(assetIdentity: AssetIdentity, sourceOfChange: SourceOfChange) {
-        const ymlPath = Path.join(
-            this.baseDir,
-            assetIdentity.handle,
-            assetIdentity.name,
-            assetIdentity.version,
-            'kapeta.yml'
-        );
+        const ymlPath = Path.join(this.getRepositoryPath(assetIdentity), 'kapeta.yml');
         const newDefinitions = ClusterConfiguration.getDefinitions();
         const newDefinition = newDefinitions.find((d) => d.ymlPath === ymlPath);
         let currentDefinition = this.allDefinitions.find((d) => d.ymlPath === ymlPath);
         const ymlExists = await this.exists(ymlPath);
+
         let type;
         if (ymlExists) {
             if (currentDefinition) {
@@ -206,9 +225,6 @@ export class RepositoryWatcher extends EventEmitter {
             }
         } else {
             if (currentDefinition) {
-                const ref = parseKapetaUri(
-                    `${currentDefinition.definition.metadata.name}:${currentDefinition.version}`
-                ).id;
                 //Something was removed
                 type = 'removed';
             } else {

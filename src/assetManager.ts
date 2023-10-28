@@ -171,7 +171,7 @@ class AssetManager {
         return asset;
     }
 
-    async updateAsset(ref: string, yaml: BlockDefinition, sourceOfChange: SourceOfChange = 'filesystem') {
+    async updateAsset(ref: string, yaml: Definition, sourceOfChange: SourceOfChange = 'filesystem') {
         ref = normalizeKapetaUri(ref);
         const asset = await this.getAsset(ref, true, false);
         if (!asset) {
@@ -253,7 +253,7 @@ class AssetManager {
         return await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, wait);
     }
 
-    private async maybeGenerateCode(ref: string, ymlPath: string, block: BlockDefinition) {
+    private async maybeGenerateCode(ref: string, ymlPath: string, block: Definition) {
         ref = normalizeKapetaUri(ref);
         if (await codeGeneratorManager.canGenerateCode(block)) {
             const assetTitle = block.metadata.title ? block.metadata.title : parseKapetaUri(block.metadata.name).name;
