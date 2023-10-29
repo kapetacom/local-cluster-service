@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Path from 'path';
 import { registry as Targets, BlockCodeGenerator, CodeWriter } from '@kapeta/codegen';
 import { BlockDefinition } from '@kapeta/schemas';

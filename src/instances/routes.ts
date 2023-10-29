@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Router from 'express-promise-router';
 import { instanceManager } from '../instanceManager';
 import { serviceManager } from '../serviceManager';

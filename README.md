@@ -30,3 +30,7 @@ make them point to itself.
 This is to allow these scenarios:
 - Testing in production for a subset of users (Or just your own)
 - Development against a team or private sandbox to avoid running every service locally 
+
+## License
+
+This project is licensed under the BUSL-1.1 License - see the [LICENSE](LICENSE) file for details

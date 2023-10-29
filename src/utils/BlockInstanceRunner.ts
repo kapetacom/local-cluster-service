@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import FS from 'node:fs';
 import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
 import { getBindHost, getBlockInstanceContainerName, readYML } from './utils';

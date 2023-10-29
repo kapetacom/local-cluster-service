@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import os from 'node:os';
 import { socketManager } from './socketManager';
 import { Dependency } from '@kapeta/schemas';

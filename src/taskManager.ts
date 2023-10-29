@@ -1,4 +1,9 @@
 /**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+/**
  * Class that handles processing background tasks.
  */
 import { socketManager } from './socketManager';

@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import chokidar, { FSWatcher } from 'chokidar';
 import ClusterConfiguration, { Definition, DefinitionInfo } from '@kapeta/local-cluster-config';
 import FS from 'fs-extra';
