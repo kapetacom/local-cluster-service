@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import NodeCache from 'node-cache';
 
 const DEFAULT_CACHE_TTL = 60 * 1000; // 1 min

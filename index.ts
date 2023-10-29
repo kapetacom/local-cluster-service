@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { clusterService } from './src/clusterService';
 import { storageService } from './src/storageService';
 import { serviceManager } from './src/serviceManager';

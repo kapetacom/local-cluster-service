@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import FS from 'node:fs';
 import YAML from 'yaml';
 import { parseKapetaUri } from '@kapeta/nodejs-utils';

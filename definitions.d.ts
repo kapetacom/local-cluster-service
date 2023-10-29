@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 declare module 'recursive-watch' {
     export default function watch(path: string, callback: (filename: string) => void): () => void;
 }

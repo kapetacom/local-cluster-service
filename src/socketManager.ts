@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import _ from 'lodash';
 import { Socket, Server } from 'socket.io';
 import { normalizeKapetaUri } from '@kapeta/nodejs-utils';

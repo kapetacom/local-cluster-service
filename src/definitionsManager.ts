@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
 import { parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import { cacheManager, doCached } from './cacheManager';

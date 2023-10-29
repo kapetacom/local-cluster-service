@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import express from 'express';
 import { Connection, Resource } from '@kapeta/schemas';
 import { StringBodyRequest } from './middleware/stringBody';

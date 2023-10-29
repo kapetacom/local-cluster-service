@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { DefinitionInfo } from '@kapeta/local-cluster-config';
 import Path from 'path';
 import md5 from 'md5';

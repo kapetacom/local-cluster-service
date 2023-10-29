@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { NextFunction, Request, Response } from 'express';
 
 export type StringBodyRequest = Request<any> & {

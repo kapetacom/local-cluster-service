@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { EventEmitter } from 'node:events';
 import Path from 'node:path';
 import chokidar, { FSWatcher } from 'chokidar';

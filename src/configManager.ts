@@ -1,3 +1,8 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { EnrichedAsset } from './assetManager';
 import { BlockInstance } from '@kapeta/schemas';
 import { storageService } from './storageService';
