@@ -213,7 +213,7 @@ export default {
 
                     const defaultCommands = ['codegen', 'registry'];
                     try {
-                        const ensureCLICommandsTask = await ensureCLICommands(defaultCommands);
+                        const ensureCLICommandsTask = ensureCLICommands(defaultCommands);
                         if (ensureCLICommandsTask) {
                             await taskManager.waitFor((t) => t === ensureCLICommandsTask);
                         }
@@ -231,7 +231,13 @@ export default {
                     resolve({ host, port, dockerStatus: containerManager.isAlive() });
                 }
 
-                asyncListeningListener().catch((err) => console.error('Failed to run asyncListenListener', err));
+                void (async () => {
+                    try {
+                        await asyncListeningListener();
+                    } catch (error) {
+                        console.error('Failed to run asyncListenListener', error);
+                    }
+                })();
             });
             currentServer.host = host;
             currentServer.port = port;
