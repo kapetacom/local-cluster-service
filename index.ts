@@ -26,7 +26,6 @@ import APIRoutes from './src/api';
 import { getBindHost } from './src/utils/utils';
 import request from 'request';
 import { repositoryManager } from './src/repositoryManager';
-import { taskManager } from './src/taskManager';
 import { ensureCLI, ensureCLICommands } from './src/utils/commandLineUtils';
 import { defaultProviderInstaller } from './src/utils/DefaultProviderInstaller';
 import { authManager } from './src/authManager';
@@ -200,40 +199,27 @@ export default {
 
             const bindHost = getBindHost(host);
 
-            currentServer.listen(port, bindHost, function listeningListener() {
-                async function asyncListeningListener() {
-                    try {
-                        const ensureCLITask = await ensureCLI();
-                        if (ensureCLITask) {
-                            await taskManager.waitFor((t) => t === ensureCLITask);
-                        }
-                    } catch (e: any) {
-                        console.error('Failed to install CLI.', e);
-                    }
-
-                    try {
-                        await ensureCLICommands();
-                    } catch (error) {
-                        console.error('Failed to ensure default CLI commands', error);
-                    }
-
-                    try {
-                        // Start installation process for all default providers
-                        await repositoryManager.ensureDefaultProviders();
-                    } catch (e: any) {
-                        console.error('Failed to install default providers.', e);
-                    }
-
-                    resolve({ host, port, dockerStatus: containerManager.isAlive() });
+            currentServer.listen(port, bindHost, async () => {
+                try {
+                    await ensureCLI();
+                } catch (e: any) {
+                    console.error('Failed to install CLI.', e);
                 }
 
-                void (async () => {
-                    try {
-                        await asyncListeningListener();
-                    } catch (error) {
-                        console.error('Failed to run asyncListenListener', error);
-                    }
-                })();
+                try {
+                    await ensureCLICommands();
+                } catch (error) {
+                    console.error('Failed to ensure default CLI commands', error);
+                }
+
+                try {
+                    // Start installation process for all default providers
+                    await repositoryManager.ensureDefaultProviders();
+                } catch (e: any) {
+                    console.error('Failed to install default providers.', e);
+                }
+
+                resolve({ host, port, dockerStatus: containerManager.isAlive() });
             });
             currentServer.host = host;
             currentServer.port = port;
