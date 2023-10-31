@@ -29,3 +29,28 @@ export async function ensureCLI() {
         }
     );
 }
+
+export async function hasCLICommand(command: string) {
+    return hasApp(`kap ${command}`);
+}
+
+export async function ensureCLICommands(commands: string | string[]) {
+    const commandsArray = Array.isArray(commands) ? commands : [commands];
+
+    const checkCommands = await Promise.all(commandsArray.map(hasCLICommand));
+
+    if (checkCommands.includes(false)) {
+        return taskManager.add(
+            'kap:init',
+            () => {
+                const process = spawn('kap', ['init'], { shell: true });
+                return process.wait();
+            },
+            {
+                name: 'Running `kap init` to install default CLI commands',
+            }
+        );
+    } else {
+        return null;
+    }
+}

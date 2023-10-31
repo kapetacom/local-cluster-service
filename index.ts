@@ -26,7 +26,8 @@ import APIRoutes from './src/api';
 import { getBindHost } from './src/utils/utils';
 import request from 'request';
 import { repositoryManager } from './src/repositoryManager';
-import { ensureCLI } from './src/utils/commandLineUtils';
+import { taskManager } from './src/taskManager';
+import { ensureCLI, ensureCLICommands } from './src/utils/commandLineUtils';
 import { defaultProviderInstaller } from './src/utils/DefaultProviderInstaller';
 import { authManager } from './src/authManager';
 import { codeGeneratorManager } from './src/codeGeneratorManager';
@@ -184,7 +185,7 @@ export default {
             storageService.put('cluster', 'host', host);
         }
 
-        return new Promise(async (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             if (!currentServer) {
                 reject(new Error(`Current server wasn't set`));
                 return;
@@ -199,21 +200,38 @@ export default {
 
             const bindHost = getBindHost(host);
 
-            currentServer.listen(port, bindHost, async () => {
-                try {
-                    ensureCLI().catch((e: any) => console.error('Failed to install CLI.', e));
-                } catch (e: any) {
-                    console.error('Failed to install CLI.', e);
+            currentServer.listen(port, bindHost, function listeningListener() {
+                async function asyncListeningListener() {
+                    try {
+                        const ensureCLITask = await ensureCLI();
+                        if (ensureCLITask) {
+                            await taskManager.waitFor((t) => t === ensureCLITask);
+                        }
+                    } catch (e: any) {
+                        console.error('Failed to install CLI.', e);
+                    }
+
+                    const defaultCommands = ['codegen', 'registry'];
+                    try {
+                        const ensureCLICommandsTask = await ensureCLICommands(defaultCommands);
+                        if (ensureCLICommandsTask) {
+                            await taskManager.waitFor((t) => t === ensureCLICommandsTask);
+                        }
+                    } catch (error) {
+                        console.error(`Failed to ensure default CLI commands: %s`, defaultCommands, error);
+                    }
+
+                    try {
+                        // Start installation process for all default providers
+                        await repositoryManager.ensureDefaultProviders();
+                    } catch (e: any) {
+                        console.error('Failed to install default providers.', e);
+                    }
+
+                    resolve({ host, port, dockerStatus: containerManager.isAlive() });
                 }
 
-                try {
-                    // Start installation process for all default providers
-                    await repositoryManager.ensureDefaultProviders();
-                } catch (e: any) {
-                    console.error('Failed to install default providers.', e);
-                }
-
-                resolve({ host, port, dockerStatus: containerManager.isAlive() });
+                asyncListeningListener().catch((err) => console.error('Failed to run asyncListenListener', err));
             });
             currentServer.host = host;
             currentServer.port = port;
