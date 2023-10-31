@@ -158,7 +158,7 @@ export class BlockInstanceRunner {
         if (!FS.existsSync(baseDir)) {
             throw new Error(
                 `Local block not registered correctly - expected symlink here: ${baseDir}.\n` +
-                    `Make sure you've run "blockctl registry link" in your local directory to connect it to Kapeta`
+                    `Make sure you've run "kap registry link" in your local directory to connect it to Kapeta`
             );
         }
 
