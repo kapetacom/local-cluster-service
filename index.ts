@@ -211,14 +211,10 @@ export default {
                         console.error('Failed to install CLI.', e);
                     }
 
-                    const defaultCommands = ['codegen', 'registry'];
                     try {
-                        const ensureCLICommandsTask = ensureCLICommands(defaultCommands);
-                        if (ensureCLICommandsTask) {
-                            await taskManager.waitFor((t) => t === ensureCLICommandsTask);
-                        }
+                        await ensureCLICommands();
                     } catch (error) {
-                        console.error(`Failed to ensure default CLI commands: %s`, defaultCommands, error);
+                        console.error('Failed to ensure default CLI commands', error);
                     }
 
                     try {

@@ -30,15 +30,8 @@ export async function ensureCLI() {
     );
 }
 
-export function ensureCLICommands(commands: string | string[]) {
-    return taskManager.add(
-        'kap:init',
-        () => {
-            const process = spawn('kap', ['init'], { shell: true });
-            return process.wait();
-        },
-        {
-            name: 'Installing default Kapeta CLI commands',
-        }
-    );
+export function ensureCLICommands() {
+    console.log('Run `kap init` to ensure default commands are installed');
+    const process = spawn('kap', ['init'], { shell: true });
+    return process.wait();
 }
