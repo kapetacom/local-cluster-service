@@ -29,3 +29,9 @@ export async function ensureCLI() {
         }
     );
 }
+
+export function ensureCLICommands() {
+    console.log('Run `kap init` to ensure default commands are installed');
+    const process = spawn('kap', ['init'], { shell: true });
+    return process.wait();
+}

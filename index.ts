@@ -26,7 +26,8 @@ import APIRoutes from './src/api';
 import { getBindHost } from './src/utils/utils';
 import request from 'request';
 import { repositoryManager } from './src/repositoryManager';
-import { ensureCLI } from './src/utils/commandLineUtils';
+import { taskManager } from './src/taskManager';
+import { ensureCLI, ensureCLICommands } from './src/utils/commandLineUtils';
 import { defaultProviderInstaller } from './src/utils/DefaultProviderInstaller';
 import { authManager } from './src/authManager';
 import { codeGeneratorManager } from './src/codeGeneratorManager';
@@ -184,7 +185,7 @@ export default {
             storageService.put('cluster', 'host', host);
         }
 
-        return new Promise(async (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             if (!currentServer) {
                 reject(new Error(`Current server wasn't set`));
                 return;
@@ -201,9 +202,18 @@ export default {
 
             currentServer.listen(port, bindHost, async () => {
                 try {
-                    ensureCLI().catch((e: any) => console.error('Failed to install CLI.', e));
+                    const ensureCLITask = await ensureCLI();
+                    if (ensureCLITask) {
+                        await taskManager.waitFor((t) => t === ensureCLITask);
+                    }
                 } catch (e: any) {
                     console.error('Failed to install CLI.', e);
+                }
+
+                try {
+                    await ensureCLICommands();
+                } catch (error) {
+                    console.error('Failed to ensure default CLI commands', error);
                 }
 
                 try {
