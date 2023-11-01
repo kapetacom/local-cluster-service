@@ -26,6 +26,7 @@ import APIRoutes from './src/api';
 import { getBindHost } from './src/utils/utils';
 import request from 'request';
 import { repositoryManager } from './src/repositoryManager';
+import { taskManager } from './src/taskManager';
 import { ensureCLI, ensureCLICommands } from './src/utils/commandLineUtils';
 import { defaultProviderInstaller } from './src/utils/DefaultProviderInstaller';
 import { authManager } from './src/authManager';
@@ -201,7 +202,10 @@ export default {
 
             currentServer.listen(port, bindHost, async () => {
                 try {
-                    await ensureCLI();
+                    const ensureCLITask = await ensureCLI();
+                    if (ensureCLITask) {
+                        await taskManager.waitFor((t) => t === ensureCLITask);
+                    }
                 } catch (e: any) {
                     console.error('Failed to install CLI.', e);
                 }
