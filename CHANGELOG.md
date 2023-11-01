@@ -1,3 +1,20 @@
+# [0.25.0](https://github.com/kapetacom/local-cluster-service/compare/v0.24.3...v0.25.0) (2023-11-01)
+
+
+### Bug Fixes
+
+* Disable eslint rule ([bcfe9bc](https://github.com/kapetacom/local-cluster-service/commit/bcfe9bc5835aff3de73b6ecfc7beab2df290b65a))
+* Refactor .catch to try catch ([21101b2](https://github.com/kapetacom/local-cluster-service/commit/21101b274b7bb573afd14d11833bbfa63708edc0))
+* Rename blockctl to kap in error message ([52b843d](https://github.com/kapetacom/local-cluster-service/commit/52b843db7f593381042b6adbd876451e5b819232))
+* Run kap init without using a task ([d6975e1](https://github.com/kapetacom/local-cluster-service/commit/d6975e1dfb5518b7b8194351ddd7759d9a8e397a))
+* Run kap:init without checking if commands exist ([159db0a](https://github.com/kapetacom/local-cluster-service/commit/159db0afdb2bc1d01e853900ff9b16de20ecfb86))
+* Wait for ensureCLI to finish before calling ensureCLICommands ([178e387](https://github.com/kapetacom/local-cluster-service/commit/178e387df9c7b5e5aa975d4ee6c30112f624efcb))
+
+
+### Features
+
+* Run kap init if any of the default commands are missing ([671f19c](https://github.com/kapetacom/local-cluster-service/commit/671f19cfa76408beed7818bdbc56915714d55f0c))
+
 ## [0.24.3](https://github.com/kapetacom/local-cluster-service/compare/v0.24.2...v0.24.3) (2023-10-28)
 
 
