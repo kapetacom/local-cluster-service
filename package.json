@@ -55,7 +55,7 @@
         "@kapeta/nodejs-utils": "<2",
         "@kapeta/schemas": "<2",
         "@kapeta/sdk-config": "<2",
-        "@kapeta/web-microfrontend": "^0.2.1",
+        "@kapeta/web-microfrontend": "<2",
         "@types/dockerode": "^3.3.19",
         "@types/stream-json": "^1.7.3",
         "async-lock": "^1.4.0",
