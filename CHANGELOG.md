@@ -1,3 +1,10 @@
+## [0.25.1](https://github.com/kapetacom/local-cluster-service/compare/v0.25.0...v0.25.1) (2023-11-02)
+
+
+### Bug Fixes
+
+* open up web-microfrontend version range ([b0f55d6](https://github.com/kapetacom/local-cluster-service/commit/b0f55d6c24183f7db6e79f6351e3e4d2cc70dbb0))
+
 # [0.25.0](https://github.com/kapetacom/local-cluster-service/compare/v0.24.3...v0.25.0) (2023-11-01)
 
 
