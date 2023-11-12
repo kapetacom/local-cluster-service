@@ -1,3 +1,10 @@
+## [0.25.2](https://github.com/kapetacom/local-cluster-service/compare/v0.25.1...v0.25.2) (2023-11-12)
+
+
+### Bug Fixes
+
+* Add sentry ([#97](https://github.com/kapetacom/local-cluster-service/issues/97)) ([e823e36](https://github.com/kapetacom/local-cluster-service/commit/e823e36f505965fbfa086c997ef70e91d7e3dbe1))
+
 ## [0.25.1](https://github.com/kapetacom/local-cluster-service/compare/v0.25.0...v0.25.1) (2023-11-02)
 
 
