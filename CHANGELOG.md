@@ -1,3 +1,10 @@
+## [0.25.3](https://github.com/kapetacom/local-cluster-service/compare/v0.25.2...v0.25.3) (2023-11-12)
+
+
+### Bug Fixes
+
+* Avoid sentry request handler - causes node crash ([0f004dd](https://github.com/kapetacom/local-cluster-service/commit/0f004dd98d31e07476cf9db011b32a2184fe3f96))
+
 ## [0.25.2](https://github.com/kapetacom/local-cluster-service/compare/v0.25.1...v0.25.2) (2023-11-12)
 
 
