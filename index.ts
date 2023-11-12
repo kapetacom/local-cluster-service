@@ -57,8 +57,8 @@ function createServer() {
     // @ts-ignore for some reason this doesn't match the type in TS
     Sentry.addIntegration(new ProfilingIntegration());
 
-    // The request handler must be the first middleware on the app
-    app.use(Sentry.Handlers.requestHandler());
+    // This causes node < 20 to crash on request.
+    //app.use(Sentry.Handlers.requestHandler());
 
     // TracingHandler creates a trace for every incoming request
     app.use(Sentry.Handlers.tracingHandler());
