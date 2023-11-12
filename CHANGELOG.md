@@ -1,3 +1,10 @@
+## [0.25.4](https://github.com/kapetacom/local-cluster-service/compare/v0.25.3...v0.25.4) (2023-11-12)
+
+
+### Bug Fixes
+
+* Get rid of native node module ([ce9a7f2](https://github.com/kapetacom/local-cluster-service/commit/ce9a7f2eba8f86ebbd76e6a5d0ad282858361753))
+
 ## [0.25.3](https://github.com/kapetacom/local-cluster-service/compare/v0.25.2...v0.25.3) (2023-11-12)
 
 
