@@ -31,6 +31,17 @@ import { ensureCLI, ensureCLICommands } from './src/utils/commandLineUtils';
 import { defaultProviderInstaller } from './src/utils/DefaultProviderInstaller';
 import { authManager } from './src/authManager';
 import { codeGeneratorManager } from './src/codeGeneratorManager';
+import * as Sentry from '@sentry/node';
+import { ProfilingIntegration } from '@sentry/profiling-node';
+
+Sentry.init({
+    dsn: 'https://0b7cc946d82c591473d6f95fff5e210b@o4505820837249024.ingest.sentry.io/4506212692000768',
+    enabled: process.env.NODE_ENV !== 'development',
+    // Performance Monitoring
+    tracesSampleRate: 1.0,
+    // Set sampling rate for profiling - this is relative to tracesSampleRate
+    profilesSampleRate: 1.0,
+});
 
 export type LocalClusterService = HTTP.Server & { host?: string; port?: number };
 
@@ -40,6 +51,18 @@ let currentServer: LocalClusterService | null = null;
 
 function createServer() {
     const app = express();
+
+    Sentry.addIntegration(new Sentry.Integrations.Http({ tracing: true }));
+    Sentry.addIntegration(new Sentry.Integrations.Express({ app }));
+    // @ts-ignore for some reason this doesn't match the type in TS
+    Sentry.addIntegration(new ProfilingIntegration());
+
+    // The request handler must be the first middleware on the app
+    app.use(Sentry.Handlers.requestHandler());
+
+    // TracingHandler creates a trace for every incoming request
+    app.use(Sentry.Handlers.tracingHandler());
+
     app.use('/traffic', TrafficRoutes);
     app.use('/proxy', ProxyRoutes);
     app.use('/config', ConfigRoutes);
@@ -73,6 +96,8 @@ function createServer() {
             error: 'Unknown',
         });
     });
+
+    app.use(Sentry.Handlers.errorHandler());
 
     /**
      * Central error handler, allows us to return a consistent JSON response wrapper with the error.
