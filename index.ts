@@ -32,7 +32,6 @@ import { defaultProviderInstaller } from './src/utils/DefaultProviderInstaller';
 import { authManager } from './src/authManager';
 import { codeGeneratorManager } from './src/codeGeneratorManager';
 import * as Sentry from '@sentry/node';
-import { ProfilingIntegration } from '@sentry/profiling-node';
 
 Sentry.init({
     dsn: 'https://0b7cc946d82c591473d6f95fff5e210b@o4505820837249024.ingest.sentry.io/4506212692000768',
@@ -54,8 +53,6 @@ function createServer() {
 
     Sentry.addIntegration(new Sentry.Integrations.Http({ tracing: true }));
     Sentry.addIntegration(new Sentry.Integrations.Express({ app }));
-    // @ts-ignore for some reason this doesn't match the type in TS
-    Sentry.addIntegration(new ProfilingIntegration());
 
     // This causes node < 20 to crash on request.
     //app.use(Sentry.Handlers.requestHandler());
