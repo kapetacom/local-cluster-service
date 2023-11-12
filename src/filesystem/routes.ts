@@ -28,6 +28,17 @@ router.post('/project/root', (req: StringBodyRequest, res: Response) => {
     res.sendStatus(204);
 });
 
+router.get('/editor', (req: Request, res: Response) => {
+    res.send(filesystemManager.getEditor());
+});
+
+router.use('/editor', stringBody);
+
+router.post('/editor', (req: StringBodyRequest, res: Response) => {
+    filesystemManager.setEditor(req.stringBody ?? '');
+    res.sendStatus(204);
+});
+
 router.use('/', (req: Request, res: Response, next: NextFunction) => {
     if (!req.query.path) {
         res.status(400).send({ error: 'Missing required query parameter "path"' });
