@@ -1,3 +1,10 @@
+# [0.27.0](https://github.com/kapetacom/local-cluster-service/compare/v0.26.0...v0.27.0) (2023-11-13)
+
+
+### Features
+
+* add /files/release-channel endpoint to enable beta releases in the app [KAP-2014] ([#99](https://github.com/kapetacom/local-cluster-service/issues/99)) ([096b4be](https://github.com/kapetacom/local-cluster-service/commit/096b4bea99d0e0ccf11f2ef04730737adb2995a3))
+
 # [0.26.0](https://github.com/kapetacom/local-cluster-service/compare/v0.25.4...v0.26.0) (2023-11-13)
 
 
