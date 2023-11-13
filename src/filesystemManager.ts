@@ -10,6 +10,7 @@ import { storageService } from './storageService';
 
 const SECTION_ID = 'filesystem';
 const PROJECT_ROOT = 'project_root';
+const EDITOR = 'editor';
 
 function isFile(path: string) {
     try {
@@ -90,6 +91,14 @@ class FilesystemManager {
 
     setProjectRootFolder(folder: string) {
         storageService.put(SECTION_ID, PROJECT_ROOT, folder);
+    }
+
+    getEditor(): string | undefined {
+        return storageService.get(SECTION_ID, EDITOR);
+    }
+
+    setEditor(editor: string) {
+        storageService.put(SECTION_ID, EDITOR, editor);
     }
 }
 
