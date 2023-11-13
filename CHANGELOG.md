@@ -1,3 +1,10 @@
+# [0.26.0](https://github.com/kapetacom/local-cluster-service/compare/v0.25.4...v0.26.0) (2023-11-13)
+
+
+### Features
+
+* Add storage field for editor ([#98](https://github.com/kapetacom/local-cluster-service/issues/98)) ([e81ef2f](https://github.com/kapetacom/local-cluster-service/commit/e81ef2f3e68e5ad7171fc3256bcfd96b515715ac))
+
 ## [0.25.4](https://github.com/kapetacom/local-cluster-service/compare/v0.25.3...v0.25.4) (2023-11-12)
 
 
