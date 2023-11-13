@@ -39,6 +39,17 @@ router.post('/editor', (req: StringBodyRequest, res: Response) => {
     res.sendStatus(204);
 });
 
+router.get('/release-channel', (req: Request, res: Response) => {
+    res.send(filesystemManager.getReleaseChannel());
+});
+
+router.use('/release-channel', stringBody);
+
+router.post('/release-channel', (req: StringBodyRequest, res: Response) => {
+    filesystemManager.setReleaseChannel(req.stringBody ?? '');
+    res.sendStatus(204);
+});
+
 router.use('/', (req: Request, res: Response, next: NextFunction) => {
     if (!req.query.path) {
         res.status(400).send({ error: 'Missing required query parameter "path"' });
