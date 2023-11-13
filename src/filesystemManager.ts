@@ -11,6 +11,7 @@ import { storageService } from './storageService';
 const SECTION_ID = 'filesystem';
 const PROJECT_ROOT = 'project_root';
 const EDITOR = 'editor';
+const RELEASE_CHANNEL = 'release_channel';
 
 function isFile(path: string) {
     try {
@@ -99,6 +100,15 @@ class FilesystemManager {
 
     setEditor(editor: string) {
         storageService.put(SECTION_ID, EDITOR, editor);
+    }
+
+    // Should we put this in its own manager service?
+    getReleaseChannel() {
+        return storageService.get<string>('app', RELEASE_CHANNEL);
+    }
+
+    setReleaseChannel(channel: string) {
+        storageService.put('app', RELEASE_CHANNEL, channel);
     }
 }
 
