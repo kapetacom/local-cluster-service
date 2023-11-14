@@ -175,7 +175,7 @@ class RepositoryManager extends EventEmitter {
             names.map((name) => this._registryService.getLatestVersion(name).catch(() => undefined))
         );
 
-        const refs = names
+        return names
             .map((name, index) => {
                 const currentVersion: DefinitionInfo | undefined = currentVersions[index];
                 const latestVersion: AssetVersion | undefined = latestVersions[index];
@@ -193,8 +193,6 @@ class RepositoryManager extends EventEmitter {
                 return ref;
             })
             .filter((ref) => !!ref) as string[];
-
-        return refs;
     }
 
     private async scheduleInstallation(refs: string[]): Promise<Task[]> {
