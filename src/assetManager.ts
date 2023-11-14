@@ -20,6 +20,7 @@ import { cacheManager } from './cacheManager';
 import uuid from 'node-uuid';
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const UPGRADE_CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
 const toKey = (ref: string) => `assetManager:asset:${ref}`;
 
@@ -64,6 +65,22 @@ function parseRef(ref: string) {
 }
 
 class AssetManager {
+    public startUpgradeInterval() {
+        console.debug('Checking for upgrades...');
+        this.upgradeAllProviders()
+            .then((task) => {
+                return task && task.wait();
+            })
+            .catch((e) => {
+                console.error('Failed to upgrade providers', e);
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    this.startUpgradeInterval();
+                }, UPGRADE_CHECK_INTERVAL);
+            });
+    }
+
     /**
      *
      * @param {string[]} [assetKinds]
@@ -256,6 +273,12 @@ class AssetManager {
         definitionsManager.clearCache();
 
         return await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, wait);
+    }
+
+    async upgradeAllProviders() {
+        const providers = await definitionsManager.getProviderDefinitions();
+        const names = providers.map((p) => p.definition.metadata.name);
+        return repositoryManager.scheduleUpdate(names);
     }
 
     private async maybeGenerateCode(ref: string, ymlPath: string, block: Definition) {

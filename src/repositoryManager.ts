@@ -6,7 +6,7 @@
 import os from 'node:os';
 import { socketManager } from './socketManager';
 import { Dependency } from '@kapeta/schemas';
-import { Actions, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
+import { Actions, AssetVersion, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
 import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
@@ -15,6 +15,7 @@ import { RepositoryWatcher } from './RepositoryWatcher';
 import { SourceOfChange } from './types';
 import { cacheManager } from './cacheManager';
 import { EventEmitter } from 'node:events';
+import { DefinitionInfo } from '@kapeta/local-cluster-config';
 
 const EVENT_DEFAULT_PROVIDERS_START = 'default-providers-start';
 const EVENT_DEFAULT_PROVIDERS_END = 'default-providers-end';
@@ -74,6 +75,61 @@ class RepositoryManager extends EventEmitter {
         const tasks = await this.scheduleInstallation(DEFAULT_PROVIDERS);
         Promise.allSettled(tasks.map((t) => t.wait())).then(() => {
             socketManager.emitGlobal(EVENT_DEFAULT_PROVIDERS_END, {});
+        });
+    }
+
+    public async scheduleUpdate(allNames: string[]): Promise<Task | undefined> {
+        const names = Array.from(new Set<string>(allNames));
+
+        const currentVersions = await Promise.all(
+            names.map((name) => definitionsManager.getLatestDefinition(name).catch(() => undefined))
+        );
+
+        const latestVersions = await Promise.all(
+            names.map((name) => this._registryService.getLatestVersion(name).catch(() => undefined))
+        );
+
+        const refs = names
+            .map((name, index) => {
+                const currentVersion: DefinitionInfo | undefined = currentVersions[index];
+                const latestVersion: AssetVersion | undefined = latestVersions[index];
+                if (!currentVersion || !latestVersion) {
+                    // Shouldn't happen unless the registry is down or an asset was deleted
+                    return undefined;
+                }
+
+                const ref = normalizeKapetaUri(`${name}:${latestVersion.version}`);
+
+                if (currentVersion.version === latestVersion.version) {
+                    return undefined;
+                }
+
+                return ref;
+            })
+            .filter((ref) => !!ref) as string[];
+
+        if (refs.length < 1) {
+            console.log('No updates found');
+            return undefined;
+        }
+
+        console.log('Installing updates', refs);
+        const updateAll = async () => {
+            try {
+                //We change to a temp dir to avoid issues with the current working directory
+                process.chdir(os.tmpdir());
+                await Actions.install(new ProgressListener(), refs, {});
+            } catch (e) {
+                console.error(`Failed to update assets: ${refs.join(',')}`, e);
+                throw e;
+            }
+            cacheManager.flush();
+            definitionsManager.clearCache();
+        };
+
+        return taskManager.add(`asset:update`, updateAll, {
+            name: `Installing ${refs.length} updates`,
+            group: 'asset:update:check',
         });
     }
 

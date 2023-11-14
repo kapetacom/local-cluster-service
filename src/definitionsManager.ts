@@ -13,6 +13,7 @@ import YAML from 'yaml';
 import { Actions } from '@kapeta/nodejs-registry-utils';
 import { ProgressListener } from './progressListener';
 import Path from 'path';
+import { versionIsBigger } from './utils/utils';
 
 export const SAMPLE_PLAN_NAME = 'kapeta/sample-java-chat-plan';
 
@@ -168,6 +169,31 @@ class DefinitionsManager {
             }
             return parseKapetaUri(`${d.definition.metadata.name}:${d.version}`).id === uri.id;
         });
+    }
+
+    public async getLatestDefinition(name: string) {
+        const definitions = await this.getDefinitions();
+        const allVersions = definitions.filter((d) => {
+            return d.version !== 'local' && d.definition.metadata.name === name;
+        });
+
+        if (allVersions.length === 0) {
+            return;
+        }
+
+        allVersions.sort((a, b) => {
+            if (versionIsBigger(a.version, b.version)) {
+                return -1;
+            }
+
+            if (versionIsBigger(b.version, a.version)) {
+                return 1;
+            }
+
+            return 0;
+        });
+
+        return allVersions[0];
     }
 
     public async getVersions(assetName: string) {

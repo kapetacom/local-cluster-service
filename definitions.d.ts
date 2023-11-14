@@ -13,12 +13,14 @@ declare module '@kapeta/nodejs-registry-utils' {
     export interface AssetVersion {
         content: Kind;
         dependencies: Dependency[];
+        version: string;
     }
 
     export class RegistryService {
         constructor(url: string);
 
         getVersion(fullName: string, version: string): Promise<AssetVersion>;
+        getLatestVersion(name): Promise<AssetVersion>;
     }
 
     export const Config: any;
