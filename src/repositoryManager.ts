@@ -5,7 +5,7 @@
 
 import os from 'node:os';
 import { socketManager } from './socketManager';
-import { Dependency, resolveDependencies } from '@kapeta/schemas';
+import { DependencyReference, Dependency, resolveDependencies } from '@kapeta/schemas';
 import { Actions, AssetVersion, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
@@ -16,7 +16,6 @@ import { SourceOfChange } from './types';
 import { cacheManager } from './cacheManager';
 import { EventEmitter } from 'node:events';
 import { DefinitionInfo } from '@kapeta/local-cluster-config';
-import _ from 'lodash';
 import { versionIsBigger } from './utils/utils';
 
 const EVENT_DEFAULT_PROVIDERS_START = 'default-providers-start';
@@ -130,7 +129,7 @@ class RepositoryManager extends EventEmitter {
             latestVersions[name] = versionArray[0];
         });
 
-        function markDependecyAsUsed(dep: Dependency) {
+        function markDependecyAsUsed(dep: DependencyReference) {
             const uri = parseKapetaUri(dep.name);
             unusedProviders.delete(uri.toNormalizedString());
         }
