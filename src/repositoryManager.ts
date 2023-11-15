@@ -129,14 +129,17 @@ class RepositoryManager extends EventEmitter {
             latestVersions[name] = versionArray[0];
         });
 
-        function markDependecyAsUsed(dep: DependencyReference) {
+        function markDependencyAsUsed(dep: DependencyReference) {
             const uri = parseKapetaUri(dep.name);
-            unusedProviders.delete(uri.toNormalizedString());
+            const ref = uri.toNormalizedString();
+            if (unusedProviders.has(ref)) {
+                unusedProviders.delete(ref);
+            }
         }
 
         plans.forEach((plan) => {
             const dependencies = resolveDependencies(plan.definition);
-            dependencies.forEach(markDependecyAsUsed);
+            dependencies.forEach(markDependencyAsUsed);
         });
 
         blocks.forEach((block) => {
@@ -148,7 +151,7 @@ class RepositoryManager extends EventEmitter {
                 return;
             }
             const dependencies = resolveDependencies(block.definition, blockTypeProvider.definition);
-            dependencies.forEach(markDependecyAsUsed);
+            dependencies.forEach(markDependencyAsUsed);
         });
 
         return Array.from(unusedProviders).filter((ref) => {
