@@ -1,3 +1,10 @@
+# [0.28.0](https://github.com/kapetacom/local-cluster-service/compare/v0.27.0...v0.28.0) (2023-11-15)
+
+
+### Features
+
+* Auto-upgrade providers every 10th minute ([#100](https://github.com/kapetacom/local-cluster-service/issues/100)) ([2c35569](https://github.com/kapetacom/local-cluster-service/commit/2c35569587f456374529bb1f9a9e8f5c03be2189))
+
 # [0.27.0](https://github.com/kapetacom/local-cluster-service/compare/v0.26.0...v0.27.0) (2023-11-13)
 
 
