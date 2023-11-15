@@ -4,7 +4,7 @@
  */
 
 import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import { parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
+import { parseKapetaUri, normalizeKapetaUri, parseVersion } from '@kapeta/nodejs-utils';
 import { cacheManager, doCached } from './cacheManager';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
 import { Plan } from '@kapeta/schemas';
@@ -13,7 +13,6 @@ import YAML from 'yaml';
 import { Actions } from '@kapeta/nodejs-registry-utils';
 import { ProgressListener } from './progressListener';
 import Path from 'path';
-import { versionIsBigger } from './utils/utils';
 
 export const SAMPLE_PLAN_NAME = 'kapeta/sample-java-chat-plan';
 
@@ -182,15 +181,7 @@ class DefinitionsManager {
         }
 
         allVersions.sort((a, b) => {
-            if (versionIsBigger(a.version, b.version)) {
-                return -1;
-            }
-
-            if (versionIsBigger(b.version, a.version)) {
-                return 1;
-            }
-
-            return 0;
+            return parseVersion(a.version).compareTo(parseVersion(b.version)) * -1;
         });
 
         return allVersions[0];

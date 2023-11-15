@@ -9,14 +9,13 @@ import { DependencyReference, Dependency, resolveDependencies } from '@kapeta/sc
 import { Actions, AssetVersion, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
-import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
+import { normalizeKapetaUri, parseKapetaUri, parseVersion } from '@kapeta/nodejs-utils';
 import { ProgressListener } from './progressListener';
 import { RepositoryWatcher } from './RepositoryWatcher';
 import { SourceOfChange } from './types';
 import { cacheManager } from './cacheManager';
 import { EventEmitter } from 'node:events';
 import { DefinitionInfo } from '@kapeta/local-cluster-config';
-import { versionIsBigger } from './utils/utils';
 
 const EVENT_DEFAULT_PROVIDERS_START = 'default-providers-start';
 const EVENT_DEFAULT_PROVIDERS_END = 'default-providers-end';
@@ -116,15 +115,7 @@ class RepositoryManager extends EventEmitter {
         Object.entries(providerVersions).forEach(([name, versions]) => {
             const versionArray = Array.from(versions);
             versionArray.sort((a, b) => {
-                if (versionIsBigger(a, b)) {
-                    return -1;
-                }
-
-                if (versionIsBigger(b, a)) {
-                    return 1;
-                }
-
-                return 0;
+                return parseVersion(a).compareTo(parseVersion(b)) * -1;
             });
             latestVersions[name] = versionArray[0];
         });
