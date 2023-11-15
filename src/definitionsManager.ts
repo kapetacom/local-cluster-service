@@ -4,7 +4,7 @@
  */
 
 import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import { parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
+import { parseKapetaUri, normalizeKapetaUri, parseVersion } from '@kapeta/nodejs-utils';
 import { cacheManager, doCached } from './cacheManager';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
 import { Plan } from '@kapeta/schemas';
@@ -168,6 +168,23 @@ class DefinitionsManager {
             }
             return parseKapetaUri(`${d.definition.metadata.name}:${d.version}`).id === uri.id;
         });
+    }
+
+    public async getLatestDefinition(name: string) {
+        const definitions = await this.getDefinitions();
+        const allVersions = definitions.filter((d) => {
+            return d.version !== 'local' && d.definition.metadata.name === name;
+        });
+
+        if (allVersions.length === 0) {
+            return;
+        }
+
+        allVersions.sort((a, b) => {
+            return parseVersion(a.version).compareTo(parseVersion(b.version)) * -1;
+        });
+
+        return allVersions[0];
     }
 
     public async getVersions(assetName: string) {

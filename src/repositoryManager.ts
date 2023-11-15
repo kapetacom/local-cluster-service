@@ -5,16 +5,17 @@
 
 import os from 'node:os';
 import { socketManager } from './socketManager';
-import { Dependency } from '@kapeta/schemas';
-import { Actions, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
+import { DependencyReference, Dependency, resolveDependencies } from '@kapeta/schemas';
+import { Actions, AssetVersion, Config, RegistryService } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
-import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
+import { normalizeKapetaUri, parseKapetaUri, parseVersion } from '@kapeta/nodejs-utils';
 import { ProgressListener } from './progressListener';
 import { RepositoryWatcher } from './RepositoryWatcher';
 import { SourceOfChange } from './types';
 import { cacheManager } from './cacheManager';
 import { EventEmitter } from 'node:events';
+import { DefinitionInfo } from '@kapeta/local-cluster-config';
 
 const EVENT_DEFAULT_PROVIDERS_START = 'default-providers-start';
 const EVENT_DEFAULT_PROVIDERS_END = 'default-providers-end';
@@ -75,6 +76,116 @@ class RepositoryManager extends EventEmitter {
         Promise.allSettled(tasks.map((t) => t.wait())).then(() => {
             socketManager.emitGlobal(EVENT_DEFAULT_PROVIDERS_END, {});
         });
+    }
+
+    /**
+     * Will go through all available assets and get a list of
+     * providers that are not referenced anywhere.
+     *
+     * It will also make sure to not include the latest version of an asset.
+     *
+     */
+    public async getUnusedProviders(): Promise<string[]> {
+        const allDefinitions: DefinitionInfo[] = await definitionsManager.getDefinitions();
+        const blocks: DefinitionInfo[] = [];
+        const plans: DefinitionInfo[] = [];
+        const providerMap = new Map<string, DefinitionInfo>();
+        const providerVersions: { [name: string]: Set<string> } = {};
+        const unusedProviders = new Set<string>();
+        allDefinitions.forEach((d) => {
+            if (d.definition.kind === 'core/plan') {
+                plans.push(d);
+                return;
+            }
+
+            if (d.definition.kind.startsWith('core/')) {
+                const ref = normalizeKapetaUri(`${d.definition.metadata.name}:${d.version}`);
+                providerMap.set(ref, d);
+                if (!providerVersions[d.definition.metadata.name]) {
+                    providerVersions[d.definition.metadata.name] = new Set<string>();
+                }
+                providerVersions[d.definition.metadata.name].add(d.version);
+                unusedProviders.add(ref);
+                return;
+            }
+            blocks.push(d);
+        });
+
+        const latestVersions: { [name: string]: string } = {};
+        Object.entries(providerVersions).forEach(([name, versions]) => {
+            const versionArray = Array.from(versions);
+            versionArray.sort((a, b) => {
+                return parseVersion(a).compareTo(parseVersion(b)) * -1;
+            });
+            latestVersions[name] = versionArray[0];
+        });
+
+        function markDependencyAsUsed(dep: DependencyReference) {
+            const uri = parseKapetaUri(dep.name);
+            const ref = uri.toNormalizedString();
+            if (unusedProviders.has(ref)) {
+                unusedProviders.delete(ref);
+            }
+        }
+
+        plans.forEach((plan) => {
+            const dependencies = resolveDependencies(plan.definition);
+            dependencies.forEach(markDependencyAsUsed);
+        });
+
+        blocks.forEach((block) => {
+            const blockTypeKind = normalizeKapetaUri(block.definition.kind);
+            unusedProviders.delete(blockTypeKind);
+            const blockTypeProvider = providerMap.get(blockTypeKind);
+            if (!blockTypeProvider) {
+                console.warn('No provider found for block type', block.definition.kind);
+                return;
+            }
+            const dependencies = resolveDependencies(block.definition, blockTypeProvider.definition);
+            dependencies.forEach(markDependencyAsUsed);
+        });
+
+        return Array.from(unusedProviders).filter((ref) => {
+            const uri = parseKapetaUri(ref);
+            if (uri.version == 'local') {
+                // Don't delete local assets
+                return false;
+            }
+
+            // Don't delete the latest version of an asset
+            return latestVersions[uri.fullName] !== uri.version;
+        });
+    }
+
+    public async getUpdatableAssets(allNames: string[]): Promise<string[]> {
+        const names = Array.from(new Set<string>(allNames));
+
+        const currentVersions = await Promise.all(
+            names.map((name) => definitionsManager.getLatestDefinition(name).catch(() => undefined))
+        );
+
+        const latestVersions = await Promise.all(
+            names.map((name) => this._registryService.getLatestVersion(name).catch(() => undefined))
+        );
+
+        return names
+            .map((name, index) => {
+                const currentVersion: DefinitionInfo | undefined = currentVersions[index];
+                const latestVersion: AssetVersion | undefined = latestVersions[index];
+                if (!currentVersion || !latestVersion) {
+                    // Shouldn't happen unless the registry is down or an asset was deleted
+                    return undefined;
+                }
+
+                const ref = normalizeKapetaUri(`${name}:${latestVersion.version}`);
+
+                if (currentVersion.version === latestVersion.version) {
+                    return undefined;
+                }
+
+                return ref;
+            })
+            .filter((ref) => !!ref) as string[];
     }
 
     private async scheduleInstallation(refs: string[]): Promise<Task[]> {

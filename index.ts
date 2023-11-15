@@ -32,6 +32,7 @@ import { defaultProviderInstaller } from './src/utils/DefaultProviderInstaller';
 import { authManager } from './src/authManager';
 import { codeGeneratorManager } from './src/codeGeneratorManager';
 import * as Sentry from '@sentry/node';
+import { assetManager } from './src/assetManager';
 
 Sentry.init({
     dsn: 'https://0b7cc946d82c591473d6f95fff5e210b@o4505820837249024.ingest.sentry.io/4506212692000768',
@@ -244,6 +245,8 @@ export default {
                 } catch (e: any) {
                     console.error('Failed to install default providers.', e);
                 }
+
+                assetManager.startUpgradeInterval();
 
                 resolve({ host, port, dockerStatus: containerManager.isAlive() });
             });

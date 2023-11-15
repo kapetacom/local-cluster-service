@@ -18,8 +18,10 @@ import { taskManager } from './taskManager';
 import { SourceOfChange } from './types';
 import { cacheManager } from './cacheManager';
 import uuid from 'node-uuid';
+import os from 'node:os';
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const UPGRADE_CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
 const toKey = (ref: string) => `assetManager:asset:${ref}`;
 
@@ -64,6 +66,22 @@ function parseRef(ref: string) {
 }
 
 class AssetManager {
+    public startUpgradeInterval() {
+        console.debug('Checking for upgrades...');
+        this.upgradeAllProviders()
+            .then((task) => {
+                return task && task.wait();
+            })
+            .catch((e) => {
+                console.error('Failed to upgrade providers', e);
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    this.startUpgradeInterval();
+                }, UPGRADE_CHECK_INTERVAL);
+            });
+    }
+
     /**
      *
      * @param {string[]} [assetKinds]
@@ -256,6 +274,52 @@ class AssetManager {
         definitionsManager.clearCache();
 
         return await repositoryManager.ensureAsset(uri.handle, uri.name, uri.version, wait);
+    }
+
+    private async cleanupUnusedProviders(): Promise<void> {
+        const unusedProviders = await repositoryManager.getUnusedProviders();
+        if (unusedProviders.length < 1) {
+            return;
+        }
+
+        console.log('Cleaning up unused providers: ', unusedProviders);
+        await Promise.all(
+            unusedProviders.map((ref) => {
+                return this.unregisterAsset(ref);
+            })
+        );
+    }
+
+    private async upgradeAllProviders() {
+        const providers = await definitionsManager.getProviderDefinitions();
+        const names = providers.map((p) => p.definition.metadata.name);
+
+        const refs = await repositoryManager.getUpdatableAssets(names);
+
+        if (refs.length < 1) {
+            await this.cleanupUnusedProviders();
+            return;
+        }
+
+        console.log('Installing updates', refs);
+        const updateAll = async () => {
+            try {
+                //We change to a temp dir to avoid issues with the current working directory
+                process.chdir(os.tmpdir());
+                await Actions.install(new ProgressListener(), refs, {});
+                await this.cleanupUnusedProviders();
+            } catch (e) {
+                console.error(`Failed to update assets: ${refs.join(',')}`, e);
+                throw e;
+            }
+            cacheManager.flush();
+            definitionsManager.clearCache();
+        };
+
+        return taskManager.add(`asset:update`, updateAll, {
+            name: `Installing ${refs.length} updates`,
+            group: 'asset:update:check',
+        });
     }
 
     private async maybeGenerateCode(ref: string, ymlPath: string, block: Definition) {
