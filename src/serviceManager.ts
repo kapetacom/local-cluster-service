@@ -9,7 +9,9 @@ import { storageService } from './storageService';
 import { EnvironmentType } from './types';
 import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
 
-export const DEFAULT_PORT_TYPE = 'rest';
+export const DEFAULT_PORT_TYPE = 'http';
+
+export const HTTP_PORTS = ['web', 'http', 'rest'];
 
 class ServiceManager {
     private _systems: any;
@@ -71,6 +73,10 @@ class ServiceManager {
         systemId = normalizeKapetaUri(systemId);
         if (!portType) {
             portType = DEFAULT_PORT_TYPE;
+        }
+
+        if (HTTP_PORTS.includes(portType)) {
+            portType = 'http';
         }
 
         const service = this._ensureService(systemId, blockInstanceId);

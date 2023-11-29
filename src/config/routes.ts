@@ -5,7 +5,7 @@
 
 import Router from 'express-promise-router';
 import { configManager, SYSTEM_ID } from '../configManager';
-import { serviceManager } from '../serviceManager';
+import { HTTP_PORTS, serviceManager } from '../serviceManager';
 import { operatorManager } from '../operatorManager';
 import { instanceManager } from '../instanceManager';
 import { corsHandler } from '../middleware/cors';
@@ -125,7 +125,7 @@ router.get('/identity', async (req: KapetaRequest, res) => {
  * already called the endpoint the same port is returned.
  */
 router.get('/provides/:type', async (req: KapetaRequest, res) => {
-    if (req.kapeta!.environment === 'docker' && ['web', 'rest'].includes(req.params.type)) {
+    if (req.kapeta!.environment === 'docker' && HTTP_PORTS.includes(req.params.type)) {
         // Happens when starting a local container with no providers.
         res.send('80');
         return;

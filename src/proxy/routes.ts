@@ -7,7 +7,7 @@ import Router from 'express-promise-router';
 import { Request, Response } from 'express';
 import { Resource } from '@kapeta/schemas';
 import { proxyRestRequest } from './types/rest';
-import { proxyWebRequest } from './types/web';
+import { proxyHttpRequest } from './types/web';
 import { ProxyRequestHandler } from '../types';
 import { stringBody, StringBodyRequest } from '../middleware/stringBody';
 import { serviceManager } from '../serviceManager';
@@ -22,7 +22,7 @@ const router = Router();
  */
 const TYPE_HANDLERS: { [p: string]: ProxyRequestHandler } = {
     rest: proxyRestRequest,
-    web: proxyWebRequest,
+    http: proxyHttpRequest,
 };
 
 function getResource(resources: Resource[], resourceName: string) {
@@ -37,10 +37,10 @@ router.all(
     '/:systemId/:consumerInstanceId/:consumerResourceName/:type/*',
     async (req: StringBodyRequest, res: Response) => {
         try {
-            const typeHandler = TYPE_HANDLERS[req.params.type.toLowerCase()];
+            let typeHandler = TYPE_HANDLERS[req.params.type.toLowerCase()];
             if (!typeHandler) {
-                res.status(401).send({ error: 'Unknown connection type: ' + req.params.type });
-                return;
+                // Default to http
+                typeHandler = TYPE_HANDLERS['http'];
             }
 
             const plan = await assetManager.getPlan(req.params.systemId);
