@@ -1,3 +1,7 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
 import request from 'request';
 import { PlanContext, transformToPlan } from './transform';
 import { Application } from './types';

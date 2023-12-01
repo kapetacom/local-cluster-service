@@ -1,3 +1,7 @@
+/**
+ * Copyright 2023 Kapeta Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
 export interface Database {
     name: string;
     type: 'mongodb' | 'postgres';
