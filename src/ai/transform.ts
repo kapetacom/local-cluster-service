@@ -5,7 +5,7 @@
 import { BlockDefinition, Plan } from '@kapeta/schemas';
 import { Application } from './types';
 import { definitionsManager } from '../definitionsManager';
-import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
+import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
 import uuid from 'node-uuid';
 
 export type PlanContext = {
@@ -162,6 +162,35 @@ export const transformToPlan = async (handle: string, application: Application):
         });
 
         addToPlan(blockRef, frontend.name);
+    });
+
+    application.connections?.forEach((connection) => {
+        const providerName = `${handle}/${connection.provider.name}`;
+        const providerRef = normalizeKapetaUri(`${providerName}:local`);
+        const consumerRef = normalizeKapetaUri(`${handle}/${connection.consumer.name}:local`);
+
+        const instanceProvider = plan.spec.blocks.find((b) => b.block.ref === providerRef)!;
+        const instanceConsumer = plan.spec.blocks.find((b) => b.block.ref === consumerRef)!;
+
+        const block = blocks.find((block) => block.metadata.name === providerName)!;
+        const portType = parseKapetaUri(block.kind).fullName === 'kapeta/block-type-service' ? 'rest' : 'web';
+
+        plan.spec.connections.push({
+            provider: {
+                blockId: instanceProvider.id,
+                resourceName: 'main',
+                port: {
+                    type: portType,
+                },
+            },
+            consumer: {
+                blockId: instanceConsumer.id,
+                resourceName: 'main',
+                port: {
+                    type: portType,
+                },
+            },
+        });
     });
 
     return {

@@ -22,6 +22,16 @@ export interface FrontendService {
     targetLanguage: 'react';
 }
 
+export interface Endpoint {
+    type: 'backend' | 'frontend';
+    name: string;
+}
+
+export interface Connection {
+    provider: Endpoint;
+    consumer: Endpoint;
+}
+
 export interface Application {
     kind: 'core/plan';
     name: string;
@@ -29,5 +39,7 @@ export interface Application {
     description: string;
     backends: BackendService[];
     frontends: FrontendService[];
+    connections: Connection[];
     explanation: string;
+    response: string;
 }

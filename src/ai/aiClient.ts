@@ -9,6 +9,7 @@ import { KapetaAPI } from '@kapeta/nodejs-api-client';
 
 export type PromptResult = {
     explanation: string;
+    response: string;
     context: PlanContext;
     threadId: string;
 };
@@ -31,7 +32,7 @@ class AIClient {
     }
 
     public async sendPrompt(handle: string, prompt: string, threadId?: string): Promise<PromptResult> {
-        const url = `${this._baseUrl}/`;
+        const url = `${this._baseUrl}/v1/plan`;
         const body: APIBody = {
             question: prompt,
             threadid: threadId,
@@ -75,6 +76,7 @@ class AIClient {
 
                     resolve({
                         explanation: application.explanation,
+                        response: application.response,
                         context: planContext,
                         threadId: body.threadid,
                     });
