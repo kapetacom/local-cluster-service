@@ -5,6 +5,7 @@
 import request from 'request';
 import { PlanContext, transformToPlan } from './transform';
 import { Application } from './types';
+import { KapetaAPI } from '@kapeta/nodejs-api-client';
 
 export type PromptResult = {
     explanation: string;
@@ -35,12 +36,21 @@ class AIClient {
             question: prompt,
             threadid: threadId,
         };
+
+        const headers: { [k: string]: string } = {};
+        const api = new KapetaAPI();
+        if (api.hasToken()) {
+            headers['Authorization'] = `Bearer ${await api.getAccessToken()}`;
+        }
+
         const options = {
             url,
             method: 'POST',
             json: true,
             body,
+            headers,
         };
+
         return new Promise((resolve, reject) => {
             request(options, async (error, response, body: APIResponse) => {
                 if (error) {
