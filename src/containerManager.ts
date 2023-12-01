@@ -166,11 +166,17 @@ class ContainerManager {
                   ];
         for (const opts of connectOptions) {
             try {
+                const testClient = new Docker({
+                    ...opts,
+                    timeout: 1000, // 1 secs should be enough for a ping
+                });
+                await testClient.ping();
+                // If we get here - we have a working connection
+                // Now create a client with a longer timeout for all other operations
                 const client = new Docker({
                     ...opts,
                     timeout: 15 * 60 * 1000, //15 minutes should be enough for any operation
                 });
-                await client.ping();
                 this._docker = client;
                 const versionInfo: any = await client.version();
                 this._version = versionInfo.Server?.Version ?? versionInfo.Version;
