@@ -32,7 +32,7 @@ class AIClient {
     }
 
     public async sendPrompt(handle: string, prompt: string, threadId?: string): Promise<PromptResult> {
-        const url = `${this._baseUrl}/v1/plan`;
+        const url = `${this._baseUrl}/v1/plan?kind=chat`;
         const body: APIBody = {
             question: prompt,
             threadid: threadId,
