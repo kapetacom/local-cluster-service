@@ -244,7 +244,8 @@ class AssetManager {
 
         definitionsManager.clearCache();
 
-        const assets = await this.getAssets();
+        // Get all possible asset kinds, to make sure we return the result if possible
+        const assets = await this.getAssets([]);
 
         return assets.filter((a) => refs.some((ref) => compareRefs(ref, a.ref)));
     }
