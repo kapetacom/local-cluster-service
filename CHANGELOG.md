@@ -1,3 +1,10 @@
+# [0.29.0](https://github.com/kapetacom/local-cluster-service/compare/v0.28.1...v0.29.0) (2023-12-12)
+
+
+### Features
+
+* Treat web, http and rest port types the same during port allocation ([#101](https://github.com/kapetacom/local-cluster-service/issues/101)) ([bd9f845](https://github.com/kapetacom/local-cluster-service/commit/bd9f8455ff05e273b900dcd1705aa67423f91d72))
+
 ## [0.28.1](https://github.com/kapetacom/local-cluster-service/compare/v0.28.0...v0.28.1) (2023-12-12)
 
 
