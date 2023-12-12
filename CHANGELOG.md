@@ -1,3 +1,10 @@
+## [0.28.1](https://github.com/kapetacom/local-cluster-service/compare/v0.28.0...v0.28.1) (2023-12-12)
+
+
+### Bug Fixes
+
+* return all imported asset types from import endpoint [KAP-2187] ([#103](https://github.com/kapetacom/local-cluster-service/issues/103)) ([02ac22c](https://github.com/kapetacom/local-cluster-service/commit/02ac22c4a54db05b0e80943daba0b5496e5bb319))
+
 # [0.28.0](https://github.com/kapetacom/local-cluster-service/compare/v0.27.0...v0.28.0) (2023-11-15)
 
 
