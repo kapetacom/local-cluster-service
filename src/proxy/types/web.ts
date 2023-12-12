@@ -11,7 +11,7 @@ import { Request, Response } from 'express';
 import { ProxyRequestInfo, SimpleRequest, StringMap } from '../../types';
 import { StringBodyRequest } from '../../middleware/stringBody';
 
-export function proxyWebRequest(req: StringBodyRequest, res: Response, opts: ProxyRequestInfo) {
+export function proxyHttpRequest(req: StringBodyRequest, res: Response, opts: ProxyRequestInfo) {
     const requestHeaders = _.clone(req.headers);
 
     delete requestHeaders['content-length'];
