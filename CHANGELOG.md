@@ -1,3 +1,10 @@
+# [0.30.0](https://github.com/kapetacom/local-cluster-service/compare/v0.29.0...v0.30.0) (2023-12-14)
+
+
+### Features
+
+* support downloading staging providers via KAP_ENV env var ([#104](https://github.com/kapetacom/local-cluster-service/issues/104)) ([d79a7f7](https://github.com/kapetacom/local-cluster-service/commit/d79a7f7566b841c8acf12cc12b3682f377abc525))
+
 # [0.29.0](https://github.com/kapetacom/local-cluster-service/compare/v0.28.1...v0.29.0) (2023-12-12)
 
 
