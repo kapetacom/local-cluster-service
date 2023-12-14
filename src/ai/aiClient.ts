@@ -6,39 +6,33 @@ import request from 'request';
 import { PlanContext, transformToPlan } from './transform';
 import { Application } from './types';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
+import ClusterConfiguration from '@kapeta/local-cluster-config';
+import { getRemoteUrl } from '../utils/utils';
 
 export type PromptResult = {
     explanation: string;
     response: string;
-    context: PlanContext;
-    threadId: string;
+    context?: PlanContext;
 };
 
-interface APIBody {
-    question: string;
-    threadid?: string;
+export interface AIMessage {
+    content: string;
+    role: 'user' | 'assistant';
 }
 
-interface APIResponse {
-    answer: string;
-    threadid: string;
+export interface AIRequest {
+    messages: AIMessage[];
 }
-
-const AI_BASE_URL = 'https://ai.kapeta.com';
 
 class AIClient {
     private readonly _baseUrl: string;
 
     constructor() {
-        this._baseUrl = AI_BASE_URL;
+        this._baseUrl = getRemoteUrl('ai-service', 'https://ai.kapeta.com');
     }
 
-    public async sendPrompt(handle: string, prompt: string, threadId?: string): Promise<PromptResult> {
-        const url = `${this._baseUrl}/v1/plan?kind=chat`;
-        const body: APIBody = {
-            question: prompt,
-            threadid: threadId,
-        };
+    public async sendPrompt(handle: string, body: AIRequest): Promise<PromptResult> {
+        const url = `${this._baseUrl}/v1/plan?type=chat`;
 
         const headers: { [k: string]: string } = {};
         const api = new KapetaAPI();
@@ -55,35 +49,39 @@ class AIClient {
         };
 
         return new Promise((resolve, reject) => {
-            request(options, async (error, response, body: APIResponse) => {
+            request(options, async (error, response, application: Application) => {
                 if (error) {
                     console.error(error);
                     reject(error);
                 }
 
                 if (response.statusCode !== 200) {
+                    console.log('Prompt failed', response.statusCode, response.body);
                     reject(new Error(`Invalid response code: ${response.statusCode}`));
                     return;
                 }
 
-                if (!body.answer) {
-                    reject(new Error(`Invalid response: ${JSON.stringify(body)}`));
+                if (!application?.response) {
+                    reject(new Error(`Invalid response: ${JSON.stringify(application)}`));
                     return;
                 }
+
                 try {
-                    const [, answer] = body.answer.split('```json');
-                    const application: Application = JSON.parse(answer.split('```')[0].trim());
-
-                    const planContext = await transformToPlan(handle, application);
-
-                    resolve({
-                        explanation: application.explanation,
-                        response: application.response,
-                        context: planContext,
-                        threadId: body.threadid,
-                    });
+                    if (application?.name) {
+                        const planContext = await transformToPlan(handle, application);
+                        resolve({
+                            explanation: application.explanation,
+                            response: application.response,
+                            context: planContext,
+                        });
+                    } else {
+                        resolve({
+                            explanation: application.explanation,
+                            response: application.response,
+                        });
+                    }
                 } catch (err: any) {
-                    console.log('Failed to parse response', err, body);
+                    console.log('Failed to parse response', err, application);
                     reject(err);
                 }
             });

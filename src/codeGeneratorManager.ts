@@ -61,7 +61,7 @@ class CodeGeneratorManager {
     }
 
     async canGenerateCode(yamlContent: Definition): Promise<boolean> {
-        if (!yamlContent.spec.target?.kind) {
+        if (!yamlContent.spec?.target?.kind) {
             //Not all block types have targets
             return false;
         }

@@ -13,13 +13,27 @@ export type PlanContext = {
     blocks: BlockDefinition[];
 };
 
+async function getFreeName(name: string) {
+    let currentName = name;
+    let iteration = 1;
+    do {
+        const found = await definitionsManager.getLatestDefinition(currentName);
+        if (!found) {
+            return currentName;
+        }
+        currentName = name + '_' + iteration++;
+    } while (true);
+}
+
 export const transformToPlan = async (handle: string, application: Application): Promise<PlanContext> => {
     const blockTypeService = await definitionsManager.getLatestDefinition('kapeta/block-type-service');
     const blockTypeFrontend = await definitionsManager.getLatestDefinition('kapeta/block-type-frontend');
     const mongoDbResource = await definitionsManager.getLatestDefinition('kapeta/resource-type-mongodb');
     const postgresResource = await definitionsManager.getLatestDefinition('kapeta/resource-type-postgresql');
     const webPageResource = await definitionsManager.getLatestDefinition('kapeta/resource-type-web-page');
+    const webFragmentResource = await definitionsManager.getLatestDefinition('kapeta/resource-type-web-fragment');
     const restApiResource = await definitionsManager.getLatestDefinition('kapeta/resource-type-rest-api');
+    const restClientResource = await definitionsManager.getLatestDefinition('kapeta/resource-type-rest-client');
     const javaLanguage = await definitionsManager.getLatestDefinition('kapeta/language-target-java-spring-boot');
     const nodejsLanguage = await definitionsManager.getLatestDefinition('kapeta/language-target-nodejs');
     const reactLanguage = await definitionsManager.getLatestDefinition('kapeta/language-target-react-ts');
@@ -33,7 +47,9 @@ export const transformToPlan = async (handle: string, application: Application):
         !nodejsLanguage ||
         !reactLanguage ||
         !webPageResource ||
-        !restApiResource
+        !restApiResource ||
+        !restClientResource ||
+        !webFragmentResource
     ) {
         throw new Error('Missing definitions');
     }
@@ -41,7 +57,7 @@ export const transformToPlan = async (handle: string, application: Application):
     const plan: Plan = {
         kind: 'core/plan',
         metadata: {
-            name: `${handle}/${application.name}`,
+            name: await getFreeName(`${handle}/${application.name}`),
             title: application.title,
             description: application.description,
             visibility: 'private',
@@ -55,8 +71,8 @@ export const transformToPlan = async (handle: string, application: Application):
     const blocks: BlockDefinition[] = [];
 
     const addToPlan = (ref: string, name: string) => {
-        const top = Math.floor(plan.spec.blocks.length / 3) * 300;
-        const left = 200 + (plan.spec.blocks.length % 3) * 250;
+        const top = 100 + Math.floor(plan.spec.blocks.length / 3) * 300;
+        const left = 200 + (plan.spec.blocks.length % 3) * 450;
 
         plan.spec.blocks.push({
             block: {
@@ -73,16 +89,30 @@ export const transformToPlan = async (handle: string, application: Application):
         });
     };
 
-    application.backends.forEach((backend) => {
-        const language = backend.targetLanguage === 'java' ? javaLanguage : nodejsLanguage;
-        const databaseInfo = backend.databases?.[0]!;
-        const database = databaseInfo.type === 'mongodb' ? mongoDbResource : postgresResource;
+    const nameMapper = new Map<string, string>();
+
+    for (const backend of application.backends) {
         const blockName = `${handle}/${backend.name}`;
-        const blockRef = normalizeKapetaUri(blockName + ':local');
+        const blockRealName = await getFreeName(blockName);
+        nameMapper.set(blockName, blockRealName);
+
+        const language = backend.targetLanguage === 'java' ? javaLanguage : nodejsLanguage;
+        const databaseInfo = backend.databases?.[0];
+        const database = databaseInfo?.type === 'mongodb' ? mongoDbResource : postgresResource;
+
+        const blockRef = normalizeKapetaUri(blockRealName + ':local');
+        let targetOptions = {};
+        if (backend.targetLanguage === 'java') {
+            targetOptions = {
+                basePackage: `${handle}.${backend.name}`,
+                groupId: `${handle}.${backend.name}`,
+                artifactId: backend.name,
+            };
+        }
         blocks.push({
             kind: normalizeKapetaUri(`${blockTypeService.definition.metadata.name}:${blockTypeService.version}`),
             metadata: {
-                name: blockName,
+                name: blockRealName,
                 title: backend.title,
                 description: backend.description,
                 visibility: 'private',
@@ -90,13 +120,13 @@ export const transformToPlan = async (handle: string, application: Application):
             spec: {
                 target: {
                     kind: normalizeKapetaUri(`${language.definition.metadata.name}:${language.version}`),
-                    options: {},
+                    options: targetOptions,
                 },
                 consumers: [
                     {
                         kind: normalizeKapetaUri(`${database.definition.metadata.name}:${database.version}`),
                         metadata: {
-                            name: databaseInfo.name,
+                            name: databaseInfo?.name ?? 'main',
                         },
                         spec: {
                             port: {
@@ -124,16 +154,20 @@ export const transformToPlan = async (handle: string, application: Application):
         });
 
         addToPlan(blockRef, backend.name);
-    });
+    }
 
-    application.frontends.forEach((frontend) => {
-        const language = reactLanguage;
+    for (const frontend of application.frontends) {
         const blockName = `${handle}/${frontend.name}`;
-        const blockRef = normalizeKapetaUri(blockName + ':local');
+        const blockRealName = await getFreeName(blockName);
+        nameMapper.set(blockName, blockRealName);
+
+        const language = reactLanguage;
+
+        const blockRef = normalizeKapetaUri(blockRealName + ':local');
         blocks.push({
             kind: normalizeKapetaUri(`${blockTypeFrontend.definition.metadata.name}:${blockTypeFrontend.version}`),
             metadata: {
-                name: blockName,
+                name: blockRealName,
                 title: frontend.title,
                 description: frontend.description,
                 visibility: 'private',
@@ -143,6 +177,7 @@ export const transformToPlan = async (handle: string, application: Application):
                     kind: normalizeKapetaUri(`${language.definition.metadata.name}:${language.version}`),
                     options: {},
                 },
+                consumers: [],
                 providers: [
                     {
                         kind: normalizeKapetaUri(
@@ -162,18 +197,58 @@ export const transformToPlan = async (handle: string, application: Application):
         });
 
         addToPlan(blockRef, frontend.name);
-    });
+    }
 
     application.connections?.forEach((connection) => {
-        const providerName = `${handle}/${connection.provider.name}`;
-        const providerRef = normalizeKapetaUri(`${providerName}:local`);
-        const consumerRef = normalizeKapetaUri(`${handle}/${connection.consumer.name}:local`);
+        const fullProviderName = nameMapper.get(`${handle}/${connection.provider.name}`) as string;
+        const fullConsumerName = nameMapper.get(`${handle}/${connection.consumer.name}`) as string;
+        const consumerResourceName = connection.provider.name;
+        const providerRef = normalizeKapetaUri(`${fullProviderName}:local`);
+        const consumerRef = normalizeKapetaUri(`${fullConsumerName}:local`);
 
         const instanceProvider = plan.spec.blocks.find((b) => b.block.ref === providerRef)!;
         const instanceConsumer = plan.spec.blocks.find((b) => b.block.ref === consumerRef)!;
+        const consumerBlock = blocks.find((block) => block.metadata.name === fullConsumerName);
+        const providerBlock = blocks.find((block) => block.metadata.name === fullProviderName);
+        if (!consumerBlock) {
+            throw new Error('Missing consumer block: ' + fullConsumerName);
+        }
 
-        const block = blocks.find((block) => block.metadata.name === providerName)!;
-        const portType = parseKapetaUri(block.kind).fullName === 'kapeta/block-type-service' ? 'rest' : 'web';
+        if (!providerBlock) {
+            throw new Error('Missing provider block: ' + fullProviderName);
+        }
+
+        const portType = parseKapetaUri(providerBlock.kind).fullName === 'kapeta/block-type-service' ? 'rest' : 'web';
+
+        if (portType === 'rest') {
+            consumerBlock.spec.consumers!.push({
+                kind: normalizeKapetaUri(
+                    `${restClientResource.definition.metadata.name}:${restClientResource.version}`
+                ),
+                metadata: {
+                    name: consumerResourceName,
+                },
+                spec: {
+                    port: {
+                        type: 'rest',
+                    },
+                },
+            });
+        } else {
+            consumerBlock.spec.consumers!.push({
+                kind: normalizeKapetaUri(
+                    `${webFragmentResource.definition.metadata.name}:${webFragmentResource.version}`
+                ),
+                metadata: {
+                    name: consumerResourceName,
+                },
+                spec: {
+                    port: {
+                        type: 'web',
+                    },
+                },
+            });
+        }
 
         plan.spec.connections.push({
             provider: {
@@ -185,7 +260,7 @@ export const transformToPlan = async (handle: string, application: Application):
             },
             consumer: {
                 blockId: instanceConsumer.id,
-                resourceName: 'main',
+                resourceName: consumerResourceName,
                 port: {
                     type: portType,
                 },

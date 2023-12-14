@@ -10,9 +10,15 @@ import md5 from 'md5';
 import { EntityList } from '@kapeta/schemas';
 import _ from 'lodash';
 import { AnyMap } from '../types';
+import ClusterConfiguration from '@kapeta/local-cluster-config';
 
 export function getBlockInstanceContainerName(systemId: string, instanceId: string) {
     return `kapeta-block-instance-${md5(systemId + instanceId)}`;
+}
+
+export function getRemoteUrl(id: string, defautValue: string) {
+    const remoteConfig = ClusterConfiguration.getClusterConfig().remote;
+    return remoteConfig?.[id] ?? defautValue;
 }
 
 export function readYML(path: string) {
