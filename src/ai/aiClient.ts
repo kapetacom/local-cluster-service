@@ -24,11 +24,13 @@ interface APIResponse {
     threadid: string;
 }
 
+const AI_BASE_URL = 'https://ai.kapeta.com';
+
 class AIClient {
     private readonly _baseUrl: string;
 
     constructor() {
-        this._baseUrl = 'https://ai.staging.kapeta.com';
+        this._baseUrl = AI_BASE_URL;
     }
 
     public async sendPrompt(handle: string, prompt: string, threadId?: string): Promise<PromptResult> {
