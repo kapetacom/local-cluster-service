@@ -15,7 +15,9 @@ import { Actions } from '@kapeta/nodejs-registry-utils';
 import { ProgressListener } from '../progressListener';
 import { glob } from 'glob';
 
-const DEFAULT_PROVIDERS_URL = 'https://storage.googleapis.com/kapeta-production-cdn/archives/default-providers.tar.gz';
+const PROVIDERS_FILENAME =
+    process.env.KAP_ENV === 'staging' ? 'default-providers-staging.tar.gz' : 'default-providers.tar.gz';
+const DEFAULT_PROVIDERS_URL = `https://storage.googleapis.com/kapeta-production-cdn/archives/${PROVIDERS_FILENAME}`;
 const DEFAULT_PROJECT_HOME_DIR = 'KapetaProjects';
 
 const ARCHIVE_LOCAL_PREFIX = 'local';
