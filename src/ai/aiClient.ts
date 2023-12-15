@@ -71,13 +71,13 @@ class AIClient {
                         const planContext = await transformToPlan(handle, application);
                         resolve({
                             explanation: application.explanation,
-                            response: application.response,
+                            response: application.response ?? application.explanation,
                             context: planContext,
                         });
                     } else {
                         resolve({
                             explanation: application.explanation,
-                            response: application.response,
+                            response: application.response ?? application.explanation,
                         });
                     }
                 } catch (err: any) {
