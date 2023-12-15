@@ -61,28 +61,29 @@ class AIClient {
                     return;
                 }
 
-                if (!application?.response) {
-                    reject(new Error(`Invalid response: ${JSON.stringify(application)}`));
-                    return;
-                }
-
                 try {
                     if (application?.name) {
                         const planContext = await transformToPlan(handle, application);
                         resolve({
                             explanation: application.explanation,
-                            response: application.response ?? application.explanation,
+                            response: application.response ?? application.explanation ?? 'Plan was generated',
                             context: planContext,
                         });
                     } else {
                         resolve({
                             explanation: application.explanation,
-                            response: application.response ?? application.explanation,
+                            response:
+                                application.response ??
+                                application.explanation ??
+                                'I did not understand your request. Please rephrase.',
                         });
                     }
                 } catch (err: any) {
-                    console.log('Failed to parse response', err, application);
-                    reject(err);
+                    console.error(err);
+                    resolve({
+                        explanation: '',
+                        response: 'I did not understand your request. Please rephrase.',
+                    });
                 }
             });
         });

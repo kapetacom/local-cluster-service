@@ -104,9 +104,9 @@ export const transformToPlan = async (handle: string, application: Application):
         let targetOptions = {};
         if (backend.targetLanguage === 'java') {
             targetOptions = {
-                basePackage: `${handle}.${backend.name}`,
-                groupId: `${handle}.${backend.name}`,
-                artifactId: backend.name,
+                basePackage: `${handle}.${application.name}`.toLowerCase().replace(/-/g, '_'),
+                groupId: `${handle}.${application.name}`.toLowerCase().replace(/-/g, '_'),
+                artifactId: backend.name.toLowerCase().replace(/-/g, '_'),
             };
         }
         blocks.push({
@@ -126,7 +126,7 @@ export const transformToPlan = async (handle: string, application: Application):
                     {
                         kind: normalizeKapetaUri(`${database.definition.metadata.name}:${database.version}`),
                         metadata: {
-                            name: databaseInfo?.name ?? 'main',
+                            name: (databaseInfo?.name ?? 'main').replace(/-/g, ''),
                         },
                         spec: {
                             port: {
