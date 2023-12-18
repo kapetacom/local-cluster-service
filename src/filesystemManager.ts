@@ -12,6 +12,8 @@ const SECTION_ID = 'filesystem';
 const PROJECT_ROOT = 'project_root';
 const EDITOR = 'editor';
 const RELEASE_CHANNEL = 'release_channel';
+const SHOW_PIXEL_GRID = 'show_pixel_grid';
+const SNAP_TO_PIXEL_GRID = 'snap_to_pixel_grid';
 
 function isFile(path: string) {
     try {
@@ -109,6 +111,22 @@ class FilesystemManager {
 
     setReleaseChannel(channel: string) {
         storageService.put('app', RELEASE_CHANNEL, channel);
+    }
+
+    getShowPixelGrid() {
+        return storageService.get<boolean>('app', SHOW_PIXEL_GRID, false);
+    }
+
+    setShowPixelGrid(show: boolean) {
+        storageService.put('app', SHOW_PIXEL_GRID, show);
+    }
+
+    getSnapToPixelGrid() {
+        return storageService.get<boolean>('app', SNAP_TO_PIXEL_GRID, false);
+    }
+
+    setSnapToPixelGrid(snap: boolean) {
+        storageService.put('app', SNAP_TO_PIXEL_GRID, snap);
     }
 }
 
