@@ -1,3 +1,10 @@
+## [0.30.1](https://github.com/kapetacom/local-cluster-service/compare/v0.30.0...v0.30.1) (2023-12-18)
+
+
+### Bug Fixes
+
+* use cluster-config getEnvironment api instead of ENV ([#105](https://github.com/kapetacom/local-cluster-service/issues/105)) ([ca90d5a](https://github.com/kapetacom/local-cluster-service/commit/ca90d5a1841826c2903507900842823a2c5f8622))
+
 # [0.30.0](https://github.com/kapetacom/local-cluster-service/compare/v0.29.0...v0.30.0) (2023-12-14)
 
 
