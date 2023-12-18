@@ -50,6 +50,28 @@ router.post('/release-channel', (req: StringBodyRequest, res: Response) => {
     res.sendStatus(204);
 });
 
+router.get('/show-pixel-grid', (req: Request, res: Response) => {
+    res.send(filesystemManager.getShowPixelGrid());
+});
+
+router.use('/show-pixel-grid', stringBody);
+
+router.post('/show-pixel-grid', (req: StringBodyRequest, res: Response) => {
+    filesystemManager.setShowPixelGrid(req?.stringBody === 'true' ?? false);
+    res.sendStatus(204);
+});
+
+router.get('/snap-to-pixel-grid', (req: Request, res: Response) => {
+    res.send(filesystemManager.getSnapToPixelGrid());
+});
+
+router.use('/snap-to-pixel-grid', stringBody);
+
+router.post('/snap-to-pixel-grid', (req: StringBodyRequest, res: Response) => {
+    filesystemManager.setSnapToPixelGrid(req?.stringBody === 'true' ?? false);
+    res.sendStatus(204);
+});
+
 router.use('/', (req: Request, res: Response, next: NextFunction) => {
     if (!req.query.path) {
         res.status(400).send({ error: 'Missing required query parameter "path"' });
