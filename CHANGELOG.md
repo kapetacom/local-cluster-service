@@ -1,3 +1,10 @@
+# [0.31.0](https://github.com/kapetacom/local-cluster-service/compare/v0.30.1...v0.31.0) (2023-12-18)
+
+
+### Features
+
+* Get/set pixel grid settings ([538b63a](https://github.com/kapetacom/local-cluster-service/commit/538b63a7039d29b24a50c2d37063fe90465bad36))
+
 ## [0.30.1](https://github.com/kapetacom/local-cluster-service/compare/v0.30.0...v0.30.1) (2023-12-18)
 
 
