@@ -1,3 +1,10 @@
+# [0.32.0](https://github.com/kapetacom/local-cluster-service/compare/v0.31.0...v0.32.0) (2023-12-20)
+
+
+### Features
+
+* Adds AI routes for generating plans from prompts ([#102](https://github.com/kapetacom/local-cluster-service/issues/102)) ([db73996](https://github.com/kapetacom/local-cluster-service/commit/db739965cd8c58252651e0522b11c062f00488af))
+
 # [0.31.0](https://github.com/kapetacom/local-cluster-service/compare/v0.30.1...v0.31.0) (2023-12-18)
 
 
