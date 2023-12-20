@@ -9,7 +9,7 @@ import { BlockDefinition } from '@kapeta/schemas';
 import { definitionsManager } from './definitionsManager';
 import { Definition } from '@kapeta/local-cluster-config';
 import { assetManager } from './assetManager';
-import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
+import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { repositoryManager } from './repositoryManager';
 
 const TARGET_KIND = 'core/language-target';
@@ -61,16 +61,18 @@ class CodeGeneratorManager {
     }
 
     async canGenerateCode(yamlContent: Definition): Promise<boolean> {
-        if (!yamlContent.spec.target?.kind) {
+        if (!yamlContent.spec?.target?.kind || !yamlContent.kind) {
             //Not all block types have targets
             return false;
         }
 
+        const kindUri = parseKapetaUri(yamlContent.kind);
+
         const blockTypes = await definitionsManager.getDefinitions(BLOCK_TYPE_KIND);
         const blockTypeKinds = blockTypes.map(
-            (blockType) => blockType.definition.metadata.name.toLowerCase() + ':' + blockType.version
+            (blockType) => parseKapetaUri(blockType.definition.metadata.name).fullName
         );
-        return !!(yamlContent && yamlContent.kind && blockTypeKinds.indexOf(yamlContent.kind.toLowerCase()) > -1);
+        return blockTypeKinds.includes(kindUri.fullName);
     }
 
     async generate(yamlFile: string, yamlContent: Definition) {

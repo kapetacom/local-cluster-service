@@ -23,6 +23,7 @@ import ProviderRoutes from './src/providers/routes';
 import AttachmentRoutes from './src/attachments/routes';
 import TaskRoutes from './src/tasks/routes';
 import APIRoutes from './src/api';
+import AIRoutes from './src/ai/routes';
 import { getBindHost } from './src/utils/utils';
 import request from 'request';
 import { repositoryManager } from './src/repositoryManager';
@@ -72,6 +73,7 @@ function createServer() {
     app.use('/attachments', AttachmentRoutes);
     app.use('/tasks', TaskRoutes);
     app.use('/api', APIRoutes);
+    app.use('/ai', AIRoutes);
 
     app.get('/status', async (req, res) => {
         res.send({
