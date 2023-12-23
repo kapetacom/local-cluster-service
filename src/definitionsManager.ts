@@ -164,9 +164,9 @@ class DefinitionsManager {
         const definitions = await this.getDefinitions();
         return definitions.find((d) => {
             if (!uri.version) {
-                return d.definition.metadata.name === uri.fullName;
+                return d.definition.metadata.name.toLowerCase() === uri.fullName.toLowerCase();
             }
-            return parseKapetaUri(`${d.definition.metadata.name}:${d.version}`).id === uri.id;
+            return parseKapetaUri(`${d.definition.metadata.name}:${d.version}`).equals(uri);
         });
     }
 
