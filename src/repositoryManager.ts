@@ -209,7 +209,7 @@ class RepositoryManager extends EventEmitter {
                 if (await definitionsManager.exists(ref)) {
                     return;
                 }
-                throw new Error(`Failed to install asset: ${ref}`);
+                throw new Error(`Failed to find asset after installation: ${ref}. Please try again`);
             };
         };
 

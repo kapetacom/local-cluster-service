@@ -36,6 +36,10 @@ export interface EnrichedAsset {
     ymlPath: string;
 }
 
+function filterExists(asset: DefinitionInfo): boolean {
+    return FS.existsSync(asset.path);
+}
+
 function enrichAsset(asset: DefinitionInfo): EnrichedAsset {
     return {
         ref: `kapeta://${asset.definition.metadata.name}:${asset.version}`,
@@ -101,7 +105,7 @@ class AssetManager {
 
         const assets = await definitionsManager.getDefinitions(assetKinds);
 
-        return assets.map(enrichAsset);
+        return assets.filter(filterExists).map(enrichAsset);
     }
 
     async getPlans(): Promise<EnrichedAsset[]> {

@@ -27,7 +27,7 @@ import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
 
 const CHECK_INTERVAL = 5000;
-const DEFAULT_HEALTH_PORT_TYPE = 'rest';
+const DEFAULT_HEALTH_PORT_TYPE = 'http';
 
 const MIN_TIME_RUNNING = 30000; //If something didnt run for more than 30 secs - it failed
 
@@ -264,7 +264,7 @@ export class InstanceManager {
 
     private getHealthUrl(info: Omit<InstanceInfo, 'systemId' | 'instanceId'>, address: string) {
         let healthUrl = null;
-        let health = info.health;
+        let health = info.health ?? '/.kapeta/health';
         if (health) {
             if (health.startsWith('/')) {
                 health = health.substring(1);

@@ -15,6 +15,7 @@ import { SourceOfChange, WatchEventName } from './types';
 import { cacheManager } from './cacheManager';
 import { EventEmitter } from 'node:events';
 import { assetManager } from './assetManager';
+import { definitionsManager } from './definitionsManager';
 
 interface AssetIdentity {
     handle: string;
@@ -22,6 +23,27 @@ interface AssetIdentity {
     version: string;
 }
 const KAPETA_YML_RX = /^kapeta.ya?ml$/;
+
+let definitions: DefinitionInfo[] | undefined;
+let definitionTimeout: NodeJS.Timeout | undefined;
+
+function getDefinitionsDebounced() {
+    if (definitionTimeout) {
+        clearTimeout(definitionTimeout);
+        definitionTimeout = undefined;
+    }
+    if (!definitions) {
+        definitions = ClusterConfiguration.getDefinitions();
+    } else {
+        definitionTimeout = setTimeout(() => {
+            definitionTimeout = undefined;
+            definitions = undefined;
+        }, 500);
+    }
+
+    return definitions;
+}
+
 export class RepositoryWatcher extends EventEmitter {
     private watcher?: FSWatcher;
     private disabled: boolean = false;
@@ -208,7 +230,8 @@ export class RepositoryWatcher extends EventEmitter {
 
     private async checkForChange(assetIdentity: AssetIdentity, sourceOfChange: SourceOfChange) {
         const ymlPath = Path.join(this.getRepositoryPath(assetIdentity), 'kapeta.yml');
-        const newDefinitions = ClusterConfiguration.getDefinitions();
+        const newDefinitions = getDefinitionsDebounced();
+
         const newDefinition = newDefinitions.find((d) => d.ymlPath === ymlPath);
         let currentDefinition = this.allDefinitions.find((d) => d.ymlPath === ymlPath);
         const ymlExists = await this.exists(ymlPath);
@@ -290,11 +313,16 @@ export class RepositoryWatcher extends EventEmitter {
             } catch (e) {}
 
             if (symbolicLink) {
-                const realPath = Path.join(await FS.realpath(path), 'kapeta.yml');
-                if (await this.exists(realPath)) {
-                    //console.log('Watching symlink target %s => %s', path, realPath);
-                    this.watcher?.add(realPath);
-                    this.symbolicLinks[path] = realPath;
+                try {
+                    const realPath = Path.join(await FS.realpath(path), 'kapeta.yml');
+                    if (await this.exists(realPath)) {
+                        //console.log('Watching symlink target %s => %s', path, realPath);
+                        this.watcher?.add(realPath);
+                        this.symbolicLinks[path] = realPath;
+                    }
+                } catch (e) {
+                    // Remove the symlink - it's broken
+                    await FS.remove(path);
                 }
             }
         } catch (e) {
