@@ -201,8 +201,6 @@ class OperatorManager {
                 };
             }
 
-            const mounts = await containerManager.createMounts(systemId, resourceType, operatorData.mounts);
-
             const nameParts = [systemId, resourceType.toLowerCase(), version];
 
             const containerName = `kapeta-resource-${md5(nameParts.join('_'))}`;
@@ -236,7 +234,7 @@ class OperatorManager {
                 Labels[CONTAINER_LABEL_PORT_PREFIX + portInfo.hostPort] = portInfo.type;
             });
 
-            const Mounts = containerManager.toDockerMounts(mounts);
+            const Mounts = await containerManager.createVolumes(systemId, resourceType, operatorData.mounts);
 
             _.forEach(operatorData.env, (value, name) => {
                 Env.push(name + '=' + value);
