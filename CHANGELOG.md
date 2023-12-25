@@ -1,3 +1,10 @@
+## [0.32.2](https://github.com/kapetacom/local-cluster-service/compare/v0.32.1...v0.32.2) (2023-12-25)
+
+
+### Bug Fixes
+
+* Use volumes instead of host mounts for faster speeds ([#108](https://github.com/kapetacom/local-cluster-service/issues/108)) ([eac48ea](https://github.com/kapetacom/local-cluster-service/commit/eac48ea767dfc8773a7d0990106fe1f3f29bfec4))
+
 ## [0.32.1](https://github.com/kapetacom/local-cluster-service/compare/v0.32.0...v0.32.1) (2023-12-23)
 
 
