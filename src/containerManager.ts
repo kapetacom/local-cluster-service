@@ -37,6 +37,7 @@ export interface DockerMounts {
     Type: string;
     ReadOnly: boolean;
     Consistency: string;
+    Labels?: StringMap;
 }
 
 interface JSONProgress {
@@ -247,6 +248,35 @@ class ContainerManager {
         }
 
         return mounts;
+    }
+
+    async createVolumes(
+        systemId: string,
+        kind: string,
+        mountOpts: StringMap | null | undefined
+    ): Promise<DockerMounts[]> {
+        const Mounts: DockerMounts[] = [];
+
+        if (mountOpts) {
+            const mountOptList = Object.entries(mountOpts);
+            for (const [mountName, containerPath] of mountOptList) {
+                const volumeName = `${systemId}_${kind}_${mountName}`.replace(/[^a-z0-9]/gi, '_');
+
+                Mounts.push({
+                    Target: containerPath,
+                    Source: volumeName,
+                    Type: 'volume',
+                    ReadOnly: false,
+                    Consistency: 'consistent',
+                    Labels: {
+                        [COMPOSE_LABEL_PROJECT]: systemId.replace(/[^a-z0-9]/gi, '_'),
+                        [COMPOSE_LABEL_SERVICE]: kind.replace(/[^a-z0-9]/gi, '_'),
+                    },
+                });
+            }
+        }
+
+        return Mounts;
     }
 
     async ping() {
