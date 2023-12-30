@@ -1,3 +1,10 @@
+## [0.33.1](https://github.com/kapetacom/local-cluster-service/compare/v0.33.0...v0.33.1) (2023-12-30)
+
+
+### Bug Fixes
+
+* Ensure codegen min version ([9c2c789](https://github.com/kapetacom/local-cluster-service/commit/9c2c789904abb5d00a3991c4e4dbd7fcdc9a1803))
+
 # [0.33.0](https://github.com/kapetacom/local-cluster-service/compare/v0.32.2...v0.33.0) (2023-12-30)
 
 
