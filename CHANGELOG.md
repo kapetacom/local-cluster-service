@@ -1,3 +1,10 @@
+# [0.33.0](https://github.com/kapetacom/local-cluster-service/compare/v0.32.2...v0.33.0) (2023-12-30)
+
+
+### Features
+
+* Bump codegen to use improved merge capabilities ([2be1b8e](https://github.com/kapetacom/local-cluster-service/commit/2be1b8e94c36d83eff28023c4d8afe7c2e71b575))
+
 ## [0.32.2](https://github.com/kapetacom/local-cluster-service/compare/v0.32.1...v0.32.2) (2023-12-25)
 
 
