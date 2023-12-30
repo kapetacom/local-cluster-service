@@ -1,3 +1,10 @@
+## [0.33.2](https://github.com/kapetacom/local-cluster-service/compare/v0.33.1...v0.33.2) (2023-12-30)
+
+
+### Bug Fixes
+
+* Bump registry utils to fix broken installs ([7e6b04f](https://github.com/kapetacom/local-cluster-service/commit/7e6b04f7ae11de122f747d564abaa2f910e7ef32))
+
 ## [0.33.1](https://github.com/kapetacom/local-cluster-service/compare/v0.33.0...v0.33.1) (2023-12-30)
 
 
