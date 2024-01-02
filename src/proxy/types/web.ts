@@ -27,7 +27,7 @@ export function proxyHttpRequest(req: StringBodyRequest, res: Response, opts: Pr
         path = path.replace(sourceBasePath, targetBasePath);
     }
 
-    console.log('Proxy request to provider: %s => %s%s [web]', opts.consumerPath, opts.address, path);
+    console.log('Proxy request to provider: %s => %s%s [http]', opts.consumerPath, opts.address, path);
 
     const reqOpts: SimpleRequest = {
         method: req.method,

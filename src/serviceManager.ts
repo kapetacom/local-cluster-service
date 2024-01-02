@@ -8,10 +8,13 @@ import { clusterService } from './clusterService';
 import { storageService } from './storageService';
 import { EnvironmentType } from './types';
 import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
+import { resolvePortType } from './utils/BlockInstanceRunner';
 
-export const DEFAULT_PORT_TYPE = 'http';
+export const HTTP_PORT_TYPE = 'http';
 
-export const HTTP_PORTS = ['web', 'http', 'rest'];
+export const DEFAULT_PORT_TYPE = HTTP_PORT_TYPE;
+
+export const HTTP_PORTS = [HTTP_PORT_TYPE, 'web', 'rest'];
 
 class ServiceManager {
     private _systems: any;
@@ -75,9 +78,7 @@ class ServiceManager {
             portType = DEFAULT_PORT_TYPE;
         }
 
-        if (HTTP_PORTS.includes(portType)) {
-            portType = 'http';
-        }
+        portType = resolvePortType(portType);
 
         const service = this._ensureService(systemId, blockInstanceId);
 
