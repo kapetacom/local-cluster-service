@@ -1,3 +1,10 @@
+## [0.33.3](https://github.com/kapetacom/local-cluster-service/compare/v0.33.2...v0.33.3) (2024-01-02)
+
+
+### Bug Fixes
+
+* Be consistent when mapping web + rest to http ([#109](https://github.com/kapetacom/local-cluster-service/issues/109)) ([9fde7d6](https://github.com/kapetacom/local-cluster-service/commit/9fde7d6ca4efa76888c25e2b7ad05f452d6c38db))
+
 ## [0.33.2](https://github.com/kapetacom/local-cluster-service/compare/v0.33.1...v0.33.2) (2023-12-30)
 
 
