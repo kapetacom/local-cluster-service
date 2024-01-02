@@ -7,7 +7,7 @@ import FS from 'node:fs';
 import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
 import { getBindHost, getBlockInstanceContainerName, readYML } from './utils';
 import { KapetaURI, parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
-import { DEFAULT_PORT_TYPE, serviceManager } from '../serviceManager';
+import { DEFAULT_PORT_TYPE, HTTP_PORT_TYPE, HTTP_PORTS, serviceManager } from '../serviceManager';
 import {
     COMPOSE_LABEL_PROJECT,
     COMPOSE_LABEL_SERVICE,
@@ -45,19 +45,26 @@ async function getProvider(uri: KapetaURI) {
     });
 }
 
+export function resolvePortType(portType: string) {
+    if (HTTP_PORTS.includes(portType)) {
+        return HTTP_PORT_TYPE;
+    }
+    return portType;
+}
+
 function getProviderPorts(assetVersion: DefinitionInfo, providerVersion: DefinitionInfo): string[] {
     const out =
         assetVersion.definition?.spec?.providers
             ?.map((provider: any) => {
-                return provider.spec?.port?.type;
+                return resolvePortType(provider.spec?.port?.type);
             })
             .filter((t: any) => !!t) ?? [];
 
     if (out.length === 0) {
         if (providerVersion.definition.spec?.defaultPort?.type) {
-            return [providerVersion.definition.spec?.defaultPort?.type];
+            return [resolvePortType(providerVersion.definition.spec?.defaultPort?.type)];
         }
-        return [DEFAULT_PORT_TYPE];
+        return [resolvePortType(DEFAULT_PORT_TYPE)];
     }
     // Duplicated port types are not allowed
     return Array.from(new Set<string>(out));
