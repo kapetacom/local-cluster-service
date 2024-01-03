@@ -480,7 +480,11 @@ export class InstanceManager {
                         // Not an operator
                         return Promise.resolve();
                     }
-
+                    // Check if the operator has a local definition, if not we skip it since we can't start it
+                    if(!asset.definition.spec.local) {
+                        console.log('Skipping operator since it as no local definition: %s', consumer.kind)
+                        return Promise.resolve();
+                    }
                     console.log('Ensuring resource: %s in %s', consumerUri.id, systemId);
                     return operatorManager.ensureResource(systemId, consumerUri.fullName, consumerUri.version);
                 });
