@@ -1,3 +1,10 @@
+## [0.33.4](https://github.com/kapetacom/local-cluster-service/compare/v0.33.3...v0.33.4) (2024-01-04)
+
+
+### Bug Fixes
+
+* Update fallback for SHOW_PIXEL_GRID ([22058c7](https://github.com/kapetacom/local-cluster-service/commit/22058c7ad02c1cf5bd4c21b8860dd696b21107b1))
+
 ## [0.33.3](https://github.com/kapetacom/local-cluster-service/compare/v0.33.2...v0.33.3) (2024-01-02)
 
 
