@@ -114,7 +114,7 @@ class FilesystemManager {
     }
 
     getShowPixelGrid() {
-        return storageService.get<boolean>('app', SHOW_PIXEL_GRID, false);
+        return storageService.get<boolean>('app', SHOW_PIXEL_GRID, true);
     }
 
     setShowPixelGrid(show: boolean) {
