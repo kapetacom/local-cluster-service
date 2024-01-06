@@ -1,3 +1,10 @@
+## [0.33.5](https://github.com/kapetacom/local-cluster-service/compare/v0.33.4...v0.33.5) (2024-01-06)
+
+
+### Bug Fixes
+
+* Include query params in forwarded requests ([#113](https://github.com/kapetacom/local-cluster-service/issues/113)) ([6ccd067](https://github.com/kapetacom/local-cluster-service/commit/6ccd067de787de0c3d9ec21d0e8289778798d00e))
+
 ## [0.33.4](https://github.com/kapetacom/local-cluster-service/compare/v0.33.3...v0.33.4) (2024-01-04)
 
 
