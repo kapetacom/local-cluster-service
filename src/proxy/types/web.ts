@@ -27,6 +27,10 @@ export function proxyHttpRequest(req: StringBodyRequest, res: Response, opts: Pr
         path = path.replace(sourceBasePath, targetBasePath);
     }
 
+    if (!_.isEmpty(req.query)) {
+        path += '?' + new URLSearchParams(req.query as any).toString();
+    }
+
     console.log('Proxy request to provider: %s => %s%s [http]', opts.consumerPath, opts.address, path);
 
     const reqOpts: SimpleRequest = {

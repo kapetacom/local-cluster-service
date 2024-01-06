@@ -104,6 +104,10 @@ export function proxyRestRequest(req: StringBodyRequest, res: Response, opts: Pr
         providerPath = '/' + providerPath;
     }
 
+    if (!_.isEmpty(req.query)) {
+        providerPath += '?' + new URLSearchParams(req.query as any).toString();
+    }
+
     const requestHeaders = _.clone(req.headers);
 
     delete requestHeaders['content-length'];
