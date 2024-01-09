@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import FS from 'node:fs';
+import FSExtra from 'fs-extra';
 import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
 import { getBindHost, getBlockInstanceContainerName, readYML } from './utils';
 import { KapetaURI, parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
@@ -162,7 +162,7 @@ export class BlockInstanceRunner {
     ): Promise<ProcessInfo> {
         const baseDir = ClusterConfig.getRepositoryAssetPath(blockInfo.handle, blockInfo.name, blockInfo.version);
 
-        if (!FS.existsSync(baseDir)) {
+        if (!FSExtra.existsSync(baseDir)) {
             throw new Error(
                 `Local block not registered correctly - expected symlink here: ${baseDir}.\n` +
                     `Make sure you've run "kap registry link" in your local directory to connect it to Kapeta`
@@ -226,7 +226,7 @@ export class BlockInstanceRunner {
             HealthCheck = containerManager.toDockerHealth({ cmd: localContainer.healthcheck });
         }
 
-        const realLocalPath = FS.realpathSync(baseDir);
+        const realLocalPath = await FSExtra.realpath(baseDir);
 
         const Mounts = containerManager.toDockerMounts({
             [workingDir]: toLocalBindVolume(realLocalPath),
@@ -293,7 +293,7 @@ export class BlockInstanceRunner {
         );
 
         const versionYml = versionFile;
-        if (!FS.existsSync(versionYml)) {
+        if (!FSExtra.existsSync(versionYml)) {
             throw new Error(`Did not find version info at the expected path: ${versionYml}`);
         }
 
@@ -373,7 +373,7 @@ export class BlockInstanceRunner {
         );
 
         const kapetaYmlPath = assetFile;
-        if (!FS.existsSync(kapetaYmlPath)) {
+        if (!FSExtra.existsSync(kapetaYmlPath)) {
             throw new Error(`Did not find kapeta.yml at the expected path: ${kapetaYmlPath}`);
         }
 
