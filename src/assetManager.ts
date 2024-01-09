@@ -37,7 +37,7 @@ export interface EnrichedAsset {
 }
 
 function filterExists(asset: DefinitionInfo): boolean {
-    return FS.existsSync(asset.path);
+    return FS.existsSync(asset.path) && FS.existsSync(asset.ymlPath);
 }
 
 function enrichAsset(asset: DefinitionInfo): EnrichedAsset {

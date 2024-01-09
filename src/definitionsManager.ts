@@ -6,7 +6,7 @@
 import ClusterConfiguration, { DefinitionInfo } from '@kapeta/local-cluster-config';
 import { parseKapetaUri, normalizeKapetaUri, parseVersion } from '@kapeta/nodejs-utils';
 import { cacheManager, doCached } from './cacheManager';
-import { KapetaAPI } from '@kapeta/nodejs-api-client';
+import { ExtendedIdentity, KapetaAPI } from '@kapeta/nodejs-api-client';
 import { Plan } from '@kapeta/schemas';
 import FS from 'fs-extra';
 import YAML from 'yaml';
@@ -58,12 +58,24 @@ class DefinitionsManager {
             // Not logged in yet, so we can't rewrite the sample plan
             return definitions;
         }
+
         const profile = await api.getCurrentIdentity();
         if (!profile) {
             // Not logged in yet, so we can't rewrite the sample plan
             return definitions;
         }
 
+        try {
+            await this.prepareSample(definitions, samplePlan, profile);
+        } catch (e) {
+            console.warn('Failed to prepare sample plan', e);
+        }
+
+        // Return the rewritten definitions
+        return ClusterConfiguration.getDefinitions();
+    }
+
+    private async prepareSample(definitions: DefinitionInfo[], samplePlan: DefinitionInfo, profile: ExtendedIdentity) {
         const newName = getRenamed(samplePlan, profile.handle);
 
         if (definitions.some((d) => d.definition.metadata.name === newName && d.version === 'local')) {
@@ -124,9 +136,6 @@ class DefinitionsManager {
         }
 
         console.log('Rewrite done for sample plan');
-
-        // Return the rewritten definitions
-        return ClusterConfiguration.getDefinitions();
     }
 
     private applyFilters(definitions: DefinitionInfo[], kindFilter: string[]): DefinitionInfo[] {
