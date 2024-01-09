@@ -87,6 +87,7 @@ export const CONTAINER_LABEL_PORT_PREFIX = 'kapeta_port-';
 const NANO_SECOND = 1000000;
 const HEALTH_CHECK_INTERVAL = 3000;
 const HEALTH_CHECK_MAX = 100;
+const LATEST_PULL_TIMEOUT = 1000 * 60 * 15; // 15 minutes
 export const COMPOSE_LABEL_PROJECT = 'com.docker.compose.project';
 export const COMPOSE_LABEL_SERVICE = 'com.docker.compose.service';
 
@@ -135,12 +136,14 @@ class ContainerManager {
     private _version: string;
     private _lastDockerAccessCheck: number = 0;
     private logStreams: { [p: string]: { stream?: ClosableLogStream; timer?: NodeJS.Timeout } } = {};
+    private _latestImagePulls: { [p: string]: number } = {};
 
     constructor() {
         this._docker = null;
         this._alive = false;
         this._version = '';
         this._mountDir = Path.join(storageService.getKapetaBasedir(), 'mounts');
+        this._latestImagePulls = {};
         FSExtra.mkdirpSync(this._mountDir);
     }
 
@@ -321,7 +324,24 @@ class ContainerManager {
             .filter((imageData) => !!imageData.RepoTags)
             .map((imageData) => imageData.RepoTags as string[]);
 
-        if (imageTagList.some((imageTags) => imageTags.indexOf(image) > -1)) {
+        const imageExists = imageTagList.some((imageTags) => imageTags.includes(image));
+
+        if (tag === 'latest') {
+            if (imageExists && this._latestImagePulls[imageName]) {
+                const lastPull = this._latestImagePulls[imageName];
+                const timeSinceLastPull = Date.now() - lastPull;
+                if (timeSinceLastPull < LATEST_PULL_TIMEOUT) {
+                    console.log(
+                        'Image found and was pulled %s seconds ago: %s',
+                        Math.round(timeSinceLastPull / 1000),
+                        image
+                    );
+                    // Last pull was less than the timeout - don't pull again
+                    return false;
+                }
+            }
+            this._latestImagePulls[imageName] = Date.now();
+        } else if (imageExists) {
             console.log('Image found: %s', image);
             return false;
         }
