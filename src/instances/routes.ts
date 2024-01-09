@@ -41,12 +41,16 @@ router.get('/:systemId/instances/:instanceId', (req: Request, res: Response) => 
  * Start all instances in a plan
  */
 router.post('/:systemId/start', async (req: Request, res: Response) => {
-    const task = await instanceManager.startAllForPlan(req.params.systemId);
+    try {
+        const task = await instanceManager.startAllForPlan(req.params.systemId);
 
-    res.status(202).send({
-        ok: true,
-        taskId: task.id,
-    });
+        res.status(202).send({
+            ok: true,
+            taskId: task.id,
+        });
+    } catch (e: any) {
+        res.status(500).send({ ok: false, error: e.message });
+    }
 });
 
 /**
@@ -65,18 +69,22 @@ router.post('/:systemId/stop', async (req: Request, res: Response) => {
  * Start single instance in a plan
  */
 router.post('/:systemId/:instanceId/start', async (req: Request, res: Response) => {
-    const result = await instanceManager.start(req.params.systemId, req.params.instanceId);
-    if (result instanceof Task) {
-        res.status(202).send({
-            ok: true,
-            taskId: result.id,
-        });
-    } else {
-        res.status(202).send({
-            ok: true,
-            pid: result.pid,
-            type: result.type,
-        });
+    try {
+        const result = await instanceManager.start(req.params.systemId, req.params.instanceId);
+        if (result instanceof Task) {
+            res.status(202).send({
+                ok: true,
+                taskId: result.id,
+            });
+        } else {
+            res.status(202).send({
+                ok: true,
+                pid: result.pid,
+                type: result.type,
+            });
+        }
+    } catch (e: any) {
+        res.status(500).send({ ok: false, error: e.message });
     }
 });
 
