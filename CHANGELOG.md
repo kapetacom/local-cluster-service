@@ -1,3 +1,10 @@
+## [0.33.8](https://github.com/kapetacom/local-cluster-service/compare/v0.33.7...v0.33.8) (2024-01-09)
+
+
+### Bug Fixes
+
+* Auto-refresh expired tokens ([#117](https://github.com/kapetacom/local-cluster-service/issues/117)) ([0e0d762](https://github.com/kapetacom/local-cluster-service/commit/0e0d762e4de34b092fa39830d6f5c427e8c59065))
+
 ## [0.33.7](https://github.com/kapetacom/local-cluster-service/compare/v0.33.6...v0.33.7) (2024-01-09)
 
 
