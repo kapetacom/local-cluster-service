@@ -1,3 +1,10 @@
+## [0.33.7](https://github.com/kapetacom/local-cluster-service/compare/v0.33.6...v0.33.7) (2024-01-09)
+
+
+### Bug Fixes
+
+* Re-pull "latest" images every 15 mins ([#116](https://github.com/kapetacom/local-cluster-service/issues/116)) ([4b71fcc](https://github.com/kapetacom/local-cluster-service/commit/4b71fcce131dcd5b6cea955dc663b93aa3c3c930))
+
 ## [0.33.6](https://github.com/kapetacom/local-cluster-service/compare/v0.33.5...v0.33.6) (2024-01-09)
 
 
