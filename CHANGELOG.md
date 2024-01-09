@@ -1,3 +1,11 @@
+## [0.33.6](https://github.com/kapetacom/local-cluster-service/compare/v0.33.5...v0.33.6) (2024-01-09)
+
+
+### Bug Fixes
+
+* Catch errors when starting ([#115](https://github.com/kapetacom/local-cluster-service/issues/115)) ([00f1875](https://github.com/kapetacom/local-cluster-service/commit/00f18758063e7ea5cb20d3a70dbd1706ef9f4c42))
+* Use async when possible and check exists before using realpath ([#114](https://github.com/kapetacom/local-cluster-service/issues/114)) ([9abb498](https://github.com/kapetacom/local-cluster-service/commit/9abb498191b68952f8789a800cc6ad8b2defcb20))
+
 ## [0.33.5](https://github.com/kapetacom/local-cluster-service/compare/v0.33.4...v0.33.5) (2024-01-06)
 
 
