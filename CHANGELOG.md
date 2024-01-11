@@ -1,3 +1,10 @@
+## [0.33.10](https://github.com/kapetacom/local-cluster-service/compare/v0.33.9...v0.33.10) (2024-01-11)
+
+
+### Bug Fixes
+
+* dont use underscores in fullName ([536498c](https://github.com/kapetacom/local-cluster-service/commit/536498c50a525538034c60506216fda90e6dfca4))
+
 ## [0.33.9](https://github.com/kapetacom/local-cluster-service/compare/v0.33.8...v0.33.9) (2024-01-11)
 
 
