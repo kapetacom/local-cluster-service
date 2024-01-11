@@ -1,3 +1,10 @@
+## [0.33.9](https://github.com/kapetacom/local-cluster-service/compare/v0.33.8...v0.33.9) (2024-01-11)
+
+
+### Bug Fixes
+
+* add options.fullName to local resource info ([#119](https://github.com/kapetacom/local-cluster-service/issues/119)) ([eaab5f3](https://github.com/kapetacom/local-cluster-service/commit/eaab5f37e96893d094ff7a8db8b979e7f0a903fa))
+
 ## [0.33.8](https://github.com/kapetacom/local-cluster-service/compare/v0.33.7...v0.33.8) (2024-01-09)
 
 
