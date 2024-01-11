@@ -145,6 +145,7 @@ class OperatorManager {
         }
 
         const dbName = name + '_' + fromServiceId.replace(/[^a-z0-9]/gi, '');
+        const safeName = dbName.replace('_', '-');
 
         return {
             host: environment === 'docker' ? 'host.docker.internal' : '127.0.0.1',
@@ -153,7 +154,7 @@ class OperatorManager {
             protocol: portInfo.protocol,
             options: {
                 // expose as fullName since that is not operator specific, but unique
-                fullName: dbName,
+                fullName: safeName,
                 dbName,
             },
             credentials,
