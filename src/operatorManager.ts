@@ -152,6 +152,8 @@ class OperatorManager {
             type: portType,
             protocol: portInfo.protocol,
             options: {
+                // expose as fullName since that is not operator specific, but unique
+                fullName: dbName,
                 dbName,
             },
             credentials,
