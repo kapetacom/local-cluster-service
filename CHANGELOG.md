@@ -1,3 +1,10 @@
+# [0.34.0](https://github.com/kapetacom/local-cluster-service/compare/v0.33.10...v0.34.0) (2024-01-20)
+
+
+### Features
+
+* Bumped several core libraries to support new kaplang version ([84fec09](https://github.com/kapetacom/local-cluster-service/commit/84fec0916a66fbd3e1ad9a0b720dd185445a4f85))
+
 ## [0.33.10](https://github.com/kapetacom/local-cluster-service/compare/v0.33.9...v0.33.10) (2024-01-11)
 
 
