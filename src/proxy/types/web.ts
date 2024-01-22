@@ -7,9 +7,10 @@ import request from 'request';
 import _ from 'lodash';
 import { networkManager } from '../../networkManager';
 import { socketManager } from '../../socketManager';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { ProxyRequestInfo, SimpleRequest, StringMap } from '../../types';
 import { StringBodyRequest } from '../../middleware/stringBody';
+import { stringify } from 'qs';
 
 export function proxyHttpRequest(req: StringBodyRequest, res: Response, opts: ProxyRequestInfo) {
     const requestHeaders = _.clone(req.headers);
@@ -28,7 +29,7 @@ export function proxyHttpRequest(req: StringBodyRequest, res: Response, opts: Pr
     }
 
     if (!_.isEmpty(req.query)) {
-        path += '?' + new URLSearchParams(req.query as any).toString();
+        path += '?' + stringify(req.query, { arrayFormat: 'repeat' });
     }
 
     console.log('Proxy request to provider: %s => %s%s [http]', opts.consumerPath, opts.address, path);
