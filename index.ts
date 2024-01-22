@@ -38,8 +38,8 @@ import { assetManager } from './src/assetManager';
 Sentry.init({
     dsn: 'https://0b7cc946d82c591473d6f95fff5e210b@o4505820837249024.ingest.sentry.io/4506212692000768',
     enabled: process.env.NODE_ENV !== 'development',
-    // Performance Monitoring
-    tracesSampleRate: 1.0,
+    // Performance Monitoring on every ~20th request
+    tracesSampleRate: 0.05,
     // Set sampling rate for profiling - this is relative to tracesSampleRate
     profilesSampleRate: 1.0,
 });
