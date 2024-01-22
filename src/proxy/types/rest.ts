@@ -14,6 +14,7 @@ import { Request, Response } from 'express';
 import { ProxyRequestInfo, SimpleRequest, StringMap } from '../../types';
 import { StringBodyRequest } from '../../middleware/stringBody';
 import { Resource } from '@kapeta/schemas';
+import { stringify } from 'qs';
 
 export function getRestMethodId(restResource: Resource, httpMethod: string, httpPath: string) {
     return _.findKey(restResource.spec.methods, (method) => {
@@ -105,7 +106,7 @@ export function proxyRestRequest(req: StringBodyRequest, res: Response, opts: Pr
     }
 
     if (!_.isEmpty(req.query)) {
-        providerPath += '?' + new URLSearchParams(req.query as any).toString();
+        providerPath += '?' + stringify(req.query, { arrayFormat: 'repeat' });
     }
 
     const requestHeaders = _.clone(req.headers);
