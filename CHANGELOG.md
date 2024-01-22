@@ -1,3 +1,10 @@
+## [0.34.1](https://github.com/kapetacom/local-cluster-service/compare/v0.34.0...v0.34.1) (2024-01-22)
+
+
+### Bug Fixes
+
+* reduce sentry sampling rate to 5% of reqs ([#120](https://github.com/kapetacom/local-cluster-service/issues/120)) ([f602093](https://github.com/kapetacom/local-cluster-service/commit/f602093caae21fa58a5b89c94d5bd11c42276141))
+
 # [0.34.0](https://github.com/kapetacom/local-cluster-service/compare/v0.33.10...v0.34.0) (2024-01-20)
 
 
