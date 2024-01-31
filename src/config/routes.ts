@@ -181,4 +181,19 @@ router.get('/consumes/:resourceName/:type', (req: KapetaRequest, res) => {
     );
 });
 
+/**
+ * Used by services to information about a block operator
+ *
+ * If the remote service is not already running it will be started
+ */
+router.get('/operator/:instanceId', async (req: KapetaRequest, res) => {
+    const operatorInfo = await instanceManager.getInstanceOperator(
+        req.kapeta!.systemId,
+        req.params.instanceId,
+        req.kapeta!.environment
+    );
+
+    res.send(operatorInfo);
+});
+
 export default router;

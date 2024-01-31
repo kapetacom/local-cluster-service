@@ -18,7 +18,19 @@ import {
     HEALTH_CHECK_TIMEOUT,
 } from './containerManager';
 import { configManager } from './configManager';
-import { DesiredInstanceStatus, InstanceInfo, InstanceOwner, InstanceStatus, InstanceType, LogEntry } from './types';
+import {
+    DesiredInstanceStatus,
+    EnvironmentType,
+    InstanceInfo,
+    InstanceOwner,
+    InstanceStatus,
+    InstanceType,
+    LocalImageOptions,
+    LogEntry,
+    OperatorInfo,
+    OperatorInstanceInfo,
+    OperatorInstancePort,
+} from './types';
 import { BlockDefinitionSpec, BlockInstance, Plan } from '@kapeta/schemas';
 import { getBlockInstanceContainerName, getResolvedConfiguration } from './utils/utils';
 import { KIND_OPERATOR, operatorManager } from './operatorManager';
@@ -414,6 +426,62 @@ export class InstanceManager {
         );
     }
 
+    public async getInstanceOperator(
+        systemId: string,
+        instanceId: string,
+        environment?: EnvironmentType
+    ): Promise<OperatorInstanceInfo> {
+        const blockInstance = await assetManager.getBlockInstance(systemId, instanceId);
+        if (!blockInstance) {
+            throw new Error(`Instance not found: ${systemId}/${instanceId}`);
+        }
+        const blockRef = normalizeKapetaUri(blockInstance.block.ref);
+        const block = await assetManager.getAsset(blockRef, true);
+        if (!block) {
+            throw new Error(`Block not found: ${blockRef}`);
+        }
+
+        const operatorDefinition = await definitionsManager.getDefinition(block.kind);
+
+        if (!operatorDefinition?.definition.spec.local) {
+            throw new Error(`Operator block has no local definition: ${blockRef}`);
+        }
+
+        const localConfig = operatorDefinition.definition.spec.local as LocalImageOptions;
+
+        let instance = await this.start(systemId, instanceId);
+        if (instance instanceof Task) {
+            instance = await instance.wait();
+        }
+
+        const container = await containerManager.get(instance.pid as string);
+        if (!container) {
+            throw new Error(`Container not found: ${instance.pid}`);
+        }
+
+        const portInfo = await container.getPorts();
+        if (!portInfo) {
+            throw new Error(`No ports found for instance: ${instanceId}`);
+        }
+
+        const hostname = serviceManager.getLocalHost(environment);
+        const ports: { [key: string]: OperatorInstancePort } = {};
+
+        Object.entries(portInfo).forEach(([key, value]) => {
+            ports[key] = {
+                protocol: value.protocol,
+                port: parseInt(value.hostPort),
+            };
+        });
+
+        return {
+            hostname,
+            ports,
+            credentials: localConfig.credentials,
+            options: localConfig.options,
+        };
+    }
+
     public async start(systemId: string, instanceId: string): Promise<InstanceInfo | Task<InstanceInfo>> {
         return this.exclusive(systemId, instanceId, async () => {
             systemId = normalizeKapetaUri(systemId);
@@ -427,7 +495,7 @@ export class InstanceManager {
 
             const existingInstance = this.getInstance(systemId, instanceId);
 
-            if (existingInstance) {
+            if (existingInstance && existingInstance.pid) {
                 if (existingInstance.status === InstanceStatus.READY) {
                     // Instance is already running
                     return existingInstance;
@@ -481,8 +549,8 @@ export class InstanceManager {
                         return Promise.resolve();
                     }
                     // Check if the operator has a local definition, if not we skip it since we can't start it
-                    if(!asset.definition.spec.local) {
-                        console.log('Skipping operator since it as no local definition: %s', consumer.kind)
+                    if (!asset.definition.spec.local) {
+                        console.log('Skipping operator since it as no local definition: %s', consumer.kind);
                         return Promise.resolve();
                     }
                     console.log('Ensuring resource: %s in %s', consumerUri.id, systemId);

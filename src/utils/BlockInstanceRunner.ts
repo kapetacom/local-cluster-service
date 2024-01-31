@@ -5,19 +5,20 @@
 
 import FSExtra from 'fs-extra';
 import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import { getBindHost, getBlockInstanceContainerName, readYML } from './utils';
+import { getBindHost, getBlockInstanceContainerName, readYML, toPortInfo } from './utils';
 import { KapetaURI, parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import { DEFAULT_PORT_TYPE, HTTP_PORT_TYPE, HTTP_PORTS, serviceManager } from '../serviceManager';
 import {
     COMPOSE_LABEL_PROJECT,
     COMPOSE_LABEL_SERVICE,
+    CONTAINER_LABEL_PORT_PREFIX,
     containerManager,
     DockerMounts,
     toLocalBindVolume,
 } from '../containerManager';
 import { LogData } from './LogData';
 import { clusterService } from '../clusterService';
-import { AnyMap, BlockProcessParams, InstanceType, ProcessInfo, StringMap } from '../types';
+import { AnyMap, BlockProcessParams, InstanceType, LocalImageOptions, ProcessInfo, StringMap } from '../types';
 import { definitionsManager } from '../definitionsManager';
 import Docker from 'dockerode';
 import OS from 'node:os';
@@ -384,7 +385,9 @@ export class BlockInstanceRunner {
             throw new Error(`Provider did not have local image: ${providerRef}`);
         }
 
-        const dockerImage = spec?.local?.image;
+        const local = spec.local as LocalImageOptions;
+
+        const dockerImage = local.image;
 
         //We only want 1 operator per operator type - across all local systems
         const containerName = getBlockInstanceContainerName(this._systemId, blockInstance.id);
@@ -397,11 +400,13 @@ export class BlockInstanceRunner {
         const PortBindings: AnyMap = {};
         let HealthCheck = undefined;
         let Mounts: DockerMounts[] = [];
-        const localPorts = spec.local.ports as { [p: string]: { port: string; type: string } };
+        const localPorts = local.ports ?? {};
+        const labels: { [key: string]: string } = {};
         const promises = Object.entries(localPorts).map(async ([portType, value]) => {
-            const dockerPort = `${value.port}/${value.type}`;
+            const portInfo = toPortInfo(value);
+            const dockerPort = `${portInfo.port}/${portInfo.type}`;
             ExposedPorts[dockerPort] = {};
-            addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = value.port;
+            addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = `${portInfo.port}`;
             const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
             PortBindings[dockerPort] = [
                 {
@@ -409,23 +414,24 @@ export class BlockInstanceRunner {
                     HostPort: `${publicPort}`,
                 },
             ];
+
+            labels[CONTAINER_LABEL_PORT_PREFIX + publicPort] = portType;
         });
 
         await Promise.all(promises);
 
-        if (spec.local?.env) {
-            Object.entries(spec.local.env).forEach(([key, value]) => {
+        if (local.env) {
+            Object.entries(local.env).forEach(([key, value]) => {
                 addonEnv[key] = value as string;
             });
         }
 
-        if (spec.local?.mounts) {
-            const mounts = await containerManager.createMounts(this._systemId, blockUri.id, spec.local.mounts);
-            Mounts = containerManager.toDockerMounts(mounts);
+        if (local.mounts) {
+            Mounts = await containerManager.createVolumes(this._systemId, blockUri.id, local.mounts);
         }
 
-        if (spec.local?.health) {
-            HealthCheck = containerManager.toDockerHealth(spec.local?.health);
+        if (local.health) {
+            HealthCheck = containerManager.toDockerHealth(local.health);
         }
 
         // For windows we need to default to root
@@ -447,6 +453,7 @@ export class BlockInstanceRunner {
                 Mounts,
             },
             Labels: {
+                ...labels,
                 instance: blockInstance.id,
                 [COMPOSE_LABEL_PROJECT]: systemUri.id.replace(/[^a-z0-9]/gi, '_'),
                 [COMPOSE_LABEL_SERVICE]: blockUri.id.replace(/[^a-z0-9]/gi, '_'),
@@ -462,7 +469,7 @@ export class BlockInstanceRunner {
             ],
         });
 
-        const portTypes = spec.local.ports ? Object.keys(spec.local.ports) : [];
+        const portTypes = local.ports ? Object.keys(local.ports) : [];
         if (portTypes.length > 0) {
             out.portType = portTypes[0];
         }

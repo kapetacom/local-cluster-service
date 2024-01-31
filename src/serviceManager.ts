@@ -34,22 +34,25 @@ class ServiceManager {
         });
     }
 
+    public getLocalHost(environmentType?: EnvironmentType) {
+        if (environmentType === 'docker') {
+            //We're inside a docker container, so we can use this special host name to access the host machine
+            return 'host.docker.internal';
+        }
+
+        return clusterService.getClusterServiceHost();
+    }
+
     _forLocal(port: string | number, path?: string, environmentType?: EnvironmentType) {
         if (!path) {
             path = '';
         }
-        let host;
-        if (environmentType === 'docker') {
-            //We're inside a docker container, so we can use this special host name to access the host machine
-            host = 'host.docker.internal';
-        } else {
-            host = clusterService.getClusterServiceHost();
-        }
+        const hostname = this.getLocalHost(environmentType);
 
         if (path.startsWith('/')) {
             path = path.substring(1);
         }
-        return `http://${host}:${port}/${path}`;
+        return `http://${hostname}:${port}/${path}`;
     }
 
     _ensureSystem(systemId: string) {
