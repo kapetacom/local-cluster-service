@@ -1,3 +1,10 @@
+# [0.35.0](https://github.com/kapetacom/local-cluster-service/compare/v0.34.2...v0.35.0) (2024-01-31)
+
+
+### Features
+
+* Adds support for getting instance operator info ([#122](https://github.com/kapetacom/local-cluster-service/issues/122)) ([8fa18ac](https://github.com/kapetacom/local-cluster-service/commit/8fa18ac58226ce9776f79a64d3a99cf56456e834))
+
 ## [0.34.2](https://github.com/kapetacom/local-cluster-service/compare/v0.34.1...v0.34.2) (2024-01-22)
 
 
