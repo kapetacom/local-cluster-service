@@ -61,6 +61,26 @@ export type ProcessInfo = {
     portType?: string;
 };
 
+export interface Health {
+    cmd: string;
+    interval?: number;
+    timeout?: number;
+    retries?: number;
+}
+
+export type PortInfo = { port: number; type: 'tcp' | 'udp' } | number | string;
+
+export type LocalImageOptions<Credentials = AnyMap, Options = AnyMap> = {
+    image: string;
+    ports: { [key: string]: PortInfo };
+    credentials?: Credentials;
+    options?: Options;
+    cmd?: string;
+    env?: AnyMap;
+    health?: Health;
+    mounts?: { [key: string]: string };
+};
+
 export type InstanceInfo = {
     systemId: string;
     instanceId: string;
@@ -85,6 +105,21 @@ interface ResourceRef {
 }
 
 export type ProxyRequestHandler = (req: StringBodyRequest, res: express.Response, info: ProxyRequestInfo) => void;
+
+export interface OperatorInstancePort {
+    protocol: string;
+    port: number;
+}
+
+export interface OperatorInstanceInfo {
+    hostname: string;
+    ports: { [portType: string]: OperatorInstancePort };
+    path?: string;
+    query?: string;
+    hash?: string;
+    options?: AnyMap;
+    credentials?: AnyMap;
+}
 
 export interface OperatorInfo {
     host: string;

@@ -5,15 +5,26 @@
 
 import FS from 'node:fs';
 import YAML from 'yaml';
-import { parseKapetaUri } from '@kapeta/nodejs-utils';
 import md5 from 'md5';
 import { EntityList } from '@kapeta/schemas';
 import _ from 'lodash';
-import { AnyMap } from '../types';
+import { AnyMap, PortInfo } from '../types';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 
 export function getBlockInstanceContainerName(systemId: string, instanceId: string) {
     return `kapeta-block-instance-${md5(systemId + instanceId)}`;
+}
+
+export function toPortInfo(port: PortInfo) {
+    if (typeof port === 'number' || typeof port === 'string') {
+        return { port: parseInt(`${port}`), type: 'tcp' };
+    }
+
+    if (!port.type) {
+        port.type = 'tcp';
+    }
+
+    return port;
 }
 
 export function getRemoteUrl(id: string, defautValue: string) {

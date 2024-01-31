@@ -16,10 +16,10 @@ import {
     containerManager,
 } from './containerManager';
 import FSExtra from 'fs-extra';
-import { AnyMap, EnvironmentType, OperatorInfo, StringMap } from './types';
+import { AnyMap, EnvironmentType, LocalImageOptions, OperatorInfo, StringMap } from './types';
 import { BlockInstance, Resource } from '@kapeta/schemas';
 import { definitionsManager } from './definitionsManager';
-import { getBindHost } from './utils/utils';
+import { getBindHost, toPortInfo } from './utils/utils';
 import { parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import _ from 'lodash';
 import AsyncLock from 'async-lock';
@@ -34,7 +34,7 @@ class Operator {
         this._data = data;
     }
 
-    getLocalData() {
+    getLocalData(): LocalImageOptions {
         return this._data.definition.spec.local;
     }
 
@@ -187,16 +187,8 @@ class OperatorManager {
                 const portType = portTypes[i];
                 let containerPortInfo = operatorData.ports[portType];
                 const hostPort = await serviceManager.ensureServicePort(systemId, resourceType, portType);
-
-                if (typeof containerPortInfo === 'number' || typeof containerPortInfo === 'string') {
-                    containerPortInfo = { port: containerPortInfo, type: 'tcp' };
-                }
-
-                if (!containerPortInfo.type) {
-                    containerPortInfo.type = 'tcp';
-                }
-
-                const portId = containerPortInfo.port + '/' + containerPortInfo.type;
+                const portInfo = toPortInfo(containerPortInfo);
+                const portId = portInfo.port + '/' + portInfo.type;
 
                 ports[portId] = {
                     type: portType,

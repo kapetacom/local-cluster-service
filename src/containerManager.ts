@@ -14,7 +14,7 @@ import ClusterConfiguration from '@kapeta/local-cluster-config';
 import uuid from 'node-uuid';
 import md5 from 'md5';
 import { getBlockInstanceContainerName } from './utils/utils';
-import { InstanceInfo, LogEntry, LogSource } from './types';
+import { Health, InstanceInfo, LogEntry, LogSource } from './types';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
 import { taskManager, Task } from './taskManager';
 import { EventEmitter } from 'node:events';
@@ -74,13 +74,6 @@ interface JSONMessage<T = string> {
     error?: string;
     // Aux contains out-of-band data, such as digests for push signing and image id after building.
     aux?: any;
-}
-
-interface Health {
-    cmd: string;
-    interval?: number;
-    timeout?: number;
-    retries?: number;
 }
 
 export const CONTAINER_LABEL_PORT_PREFIX = 'kapeta_port-';
@@ -255,7 +248,7 @@ class ContainerManager {
 
     async createVolumes(
         systemId: string,
-        kind: string,
+        serviceId: string,
         mountOpts: StringMap | null | undefined
     ): Promise<DockerMounts[]> {
         const Mounts: DockerMounts[] = [];
@@ -263,7 +256,7 @@ class ContainerManager {
         if (mountOpts) {
             const mountOptList = Object.entries(mountOpts);
             for (const [mountName, containerPath] of mountOptList) {
-                const volumeName = `${systemId}_${kind}_${mountName}`.replace(/[^a-z0-9]/gi, '_');
+                const volumeName = `${systemId}_${serviceId}_${mountName}`.replace(/[^a-z0-9]/gi, '_');
 
                 Mounts.push({
                     Target: containerPath,
@@ -273,7 +266,7 @@ class ContainerManager {
                     Consistency: 'consistent',
                     Labels: {
                         [COMPOSE_LABEL_PROJECT]: systemId.replace(/[^a-z0-9]/gi, '_'),
-                        [COMPOSE_LABEL_SERVICE]: kind.replace(/[^a-z0-9]/gi, '_'),
+                        [COMPOSE_LABEL_SERVICE]: serviceId.replace(/[^a-z0-9]/gi, '_'),
                     },
                 });
             }
@@ -997,7 +990,7 @@ export class ContainerInfo {
                 return;
             }
 
-            const hostPort = name.substr(CONTAINER_LABEL_PORT_PREFIX.length);
+            const hostPort = name.substring(CONTAINER_LABEL_PORT_PREFIX.length);
 
             portTypes[hostPort] = portType;
         });
