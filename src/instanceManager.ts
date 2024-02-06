@@ -416,7 +416,16 @@ export class InstanceManager {
         };
     }
 
-    public async stop(systemId: string, instanceId: string, checkForSingleton: boolean = true) {
+    public async stop(systemId: string, instanceId: string) {
+        return this.stopInner(systemId, instanceId, true);
+    }
+
+    private async stopInner(
+        systemId: string,
+        instanceId: string,
+        changeDesired: boolean = false,
+        checkForSingleton: boolean = true
+    ) {
         if (checkForSingleton) {
             const blockInstance = await assetManager.getBlockInstance(systemId, instanceId);
             const blockRef = normalizeKapetaUri(blockInstance.block.ref);
@@ -430,18 +439,15 @@ export class InstanceManager {
                 const instances = await this.getAllInstancesForKind(systemId, blockAsset.data.kind);
                 if (instances.length > 1) {
                     const promises = instances.map((id) => {
-                        return this.stopInner(systemId, id, true);
+                        return this.stopInner(systemId, id, changeDesired, false);
                     });
 
                     await Promise.all(promises);
-                    return promises[0];
+                    return;
                 }
             }
         }
-        return this.stopInner(systemId, instanceId, true);
-    }
 
-    private async stopInner(systemId: string, instanceId: string, changeDesired: boolean = false) {
         return this.exclusive(systemId, instanceId, async () => {
             systemId = normalizeKapetaUri(systemId);
             const instance = this.getInstance(systemId, instanceId);
