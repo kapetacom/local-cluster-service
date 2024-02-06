@@ -1,3 +1,10 @@
+# [0.36.0](https://github.com/kapetacom/local-cluster-service/compare/v0.35.0...v0.36.0) (2024-02-06)
+
+
+### Features
+
+* Ensure instance operators only start 1 instance ([#123](https://github.com/kapetacom/local-cluster-service/issues/123)) ([10d8614](https://github.com/kapetacom/local-cluster-service/commit/10d86143ae6d9b41bae8e8dee345628b6d2cbe0a))
+
 # [0.35.0](https://github.com/kapetacom/local-cluster-service/compare/v0.34.2...v0.35.0) (2024-01-31)
 
 
