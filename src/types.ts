@@ -78,6 +78,7 @@ export type LocalImageOptions<Credentials = AnyMap, Options = AnyMap> = {
     cmd?: string;
     env?: AnyMap;
     health?: Health;
+    singleton?: boolean;
     mounts?: { [key: string]: string };
 };
 

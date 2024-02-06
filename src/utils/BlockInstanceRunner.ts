@@ -22,6 +22,7 @@ import { AnyMap, BlockProcessParams, InstanceType, LocalImageOptions, ProcessInf
 import { definitionsManager } from '../definitionsManager';
 import Docker from 'dockerode';
 import OS from 'node:os';
+import { taskManager } from '../taskManager';
 
 const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
@@ -201,7 +202,7 @@ export class BlockInstanceRunner {
             throw new Error(`Missing docker image information: ${JSON.stringify(localContainer)}`);
         }
 
-        const containerName = getBlockInstanceContainerName(this._systemId, blockInstance.id);
+        const containerName = await getBlockInstanceContainerName(this._systemId, blockInstance.id, targetKindUri.id);
         const startCmd = localContainer.handlers?.onCreate ? localContainer.handlers.onCreate : '';
         const dockerOpts = localContainer.options ?? {};
         const homeDir = localContainer.userHome ? localContainer.userHome : '/root';
@@ -322,7 +323,7 @@ export class BlockInstanceRunner {
             providerVersion
         );
 
-        const containerName = getBlockInstanceContainerName(this._systemId, blockInstance.id);
+        const containerName = await getBlockInstanceContainerName(this._systemId, blockInstance.id, kindUri.id);
 
         // For windows we need to default to root
         const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
@@ -352,16 +353,7 @@ export class BlockInstanceRunner {
         });
     }
 
-    /**
-     *
-     * @param blockInstance
-     * @param blockUri
-     * @param providerDefinition
-     * @param {{[key:string]:string}} env
-     * @return {Promise<ProcessDetails>}
-     * @private
-     */
-    async _startOperatorProcess(
+    private async _startOperatorProcess(
         blockInstance: BlockProcessParams,
         blockUri: KapetaURI,
         providerDefinition: DefinitionInfo,
@@ -388,93 +380,121 @@ export class BlockInstanceRunner {
         const local = spec.local as LocalImageOptions;
 
         const dockerImage = local.image;
+        const operatorUri = local.singleton ? parseKapetaUri(providerRef) : blockUri;
+        const operatorId = local.singleton ? providerRef : blockInstance.id;
+        const operatorRef = local.singleton ? providerRef : blockInstance.ref;
 
-        //We only want 1 operator per operator type - across all local systems
-        const containerName = getBlockInstanceContainerName(this._systemId, blockInstance.id);
-        const logs = new LogData();
-
-        const bindHost = getBindHost();
-
-        const ExposedPorts: AnyMap = {};
-        const addonEnv: StringMap = {};
-        const PortBindings: AnyMap = {};
-        let HealthCheck = undefined;
-        let Mounts: DockerMounts[] = [];
-        const localPorts = local.ports ?? {};
-        const labels: { [key: string]: string } = {};
-        const promises = Object.entries(localPorts).map(async ([portType, value]) => {
-            const portInfo = toPortInfo(value);
-            const dockerPort = `${portInfo.port}/${portInfo.type}`;
-            ExposedPorts[dockerPort] = {};
-            addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = `${portInfo.port}`;
-            const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
-            PortBindings[dockerPort] = [
-                {
-                    HostIp: bindHost,
-                    HostPort: `${publicPort}`,
-                },
-            ];
-
-            labels[CONTAINER_LABEL_PORT_PREFIX + publicPort] = portType;
-        });
-
-        await Promise.all(promises);
-
-        if (local.env) {
-            Object.entries(local.env).forEach(([key, value]) => {
-                addonEnv[key] = value as string;
-            });
+        if (local.singleton && env) {
+            env[KAPETA_BLOCK_REF] = operatorRef;
+            env[KAPETA_INSTANCE_ID] = operatorId;
         }
 
-        if (local.mounts) {
-            Mounts = await containerManager.createVolumes(this._systemId, blockUri.id, local.mounts);
-        }
+        const containerName = await getBlockInstanceContainerName(this._systemId, blockInstance.id, providerRef);
 
-        if (local.health) {
-            HealthCheck = containerManager.toDockerHealth(local.health);
-        }
+        const task = taskManager.add(
+            `container:start:${containerName}`,
+            async () => {
+                const logs = new LogData();
 
-        // For windows we need to default to root
-        const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
+                const bindHost = getBindHost();
 
-        const systemUri = parseKapetaUri(this._systemId);
-        logs.addLog(`Creating new container for block: ${containerName}`);
-        const out = await this.ensureContainer({
-            Image: dockerImage,
-            name: containerName,
-            ExposedPorts,
-            HealthCheck,
-            HostConfig: {
-                Binds: [
-                    `${toLocalBindVolume(kapetaYmlPath)}:/kapeta.yml:ro`,
-                    `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`,
-                ],
-                PortBindings,
-                Mounts,
+                const ExposedPorts: AnyMap = {};
+                const addonEnv: StringMap = {};
+                const PortBindings: AnyMap = {};
+                let HealthCheck = undefined;
+                let Mounts: DockerMounts[] = [];
+                const localPorts = local.ports ?? {};
+                const labels: { [key: string]: string } = {};
+                const promises = Object.entries(localPorts).map(async ([portType, value]) => {
+                    const portInfo = toPortInfo(value);
+                    const dockerPort = `${portInfo.port}/${portInfo.type}`;
+                    ExposedPorts[dockerPort] = {};
+                    addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = `${portInfo.port}`;
+                    const publicPort = await serviceManager.ensureServicePort(this._systemId, operatorId, portType);
+                    PortBindings[dockerPort] = [
+                        {
+                            HostIp: bindHost,
+                            HostPort: `${publicPort}`,
+                        },
+                    ];
+
+                    labels[CONTAINER_LABEL_PORT_PREFIX + publicPort] = portType;
+                });
+
+                await Promise.all(promises);
+
+                if (local.env) {
+                    Object.entries(local.env).forEach(([key, value]) => {
+                        addonEnv[key] = value as string;
+                    });
+                }
+
+                if (local.mounts) {
+                    Mounts = await containerManager.createVolumes(this._systemId, operatorUri.id, local.mounts);
+                }
+
+                if (local.health) {
+                    HealthCheck = containerManager.toDockerHealth(local.health);
+                }
+
+                // For windows we need to default to root
+                const innerHome = process.platform === 'win32' ? '/root/.kapeta' : ClusterConfig.getKapetaBasedir();
+
+                const Binds = local.singleton
+                    ? [`${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`]
+                    : [
+                          `${toLocalBindVolume(kapetaYmlPath)}:/kapeta.yml:ro`,
+                          `${toLocalBindVolume(ClusterConfig.getKapetaBasedir())}:${innerHome}`,
+                      ];
+
+                const systemUri = parseKapetaUri(this._systemId);
+
+                console.log(
+                    `Ensuring container for operator block: ${containerName} [singleton: ${!!local.singleton}]`
+                );
+
+                logs.addLog(`Ensuring container for operator block: ${containerName}`);
+                const out = await this.ensureContainer({
+                    Image: dockerImage,
+                    name: containerName,
+                    ExposedPorts,
+                    HealthCheck,
+                    HostConfig: {
+                        Binds,
+                        PortBindings,
+                        Mounts,
+                    },
+                    Labels: {
+                        ...labels,
+                        instance: operatorId,
+                        [COMPOSE_LABEL_PROJECT]: systemUri.id.replace(/[^a-z0-9]/gi, '_'),
+                        [COMPOSE_LABEL_SERVICE]: operatorUri.id.replace(/[^a-z0-9]/gi, '_'),
+                    },
+                    Env: [
+                        `KAPETA_INSTANCE_NAME=${operatorRef}`,
+                        `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
+                        ...DOCKER_ENV_VARS,
+                        ...Object.entries({
+                            ...env,
+                            ...addonEnv,
+                        }).map(([key, value]) => `${key}=${value}`),
+                    ],
+                });
+
+                const portTypes = local.ports ? Object.keys(local.ports) : [];
+                if (portTypes.length > 0) {
+                    out.portType = portTypes[0];
+                }
+
+                return out;
             },
-            Labels: {
-                ...labels,
-                instance: blockInstance.id,
-                [COMPOSE_LABEL_PROJECT]: systemUri.id.replace(/[^a-z0-9]/gi, '_'),
-                [COMPOSE_LABEL_SERVICE]: blockUri.id.replace(/[^a-z0-9]/gi, '_'),
-            },
-            Env: [
-                `KAPETA_INSTANCE_NAME=${blockInstance.ref}`,
-                `KAPETA_LOCAL_CLUSTER_PORT=${clusterService.getClusterServicePort()}`,
-                ...DOCKER_ENV_VARS,
-                ...Object.entries({
-                    ...env,
-                    ...addonEnv,
-                }).map(([key, value]) => `${key}=${value}`),
-            ],
-        });
+            {
+                name: `Starting container for ${providerRef}`,
+                systemId: this._systemId,
+            }
+        );
 
-        const portTypes = local.ports ? Object.keys(local.ports) : [];
-        if (portTypes.length > 0) {
-            out.portType = portTypes[0];
-        }
-
-        return out;
+        return task.wait();
     }
 
     private async getDockerPortBindings(

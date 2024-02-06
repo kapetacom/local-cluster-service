@@ -25,11 +25,13 @@ import _ from 'lodash';
 import AsyncLock from 'async-lock';
 import { taskManager } from './taskManager';
 
-export const KIND_OPERATOR = 'core/resource-type-operator';
+export const KIND_RESOURCE_OPERATOR = 'core/resource-type-operator';
+export const KIND_BLOCK_OPERATOR = 'core/block-type-operator';
 const KIND_PLAN = 'core/plan';
 
 class Operator {
     private readonly _data: DefinitionInfo;
+
     constructor(data: DefinitionInfo) {
         this._data = data;
     }
@@ -65,24 +67,24 @@ class OperatorManager {
     /**
      * Get operator definition for resource type
      */
-    async getOperator(resourceType: string, version: string) {
-        const operators = await definitionsManager.getDefinitions(KIND_OPERATOR);
+    async getOperator(fullName: string, version: string) {
+        const operators = await definitionsManager.getDefinitions([KIND_RESOURCE_OPERATOR, KIND_BLOCK_OPERATOR]);
 
         const operator: DefinitionInfo | undefined = operators.find(
             (operator) =>
                 operator.definition &&
                 operator.definition.metadata &&
                 operator.definition.metadata.name &&
-                operator.definition.metadata.name.toLowerCase() === resourceType.toLowerCase() &&
+                operator.definition.metadata.name.toLowerCase() === fullName.toLowerCase() &&
                 operator.version === version
         );
 
         if (!operator) {
-            throw new Error(`Unknown resource type: ${resourceType}:${version}`);
+            throw new Error(`Unknown operator type: ${fullName}:${version}`);
         }
 
         if (!operator.definition.spec || !operator.definition.spec.local) {
-            throw new Error(`Operator missing local definition: ${resourceType}:${version}`);
+            throw new Error(`Operator missing local definition: ${fullName}:${version}`);
         }
 
         return new Operator(operator);
@@ -137,7 +139,7 @@ class OperatorManager {
         const kindUri = parseKapetaUri(blockResource.kind);
         const operator = await this.getOperator(resourceType, kindUri.version);
         const credentials = operator.getCredentials();
-        const container = await this.ensureResource(systemId, resourceType, kindUri.version);
+        const container = await this.ensureOperator(systemId, resourceType, kindUri.version);
         const portInfo = await container.getPort(portType);
 
         if (!portInfo) {
@@ -164,16 +166,17 @@ class OperatorManager {
     /**
      * Ensure we have a running operator of given type
      *
-     * @param {string} systemId
-     * @param {string} resourceType
-     * @param {string} version
-     * @return {Promise<ContainerInfo>}
+     * @param systemId the plan ref
+     * @param kind the full name - e.g. myhandle/rabbitmq
+     * @param version the version of the operator
      */
-    async ensureResource(systemId: string, resourceType: string, version: string): Promise<ContainerInfo> {
+    async ensureOperator(systemId: string, kind: string, version: string): Promise<ContainerInfo> {
         systemId = normalizeKapetaUri(systemId);
-        const key = `${systemId}#${resourceType}:${version}`;
+
+        const key = `${systemId}#${kind}:${version}`;
+
         return await this.operatorLock.acquire(key, async () => {
-            const operator = await this.getOperator(resourceType, version);
+            const operator = await this.getOperator(kind, version);
 
             const operatorData = operator.getLocalData();
 
@@ -186,7 +189,7 @@ class OperatorManager {
             for (let i = 0; i < portTypes.length; i++) {
                 const portType = portTypes[i];
                 let containerPortInfo = operatorData.ports[portType];
-                const hostPort = await serviceManager.ensureServicePort(systemId, resourceType, portType);
+                const hostPort = await serviceManager.ensureServicePort(systemId, kind, portType);
                 const portInfo = toPortInfo(containerPortInfo);
                 const portId = portInfo.port + '/' + portInfo.type;
 
@@ -196,7 +199,7 @@ class OperatorManager {
                 };
             }
 
-            const nameParts = [systemId, resourceType.toLowerCase(), version];
+            const nameParts = [systemId, kind.toLowerCase(), version];
 
             const containerName = `kapeta-resource-${md5(nameParts.join('_'))}`;
 
@@ -208,7 +211,7 @@ class OperatorManager {
             const Labels: StringMap = {
                 kapeta: 'true',
                 [COMPOSE_LABEL_PROJECT]: systemUri.id.replace(/[^a-z0-9]/gi, '_'),
-                [COMPOSE_LABEL_SERVICE]: [resourceType, version].join('_').replace(/[^a-z0-9]/gi, '_'),
+                [COMPOSE_LABEL_SERVICE]: [kind, version].join('_').replace(/[^a-z0-9]/gi, '_'),
             };
 
             const operatorMetadata = operator.getDefinitionInfo().definition.metadata;
@@ -229,7 +232,7 @@ class OperatorManager {
                 Labels[CONTAINER_LABEL_PORT_PREFIX + portInfo.hostPort] = portInfo.type;
             });
 
-            const Mounts = await containerManager.createVolumes(systemId, resourceType, operatorData.mounts);
+            const Mounts = await containerManager.createVolumes(systemId, kind, operatorData.mounts);
 
             _.forEach(operatorData.env, (value, name) => {
                 Env.push(name + '=' + value);
