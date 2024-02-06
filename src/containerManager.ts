@@ -694,7 +694,7 @@ class ContainerManager {
     }
 
     async getLogs(instance: InstanceInfo): Promise<LogEntry[]> {
-        const containerName = getBlockInstanceContainerName(instance.systemId, instance.instanceId);
+        const containerName = await getBlockInstanceContainerName(instance.systemId, instance.instanceId);
         const containerInfo = await this.getContainerByName(containerName);
         if (!containerInfo) {
             return [
@@ -711,7 +711,7 @@ class ContainerManager {
     }
 
     async stopLogListening(systemId: string, instanceId: string) {
-        const containerName = getBlockInstanceContainerName(systemId, instanceId);
+        const containerName = await getBlockInstanceContainerName(systemId, instanceId);
         if (this.logStreams[containerName]) {
             if (this.logStreams[containerName]?.timer) {
                 clearTimeout(this.logStreams[containerName].timer);
@@ -729,7 +729,7 @@ class ContainerManager {
     }
 
     async ensureLogListening(systemId: string, instanceId: string, handler: (log: LogEntry) => void) {
-        const containerName = getBlockInstanceContainerName(systemId, instanceId);
+        const containerName = await getBlockInstanceContainerName(systemId, instanceId);
         try {
             if (this.logStreams[containerName]?.stream) {
                 // Already listening - will shut itself down

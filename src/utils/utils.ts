@@ -10,8 +10,34 @@ import { EntityList } from '@kapeta/schemas';
 import _ from 'lodash';
 import { AnyMap, PortInfo } from '../types';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
+import { definitionsManager } from '../definitionsManager';
+import { parseKapetaUri } from '@kapeta/nodejs-utils';
+import { KIND_BLOCK_OPERATOR } from '../operatorManager';
+import { assetManager } from '../assetManager';
 
-export function getBlockInstanceContainerName(systemId: string, instanceId: string) {
+export async function getBlockInstanceContainerName(systemId: string, instanceId: string, blockType?: string) {
+    if (!blockType) {
+        const instance = await assetManager.getBlockInstance(systemId, instanceId);
+        if (!instance) {
+            throw new Error(`Instance ${instanceId} not found in plan ${systemId}`);
+        }
+        const block = await assetManager.getAsset(instance.block.ref);
+        if (!block) {
+            throw new Error(`Block ${instance.block.ref} not found`);
+        }
+        blockType = block.data.kind;
+    }
+    const typeDefinition = await definitionsManager.getDefinition(blockType);
+    if (!typeDefinition) {
+        throw new Error(`Block type ${blockType} not found`);
+    }
+    if (
+        parseKapetaUri(typeDefinition.definition.kind).fullName === KIND_BLOCK_OPERATOR &&
+        typeDefinition.definition.spec?.local?.singleton
+    ) {
+        return `kapeta-instance-operator-${md5(systemId + blockType)}`;
+    }
+
     return `kapeta-block-instance-${md5(systemId + instanceId)}`;
 }
 

@@ -10,7 +10,7 @@ import { BlockInstanceRunner } from './utils/BlockInstanceRunner';
 import { storageService } from './storageService';
 import { EVENT_INSTANCE_CREATED, EVENT_STATUS_CHANGED, socketManager } from './socketManager';
 import { serviceManager } from './serviceManager';
-import { assetManager } from './assetManager';
+import { assetManager, EnrichedAsset } from './assetManager';
 import {
     containerManager,
     DockerContainerHealth,
@@ -27,13 +27,12 @@ import {
     InstanceType,
     LocalImageOptions,
     LogEntry,
-    OperatorInfo,
     OperatorInstanceInfo,
     OperatorInstancePort,
 } from './types';
 import { BlockDefinitionSpec, BlockInstance, Plan } from '@kapeta/schemas';
 import { getBlockInstanceContainerName, getResolvedConfiguration } from './utils/utils';
-import { KIND_OPERATOR, operatorManager } from './operatorManager';
+import { KIND_BLOCK_OPERATOR, KIND_RESOURCE_OPERATOR, operatorManager } from './operatorManager';
 import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
@@ -347,71 +346,6 @@ export class InstanceManager {
         );
     }
 
-    public async stop(systemId: string, instanceId: string) {
-        return this.stopInner(systemId, instanceId, true);
-    }
-
-    private async stopInner(systemId: string, instanceId: string, changeDesired: boolean = false) {
-        return this.exclusive(systemId, instanceId, async () => {
-            systemId = normalizeKapetaUri(systemId);
-            const instance = this.getInstance(systemId, instanceId);
-            if (!instance) {
-                return;
-            }
-
-            if (instance.status === InstanceStatus.STOPPED) {
-                return;
-            }
-
-            if (instance.status === InstanceStatus.STOPPING) {
-                return;
-            }
-
-            if (changeDesired && instance.desiredStatus !== DesiredInstanceStatus.EXTERNAL) {
-                instance.desiredStatus = DesiredInstanceStatus.STOP;
-            }
-
-            instance.status = InstanceStatus.STOPPING;
-
-            socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
-            console.log('Stopping instance: %s::%s [desired: %s]', systemId, instanceId, instance.desiredStatus);
-            this.save();
-
-            try {
-                if (instance.type === 'docker') {
-                    const containerName = getBlockInstanceContainerName(instance.systemId, instance.instanceId);
-                    const container = await containerManager.getContainerByName(containerName);
-                    if (container) {
-                        try {
-                            await container.stop();
-                            instance.status = InstanceStatus.STOPPED;
-                            socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
-                            this.save();
-                        } catch (e) {
-                            console.error('Failed to stop container', e);
-                        }
-                    } else {
-                        console.warn('Container not found', containerName);
-                    }
-                    return;
-                }
-
-                if (!instance.pid) {
-                    instance.status = InstanceStatus.STOPPED;
-                    this.save();
-                    return;
-                }
-
-                process.kill(instance.pid as number, 'SIGTERM');
-                instance.status = InstanceStatus.STOPPED;
-                socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
-                this.save();
-            } catch (e) {
-                console.error('Failed to stop process', e);
-            }
-        });
-    }
-
     public stopAllForPlan(systemId: string) {
         systemId = normalizeKapetaUri(systemId);
         const instancesForPlan = this._instances.filter((instance) => instance.systemId === systemId);
@@ -482,9 +416,8 @@ export class InstanceManager {
         };
     }
 
-    public async start(systemId: string, instanceId: string): Promise<InstanceInfo | Task<InstanceInfo>> {
-        return this.exclusive(systemId, instanceId, async () => {
-            systemId = normalizeKapetaUri(systemId);
+    public async stop(systemId: string, instanceId: string, checkForSingleton: boolean = true) {
+        if (checkForSingleton) {
             const blockInstance = await assetManager.getBlockInstance(systemId, instanceId);
             const blockRef = normalizeKapetaUri(blockInstance.block.ref);
 
@@ -493,9 +426,126 @@ export class InstanceManager {
                 throw new Error('Block not found: ' + blockRef);
             }
 
-            const existingInstance = this.getInstance(systemId, instanceId);
+            if (await this.isSingletonOperator(blockAsset)) {
+                const instances = await this.getAllInstancesForKind(systemId, blockAsset.data.kind);
+                if (instances.length > 1) {
+                    const promises = instances.map((id) => {
+                        return this.stopInner(systemId, id, true);
+                    });
+
+                    await Promise.all(promises);
+                    return promises[0];
+                }
+            }
+        }
+        return this.stopInner(systemId, instanceId, true);
+    }
+
+    private async stopInner(systemId: string, instanceId: string, changeDesired: boolean = false) {
+        return this.exclusive(systemId, instanceId, async () => {
+            systemId = normalizeKapetaUri(systemId);
+            const instance = this.getInstance(systemId, instanceId);
+            if (!instance) {
+                return;
+            }
+
+            if (instance.status === InstanceStatus.STOPPED) {
+                return;
+            }
+
+            if (instance.status === InstanceStatus.STOPPING) {
+                return;
+            }
+
+            if (changeDesired && instance.desiredStatus !== DesiredInstanceStatus.EXTERNAL) {
+                instance.desiredStatus = DesiredInstanceStatus.STOP;
+            }
+
+            instance.status = InstanceStatus.STOPPING;
+
+            socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+            console.log(
+                'Stopping instance: %s::%s [desired: %s] [intentional: %s]',
+                systemId,
+                instanceId,
+                instance.desiredStatus,
+                changeDesired
+            );
+            this.save();
+
+            try {
+                if (instance.type === 'docker') {
+                    const containerName = await getBlockInstanceContainerName(instance.systemId, instance.instanceId);
+                    const container = await containerManager.getContainerByName(containerName);
+                    if (container) {
+                        try {
+                            await container.stop();
+                            instance.status = InstanceStatus.STOPPED;
+                            socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+                            this.save();
+                        } catch (e) {
+                            console.error('Failed to stop container', e);
+                        }
+                    } else {
+                        console.warn('Container not found', containerName);
+                    }
+                    return;
+                }
+
+                if (!instance.pid) {
+                    instance.status = InstanceStatus.STOPPED;
+                    this.save();
+                    return;
+                }
+
+                process.kill(instance.pid as number, 'SIGTERM');
+                instance.status = InstanceStatus.STOPPED;
+                socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
+                this.save();
+            } catch (e) {
+                console.error('Failed to stop process', e);
+            }
+        });
+    }
+
+    public async start(
+        systemId: string,
+        instanceId: string,
+        checkForSingleton: boolean = true
+    ): Promise<InstanceInfo | Task<InstanceInfo>> {
+        systemId = normalizeKapetaUri(systemId);
+        const blockInstance = await assetManager.getBlockInstance(systemId, instanceId);
+        const blockRef = normalizeKapetaUri(blockInstance.block.ref);
+
+        const blockAsset = await assetManager.getAsset(blockRef, true);
+        if (!blockAsset) {
+            throw new Error('Block not found: ' + blockRef);
+        }
+
+        if (checkForSingleton && (await this.isSingletonOperator(blockAsset))) {
+            const instances = await this.getAllInstancesForKind(systemId, blockAsset.data.kind);
+            if (instances.length > 1) {
+                const promises = instances.map((id) => {
+                    return this.start(systemId, id, false);
+                });
+
+                await Promise.all(promises);
+                return promises[0];
+            }
+        }
+
+        return this.exclusive(systemId, instanceId, async () => {
+            let existingInstance = this.getInstance(systemId, instanceId);
 
             if (existingInstance && existingInstance.pid) {
+                const container = await containerManager.get(existingInstance.pid as string);
+                if (!container) {
+                    // The container is not running
+                    existingInstance = undefined;
+                }
+            }
+
+            if (existingInstance?.pid) {
                 if (existingInstance.status === InstanceStatus.READY) {
                     // Instance is already running
                     return existingInstance;
@@ -544,7 +594,7 @@ export class InstanceManager {
                         return Promise.resolve();
                     }
 
-                    if (KIND_OPERATOR.toLowerCase() !== asset.definition.kind.toLowerCase()) {
+                    if (KIND_RESOURCE_OPERATOR.toLowerCase() !== asset.definition.kind.toLowerCase()) {
                         // Not an operator
                         return Promise.resolve();
                     }
@@ -554,7 +604,7 @@ export class InstanceManager {
                         return Promise.resolve();
                     }
                     console.log('Ensuring resource: %s in %s', consumerUri.id, systemId);
-                    return operatorManager.ensureResource(systemId, consumerUri.fullName, consumerUri.version);
+                    return operatorManager.ensureOperator(systemId, consumerUri.fullName, consumerUri.version);
                 });
 
                 await Promise.all(promises);
@@ -638,6 +688,8 @@ export class InstanceManager {
      */
     public async prepareForRestart(systemId: string, instanceId: string) {
         systemId = normalizeKapetaUri(systemId);
+
+        console.log('Stopping instance during restart...', systemId, instanceId);
         await this.stopInner(systemId, instanceId);
     }
 
@@ -671,8 +723,14 @@ export class InstanceManager {
         while (all.length > 0) {
             // Check a few instances at a time - docker doesn't like too many concurrent requests
             const chunk = all.splice(0, 30);
-            const promises = chunk.map(async (instance) => {
-                if (!instance.systemId) {
+            const promises = chunk.map(async (oldInstance) => {
+                if (!oldInstance.systemId) {
+                    return;
+                }
+
+                // Grab the latest here
+                const instance = this.getInstance(oldInstance.systemId, oldInstance.instanceId);
+                if (!instance) {
                     return;
                 }
 
@@ -789,6 +847,11 @@ export class InstanceManager {
                 ) {
                     //If the instance is running but we want it to stop, stop it
                     try {
+                        console.log(
+                            'Stopping instance since it is its desired state',
+                            instance.systemId,
+                            instance.instanceId
+                        );
                         await this.stopInner(instance.systemId, instance.instanceId);
                     } catch (e) {
                         console.warn('Failed to stop instance', instance.systemId, instance.instanceId, e);
@@ -823,7 +886,7 @@ export class InstanceManager {
 
     private async getExternalStatus(instance: InstanceInfo): Promise<InstanceStatus> {
         if (instance.type === InstanceType.DOCKER) {
-            const containerName = getBlockInstanceContainerName(instance.systemId, instance.instanceId);
+            const containerName = await getBlockInstanceContainerName(instance.systemId, instance.instanceId);
             const container = await containerManager.getContainerByName(containerName);
             if (!container) {
                 // If the container doesn't exist, we consider the instance stopped
@@ -931,6 +994,53 @@ export class InstanceManager {
                 resolve(InstanceStatus.READY);
             });
         });
+    }
+
+    private async isSingletonOperator(blockAsset: EnrichedAsset): Promise<boolean> {
+        const provider = await assetManager.getAsset(blockAsset.data.kind);
+        if (!provider) {
+            return false;
+        }
+
+        if (parseKapetaUri(provider.kind).fullName === KIND_BLOCK_OPERATOR) {
+            const localConfig = provider.data.spec.local as LocalImageOptions;
+            return localConfig.singleton ?? false;
+        }
+
+        return false;
+    }
+
+    private async getKindForAssetRef(assetRef: string): Promise<string | null> {
+        const block = await assetManager.getAsset(assetRef);
+        if (!block) {
+            return null;
+        }
+
+        return block.data.kind;
+    }
+
+    private async isUsingKind(ref: string, kind: string): Promise<boolean> {
+        const assetKind = await this.getKindForAssetRef(ref);
+        if (!assetKind) {
+            return false;
+        }
+
+        return parseKapetaUri(assetKind).fullName === parseKapetaUri(kind).fullName;
+    }
+
+    private async getAllInstancesForKind(systemId: string, kind: string): Promise<string[]> {
+        const plan = await assetManager.getPlan(systemId);
+        if (!plan?.spec?.blocks) {
+            return [];
+        }
+        const out: string[] = [];
+        for (const block of plan.spec.blocks) {
+            if (await this.isUsingKind(block.block.ref, kind)) {
+                out.push(block.id);
+            }
+        }
+
+        return out;
     }
 }
 
