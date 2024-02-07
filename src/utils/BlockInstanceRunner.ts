@@ -48,17 +48,24 @@ async function getProvider(uri: KapetaURI) {
 }
 
 export function resolvePortType(portType: string) {
-    if (HTTP_PORTS.includes(portType)) {
+    if (portType && HTTP_PORTS.includes(portType.toLowerCase())) {
         return HTTP_PORT_TYPE;
     }
     return portType;
 }
 
-function getProviderPorts(assetVersion: DefinitionInfo, providerVersion: DefinitionInfo): string[] {
+/**
+ * Get the port types for a non-operator block instance
+ */
+function getServiceProviderPorts(assetVersion: DefinitionInfo, providerVersion: DefinitionInfo): string[] {
     const out =
         assetVersion.definition?.spec?.providers
+            ?.filter((provider: any) => {
+                // We only support HTTP provider ports for now. Need to figure out how to handle other types
+                return HTTP_PORTS.includes(provider.spec?.port?.type?.toLowerCase());
+            })
             ?.map((provider: any) => {
-                return resolvePortType(provider.spec?.port?.type);
+                return resolvePortType(provider.spec?.port?.type?.toLowerCase());
             })
             .filter((t: any) => !!t) ?? [];
 
@@ -137,7 +144,7 @@ export class BlockInstanceRunner {
             processInfo = await this._startOperatorProcess(blockInstance, blockUri, providerVersion, env);
         } else {
             //We need a port type to know how to connect to the block consistently
-            const portTypes = getProviderPorts(assetVersion, providerVersion);
+            const portTypes = getServiceProviderPorts(assetVersion, providerVersion);
 
             if (blockUri.version === 'local') {
                 processInfo = await this._startLocalProcess(blockInstance, blockUri, env, assetVersion);
@@ -217,7 +224,7 @@ export class BlockInstanceRunner {
         delete localContainer.Labels;
         delete localContainer.Env;
 
-        const { PortBindings, ExposedPorts, addonEnv } = await this.getDockerPortBindings(
+        const { PortBindings, ExposedPorts, addonEnv } = await this.getServiceBlockPortBindings(
             blockInstance,
             assetVersion,
             providerVersion
@@ -317,7 +324,7 @@ export class BlockInstanceRunner {
             throw new Error(`Block type not found: ${kindUri.id}`);
         }
 
-        const { PortBindings, ExposedPorts, addonEnv } = await this.getDockerPortBindings(
+        const { PortBindings, ExposedPorts, addonEnv } = await this.getServiceBlockPortBindings(
             blockInstance,
             assetVersion,
             providerVersion
@@ -497,7 +504,10 @@ export class BlockInstanceRunner {
         return task.wait();
     }
 
-    private async getDockerPortBindings(
+    /**
+     * Get the port bindings for a non-operator block
+     */
+    private async getServiceBlockPortBindings(
         blockInstance: BlockProcessParams,
         assetVersion: DefinitionInfo,
         providerVersion: DefinitionInfo
@@ -507,7 +517,7 @@ export class BlockInstanceRunner {
         const addonEnv: StringMap = {};
         const PortBindings: AnyMap = {};
 
-        const portTypes = getProviderPorts(assetVersion, providerVersion);
+        const portTypes = getServiceProviderPorts(assetVersion, providerVersion);
         let port = 80;
         const promises = portTypes.map(async (portType) => {
             const publicPort = await serviceManager.ensureServicePort(this._systemId, blockInstance.id, portType);
