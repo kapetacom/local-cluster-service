@@ -1,3 +1,10 @@
+## [0.36.1](https://github.com/kapetacom/local-cluster-service/compare/v0.36.0...v0.36.1) (2024-02-07)
+
+
+### Bug Fixes
+
+* Ensure consistent naming for containers ([#124](https://github.com/kapetacom/local-cluster-service/issues/124)) ([f6041e7](https://github.com/kapetacom/local-cluster-service/commit/f6041e781797aa76a44dc9fb1f9f37c6d926a079))
+
 # [0.36.0](https://github.com/kapetacom/local-cluster-service/compare/v0.35.0...v0.36.0) (2024-02-06)
 
 
