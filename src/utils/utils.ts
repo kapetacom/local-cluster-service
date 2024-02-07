@@ -11,7 +11,7 @@ import _ from 'lodash';
 import { AnyMap, PortInfo } from '../types';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { definitionsManager } from '../definitionsManager';
-import { parseKapetaUri } from '@kapeta/nodejs-utils';
+import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { KIND_BLOCK_OPERATOR } from '../operatorManager';
 import { assetManager } from '../assetManager';
 
@@ -35,10 +35,10 @@ export async function getBlockInstanceContainerName(systemId: string, instanceId
         parseKapetaUri(typeDefinition.definition.kind).fullName === KIND_BLOCK_OPERATOR &&
         typeDefinition.definition.spec?.local?.singleton
     ) {
-        return `kapeta-instance-operator-${md5(systemId + blockType)}`;
+        return `kapeta-instance-operator-${md5(normalizeKapetaUri(systemId) + normalizeKapetaUri(blockType))}`;
     }
 
-    return `kapeta-block-instance-${md5(systemId + instanceId)}`;
+    return `kapeta-block-instance-${md5(normalizeKapetaUri(systemId) + instanceId)}`;
 }
 
 export function toPortInfo(port: PortInfo) {
