@@ -18,13 +18,20 @@ import {
 } from '../containerManager';
 import { LogData } from './LogData';
 import { clusterService } from '../clusterService';
-import { AnyMap, BlockProcessParams, InstanceType, LocalImageOptions, ProcessInfo, StringMap } from '../types';
+import {
+    AnyMap,
+    BlockProcessParams,
+    InstanceType,
+    KIND_BLOCK_OPERATOR,
+    LocalImageOptions,
+    ProcessInfo,
+    StringMap,
+} from '../types';
 import { definitionsManager } from '../definitionsManager';
 import Docker from 'dockerode';
 import OS from 'node:os';
 import { taskManager } from '../taskManager';
 
-const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
 const KAPETA_BLOCK_REF = 'KAPETA_BLOCK_REF';
 const KAPETA_INSTANCE_ID = 'KAPETA_INSTANCE_ID';
@@ -140,7 +147,7 @@ export class BlockInstanceRunner {
 
         let processInfo: ProcessInfo;
 
-        if (providerVersion.definition.kind === KIND_BLOCK_TYPE_OPERATOR) {
+        if (providerVersion.definition.kind === KIND_BLOCK_OPERATOR) {
             processInfo = await this._startOperatorProcess(blockInstance, blockUri, providerVersion, env);
         } else {
             //We need a port type to know how to connect to the block consistently

@@ -25,6 +25,8 @@ import {
     InstanceOwner,
     InstanceStatus,
     InstanceType,
+    KIND_BLOCK_OPERATOR,
+    KIND_RESOURCE_OPERATOR,
     LocalImageOptions,
     LogEntry,
     OperatorInstanceInfo,
@@ -32,7 +34,7 @@ import {
 } from './types';
 import { BlockDefinitionSpec, BlockInstance, Plan } from '@kapeta/schemas';
 import { getBlockInstanceContainerName, getResolvedConfiguration } from './utils/utils';
-import { KIND_BLOCK_OPERATOR, KIND_RESOURCE_OPERATOR, operatorManager } from './operatorManager';
+import { operatorManager } from './operatorManager';
 import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';

@@ -8,6 +8,11 @@ import { Connection, Resource } from '@kapeta/schemas';
 import { StringBodyRequest } from './middleware/stringBody';
 import { KapetaRequest } from './middleware/kapeta';
 
+export const KIND_RESOURCE_OPERATOR = 'core/resource-type-operator';
+export const KIND_BLOCK_OPERATOR = 'core/block-type-operator';
+export const KIND_BLOCK_TYPE = 'core/block-type';
+export const KIND_BLOCK_EXECUTABLE = 'core/block-type-executable';
+
 export type StringMap = { [key: string]: string };
 export type AnyMap = { [key: string]: any };
 export type SourceOfChange = 'user' | 'filesystem';
