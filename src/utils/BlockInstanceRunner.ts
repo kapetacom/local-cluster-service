@@ -22,7 +22,7 @@ import {
     AnyMap,
     BlockProcessParams,
     InstanceType,
-    KIND_BLOCK_OPERATOR,
+    KIND_BLOCK_TYPE_OPERATOR,
     LocalImageOptions,
     ProcessInfo,
     StringMap,
@@ -147,7 +147,7 @@ export class BlockInstanceRunner {
 
         let processInfo: ProcessInfo;
 
-        if (providerVersion.definition.kind === KIND_BLOCK_OPERATOR) {
+        if (providerVersion.definition.kind === KIND_BLOCK_TYPE_OPERATOR) {
             processInfo = await this._startOperatorProcess(blockInstance, blockUri, providerVersion, env);
         } else {
             //We need a port type to know how to connect to the block consistently

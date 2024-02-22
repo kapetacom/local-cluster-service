@@ -25,8 +25,8 @@ import {
     InstanceOwner,
     InstanceStatus,
     InstanceType,
-    KIND_BLOCK_EXECUTABLE,
-    KIND_BLOCK_OPERATOR,
+    KIND_BLOCK_TYPE_EXECUTABLE,
+    KIND_BLOCK_TYPE_OPERATOR,
     KIND_RESOURCE_OPERATOR,
     LocalImageOptions,
     LogEntry,
@@ -318,7 +318,7 @@ export class InstanceManager {
             async () => {
                 const promises: Promise<InstanceInfo>[] = [];
                 const errors = [];
-                const instanceIds = await this.getAllInstancesExceptKind(systemId, KIND_BLOCK_EXECUTABLE);
+                const instanceIds = await this.getAllInstancesExceptKind(systemId, KIND_BLOCK_TYPE_EXECUTABLE);
                 for (const instanceId of instanceIds) {
                     try {
                         promises.push(
@@ -1012,7 +1012,7 @@ export class InstanceManager {
             return false;
         }
 
-        if (parseKapetaUri(provider.kind).fullName === KIND_BLOCK_OPERATOR) {
+        if (parseKapetaUri(provider.kind).fullName === KIND_BLOCK_TYPE_OPERATOR) {
             const localConfig = provider.data.spec.local as LocalImageOptions;
             return localConfig.singleton ?? false;
         }

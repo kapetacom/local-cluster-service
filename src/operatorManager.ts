@@ -19,7 +19,7 @@ import FSExtra from 'fs-extra';
 import {
     AnyMap,
     EnvironmentType,
-    KIND_BLOCK_OPERATOR,
+    KIND_BLOCK_TYPE_OPERATOR,
     KIND_RESOURCE_OPERATOR,
     LocalImageOptions,
     OperatorInfo,
@@ -74,7 +74,7 @@ class OperatorManager {
      * Get operator definition for resource type
      */
     async getOperator(fullName: string, version: string) {
-        const operators = await definitionsManager.getDefinitions([KIND_RESOURCE_OPERATOR, KIND_BLOCK_OPERATOR]);
+        const operators = await definitionsManager.getDefinitions([KIND_RESOURCE_OPERATOR, KIND_BLOCK_TYPE_OPERATOR]);
 
         const operator: DefinitionInfo | undefined = operators.find(
             (operator) =>
