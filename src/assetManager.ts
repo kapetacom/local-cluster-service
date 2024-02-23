@@ -15,7 +15,7 @@ import { BlockDefinition, BlockInstance, Plan } from '@kapeta/schemas';
 import { Actions } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
 import { taskManager } from './taskManager';
-import { SourceOfChange } from './types';
+import { KIND_BLOCK_TYPE_EXECUTABLE, KIND_BLOCK_TYPE_OPERATOR, KIND_BLOCK_TYPE, SourceOfChange } from './types';
 import { cacheManager } from './cacheManager';
 import uuid from 'node-uuid';
 import os from 'node:os';
@@ -94,8 +94,9 @@ class AssetManager {
     async getAssets(assetKinds?: string[]): Promise<EnrichedAsset[]> {
         if (!assetKinds) {
             const blockTypeProviders = await definitionsManager.getDefinitions([
-                'core/block-type',
-                'core/block-type-operator',
+                KIND_BLOCK_TYPE,
+                KIND_BLOCK_TYPE_OPERATOR,
+                KIND_BLOCK_TYPE_EXECUTABLE,
             ]);
             assetKinds = blockTypeProviders.map((p) => {
                 return `${p.definition.metadata.name}:${p.version}`;

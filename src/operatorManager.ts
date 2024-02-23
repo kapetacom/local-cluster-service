@@ -16,7 +16,15 @@ import {
     containerManager,
 } from './containerManager';
 import FSExtra from 'fs-extra';
-import { AnyMap, EnvironmentType, LocalImageOptions, OperatorInfo, StringMap } from './types';
+import {
+    AnyMap,
+    EnvironmentType,
+    KIND_BLOCK_TYPE_OPERATOR,
+    KIND_RESOURCE_OPERATOR,
+    LocalImageOptions,
+    OperatorInfo,
+    StringMap,
+} from './types';
 import { BlockInstance, Resource } from '@kapeta/schemas';
 import { definitionsManager } from './definitionsManager';
 import { getBindHost, toPortInfo } from './utils/utils';
@@ -25,8 +33,6 @@ import _ from 'lodash';
 import AsyncLock from 'async-lock';
 import { taskManager } from './taskManager';
 
-export const KIND_RESOURCE_OPERATOR = 'core/resource-type-operator';
-export const KIND_BLOCK_OPERATOR = 'core/block-type-operator';
 const KIND_PLAN = 'core/plan';
 
 class Operator {
@@ -68,7 +74,7 @@ class OperatorManager {
      * Get operator definition for resource type
      */
     async getOperator(fullName: string, version: string) {
-        const operators = await definitionsManager.getDefinitions([KIND_RESOURCE_OPERATOR, KIND_BLOCK_OPERATOR]);
+        const operators = await definitionsManager.getDefinitions([KIND_RESOURCE_OPERATOR, KIND_BLOCK_TYPE_OPERATOR]);
 
         const operator: DefinitionInfo | undefined = operators.find(
             (operator) =>

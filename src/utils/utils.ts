@@ -8,11 +8,10 @@ import YAML from 'yaml';
 import md5 from 'md5';
 import { EntityList } from '@kapeta/schemas';
 import _ from 'lodash';
-import { AnyMap, PortInfo } from '../types';
+import { AnyMap, KIND_BLOCK_TYPE_OPERATOR, PortInfo } from '../types';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { definitionsManager } from '../definitionsManager';
 import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
-import { KIND_BLOCK_OPERATOR } from '../operatorManager';
 import { assetManager } from '../assetManager';
 
 export async function getBlockInstanceContainerName(systemId: string, instanceId: string, blockType?: string) {
@@ -32,7 +31,7 @@ export async function getBlockInstanceContainerName(systemId: string, instanceId
         throw new Error(`Block type ${blockType} not found`);
     }
     if (
-        parseKapetaUri(typeDefinition.definition.kind).fullName === KIND_BLOCK_OPERATOR &&
+        parseKapetaUri(typeDefinition.definition.kind).fullName === KIND_BLOCK_TYPE_OPERATOR &&
         typeDefinition.definition.spec?.local?.singleton
     ) {
         return `kapeta-instance-operator-${md5(normalizeKapetaUri(systemId) + normalizeKapetaUri(blockType))}`;

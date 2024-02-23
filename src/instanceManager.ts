@@ -25,6 +25,9 @@ import {
     InstanceOwner,
     InstanceStatus,
     InstanceType,
+    KIND_BLOCK_TYPE_EXECUTABLE,
+    KIND_BLOCK_TYPE_OPERATOR,
+    KIND_RESOURCE_OPERATOR,
     LocalImageOptions,
     LogEntry,
     OperatorInstanceInfo,
@@ -32,7 +35,7 @@ import {
 } from './types';
 import { BlockDefinitionSpec, BlockInstance, Plan } from '@kapeta/schemas';
 import { getBlockInstanceContainerName, getResolvedConfiguration } from './utils/utils';
-import { KIND_BLOCK_OPERATOR, KIND_RESOURCE_OPERATOR, operatorManager } from './operatorManager';
+import { operatorManager } from './operatorManager';
 import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
@@ -313,12 +316,13 @@ export class InstanceManager {
         return taskManager.add(
             `plan:start:${systemId}`,
             async () => {
-                let promises: Promise<InstanceInfo>[] = [];
-                let errors = [];
-                for (let blockInstance of Object.values(plan.spec.blocks as BlockInstance[])) {
+                const promises: Promise<InstanceInfo>[] = [];
+                const errors = [];
+                const instanceIds = await this.getAllInstancesExceptKind(systemId, KIND_BLOCK_TYPE_EXECUTABLE);
+                for (const instanceId of instanceIds) {
                     try {
                         promises.push(
-                            this.start(systemId, blockInstance.id).then((taskOrInstance) => {
+                            this.start(systemId, instanceId).then((taskOrInstance) => {
                                 if (taskOrInstance instanceof Task) {
                                     return taskOrInstance.wait();
                                 }
@@ -1008,7 +1012,7 @@ export class InstanceManager {
             return false;
         }
 
-        if (parseKapetaUri(provider.kind).fullName === KIND_BLOCK_OPERATOR) {
+        if (parseKapetaUri(provider.kind).fullName === KIND_BLOCK_TYPE_OPERATOR) {
             const localConfig = provider.data.spec.local as LocalImageOptions;
             return localConfig.singleton ?? false;
         }
@@ -1023,6 +1027,37 @@ export class InstanceManager {
         }
 
         return block.data.kind;
+    }
+
+    /**
+     * Get the kind of an asset. Use the maxDepth parameter to specify how deep to look for the
+     * kind. For example, if maxDepth is 2, the method will look for the kind of the asset and then
+     * the kind of the kind.
+     * @param assetRef The asset reference
+     * @param maxDepth The maximum depth to look for the kind
+     * @returns The kind of the asset or null if not found
+     */
+    private async getDeepKindForAssetRef(assetRef: string, maxDepth: number): Promise<string | null> {
+        if (maxDepth <= 0) {
+            return null;
+        }
+
+        try {
+            const asset = await assetManager.getAsset(assetRef);
+            if (!asset || !asset.data.kind) {
+                return null;
+            }
+
+            if (maxDepth === 1) {
+                return asset.data.kind;
+            } else {
+                // Recurse with the kind of the current block and one less depth
+                return await this.getDeepKindForAssetRef(asset.data.kind, maxDepth - 1);
+            }
+        } catch (error) {
+            console.error('Error fetching kind for assetRef:', assetRef, error);
+            return null;
+        }
     }
 
     private async isUsingKind(ref: string, kind: string): Promise<boolean> {
@@ -1042,6 +1077,36 @@ export class InstanceManager {
         const out: string[] = [];
         for (const block of plan.spec.blocks) {
             if (await this.isUsingKind(block.block.ref, kind)) {
+                out.push(block.id);
+            }
+        }
+
+        return out;
+    }
+
+    /**
+     * Get the ids for all block instances except the ones of the specified kind
+     * @param systemId The plan reference id
+     * @param kind The kind to exclude. Can be a string or an array of strings
+     * @returns An array of block instance ids
+     */
+    private async getAllInstancesExceptKind(systemId: string, kind: string | string[]): Promise<string[]> {
+        const plan = await assetManager.getPlan(systemId);
+        if (!plan?.spec?.blocks) {
+            return [];
+        }
+        const out: string[] = [];
+        const excludedKinds = kind instanceof Array ? kind : [kind];
+        for (const block of plan.spec.blocks) {
+            const blockKindOfKind = await this.getDeepKindForAssetRef(block.block.ref, 2);
+            if (!blockKindOfKind) {
+                continue;
+            }
+
+            const shouldIncludeBlock =
+                excludedKinds.some((excludedKind) => excludedKind === parseKapetaUri(blockKindOfKind).fullName) ===
+                false;
+            if (shouldIncludeBlock) {
                 out.push(block.id);
             }
         }

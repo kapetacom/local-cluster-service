@@ -18,13 +18,20 @@ import {
 } from '../containerManager';
 import { LogData } from './LogData';
 import { clusterService } from '../clusterService';
-import { AnyMap, BlockProcessParams, InstanceType, LocalImageOptions, ProcessInfo, StringMap } from '../types';
+import {
+    AnyMap,
+    BlockProcessParams,
+    InstanceType,
+    KIND_BLOCK_TYPE_OPERATOR,
+    LocalImageOptions,
+    ProcessInfo,
+    StringMap,
+} from '../types';
 import { definitionsManager } from '../definitionsManager';
 import Docker from 'dockerode';
 import OS from 'node:os';
 import { taskManager } from '../taskManager';
 
-const KIND_BLOCK_TYPE_OPERATOR = 'core/block-type-operator';
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
 const KAPETA_BLOCK_REF = 'KAPETA_BLOCK_REF';
 const KAPETA_INSTANCE_ID = 'KAPETA_INSTANCE_ID';
