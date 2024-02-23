@@ -1,3 +1,17 @@
+# [0.37.0](https://github.com/kapetacom/local-cluster-service/compare/v0.36.1...v0.37.0) (2024-02-23)
+
+
+### Bug Fixes
+
+* Self review ([50bd377](https://github.com/kapetacom/local-cluster-service/commit/50bd377c41f132fd3f61afb1fc74b823bf60729f))
+* Start debugger as "npm run dev" ([44b745a](https://github.com/kapetacom/local-cluster-service/commit/44b745af75e333056f7b187680f43c786461eb1d))
+
+
+### Features
+
+* Add block-type-executabla ([7426433](https://github.com/kapetacom/local-cluster-service/commit/742643358022c0eb3b6065a42abba00e27dfc2e8))
+* Do not attempt to start instances of kind 'core/block-type-executable' ([9239eaf](https://github.com/kapetacom/local-cluster-service/commit/9239eafc117c98fa215b67e2dd99f5d8f18c2881))
+
 ## [0.36.1](https://github.com/kapetacom/local-cluster-service/compare/v0.36.0...v0.36.1) (2024-02-07)
 
 
