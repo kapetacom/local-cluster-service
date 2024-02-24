@@ -25,7 +25,6 @@ export async function getBlockInstanceContainerName(systemId: string, instanceId
             throw new Error(`Block ${instance.block.ref} not found`);
         }
         blockType = block.data.kind;
-        console.log('Resolved block kind for instance', blockType, instance.block.ref, instanceId, systemId);
     }
     const typeDefinition = await definitionsManager.getDefinition(blockType);
     if (!typeDefinition) {

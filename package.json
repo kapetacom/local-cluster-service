@@ -35,7 +35,8 @@
     },
     "scripts": {
         "start": "node ./dist/cjs/start.js",
-        "dev": "nodemon -e js,ts,json ./start.ts",
+        "dev": "npm run start:dev",
+        "start:dev": "nodemon -e js,ts,json ./start.ts",
         "test": "jest",
         "clean": "rm -rf ./dist",
         "build:esm": "tsc --module nodenext --moduleResolution nodenext --outDir ./dist/esm && echo '{\"type\":\"module\"}' > ./dist/esm/package.json",

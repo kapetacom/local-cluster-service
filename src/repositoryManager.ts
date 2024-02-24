@@ -10,7 +10,7 @@ import { Actions, AssetVersion, Config, RegistryService } from '@kapeta/nodejs-r
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
 import { normalizeKapetaUri, parseKapetaUri, parseVersion } from '@kapeta/nodejs-utils';
-import { ProgressListener } from './progressListener';
+import { TaskProgressListener } from './progressListener';
 import { RepositoryWatcher } from './RepositoryWatcher';
 import { SourceOfChange } from './types';
 import { cacheManager } from './cacheManager';
@@ -191,16 +191,18 @@ class RepositoryManager extends EventEmitter {
     private async scheduleInstallation(refs: string[]): Promise<Task[]> {
         //We make sure to only install one asset at a time - otherwise unexpected things might happen
         const createInstaller = (ref: string) => {
-            return async () => {
+            return async (task: Task) => {
                 if (await definitionsManager.exists(ref)) {
                     return;
                 }
+
+                const progressListener = new TaskProgressListener(task);
                 //console.log(`Installing asset: ${ref}`);
                 //Auto-install missing asset
                 try {
                     //We change to a temp dir to avoid issues with the current working directory
                     process.chdir(os.tmpdir());
-                    await Actions.install(new ProgressListener(), [ref], {});
+                    await Actions.install(progressListener, [ref], {});
                 } catch (e) {
                     console.error(`Failed to install asset: ${ref}`, e);
                     throw e;

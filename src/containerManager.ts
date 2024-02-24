@@ -19,7 +19,6 @@ import { KapetaAPI } from '@kapeta/nodejs-api-client';
 import { taskManager, Task } from './taskManager';
 import { EventEmitter } from 'node:events';
 import StreamValues from 'stream-json/streamers/StreamValues';
-import { Stream } from 'stream';
 import { LocalInstanceHealth } from '@kapeta/schemas';
 
 type StringMap = { [key: string]: string };
@@ -101,7 +100,7 @@ enum DockerPullEventTypes {
 
 type DockerPullEventType = DockerPullEventTypes | string;
 
-const processJsonStream = <T>(purpose: string, stream: Stream, handler: (d: JSONMessage<T>) => void) =>
+const processJsonStream = <T>(purpose: string, stream: NodeJS.ReadableStream, handler: (d: JSONMessage<T>) => void) =>
     new Promise<void>((resolve, reject) => {
         const jsonStream = StreamValues.withParser();
         jsonStream.on('data', (data: any) => {
@@ -297,15 +296,8 @@ class ContainerManager {
     }
 
     async getContainerByName(containerName: string): Promise<ContainerInfo | undefined> {
-        const containers = await this.docker().listContainers({ all: true });
-        const out = containers.find((container) => {
-            return container.Names.indexOf(`/${containerName}`) > -1;
-        });
-
-        if (out) {
-            return this.get(out.Id);
-        }
-        return undefined;
+        // The container can be fetched by name or by id using the same API call
+        return this.get(containerName);
     }
 
     async pull(image: string) {
@@ -398,6 +390,11 @@ class ContainerManager {
                 }
 
                 const chunk = chunks[data.id];
+
+                if (data.stream) {
+                    // Emit raw output to the task log
+                    task.addLog(data.stream);
+                }
 
                 switch (data.status) {
                     case DockerPullEventTypes.PreparingPhase:
@@ -680,7 +677,7 @@ class ContainerManager {
         let dockerContainer = null;
 
         try {
-            dockerContainer = await this.docker().getContainer(name);
+            dockerContainer = this.docker().getContainer(name);
             await dockerContainer.stats();
         } catch (err) {
             //Ignore
@@ -708,7 +705,7 @@ class ContainerManager {
             ];
         }
 
-        return containerInfo.getLogs();
+        return await containerInfo.getLogs();
     }
 
     async stopLogListening(systemId: string, instanceId: string) {
@@ -782,6 +779,34 @@ class ContainerManager {
         } catch (err) {
             // Ignore
         }
+    }
+
+    buildDockerImage(dockerFile: string, imageName: string) {
+        const taskName = `Building docker image: ${imageName}`;
+        const processor = async (task: Task) => {
+            const timeStarted = Date.now();
+            const stream = await this.docker().buildImage(
+                {
+                    context: Path.dirname(dockerFile),
+                    src: [Path.basename(dockerFile)],
+                },
+                {
+                    t: imageName,
+                    dockerfile: Path.basename(dockerFile),
+                }
+            );
+
+            await processJsonStream<string>(`image:build:${imageName}`, stream, (data) => {
+                if (data.stream) {
+                    // Emit raw output to the task log
+                    task.addLog(data.stream);
+                }
+            });
+        };
+
+        return taskManager.add(`docker:image:build:${imageName}`, processor, {
+            name: taskName,
+        });
     }
 }
 
@@ -1039,17 +1064,78 @@ export class ContainerInfo {
         });
 
         const out = readLogBuffer(logs);
-
-        if (out.length === 0) {
-            out.push({
-                time: Date.now(),
-                message: 'No logs found for container',
-                level: 'INFO',
-                source: 'stdout',
-            });
+        if (out.length > 0) {
+            return out;
         }
 
-        return out;
+        const status = await this.status();
+        const healthLogs: LogEntry[] = status?.Health?.Log
+            ? status?.Health?.Log.map((log) => {
+                  return {
+                      source: 'stdout',
+                      level: log.ExitCode === 0 ? 'INFO' : 'ERROR',
+                      time: Date.now(),
+                      message: 'Health check: ' + log.Output,
+                  };
+              })
+            : [];
+
+        if (status?.Running) {
+            return [
+                {
+                    source: 'stdout',
+                    level: 'INFO',
+                    time: Date.now(),
+                    message: 'Container is starting...',
+                },
+                ...healthLogs,
+            ];
+        }
+
+        if (status?.Restarting) {
+            return [
+                {
+                    source: 'stdout',
+                    level: 'INFO',
+                    time: Date.now(),
+                    message: 'Container is restarting...',
+                },
+                ...healthLogs,
+            ];
+        }
+        if (status?.Paused) {
+            return [
+                {
+                    source: 'stdout',
+                    level: 'INFO',
+                    time: Date.now(),
+                    message: 'Container is paused...',
+                },
+                ...healthLogs,
+            ];
+        }
+
+        if (status?.Error) {
+            return [
+                {
+                    source: 'stderr',
+                    level: 'ERROR',
+                    time: Date.now(),
+                    message: 'Container failed to start:\n' + status.Error,
+                },
+                ...healthLogs,
+            ];
+        }
+
+        return [
+            {
+                source: 'stdout',
+                level: 'INFO',
+                time: Date.now(),
+                message: 'Container not running',
+                ...healthLogs,
+            },
+        ];
     }
 }
 

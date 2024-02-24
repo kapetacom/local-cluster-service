@@ -22,6 +22,7 @@ import { AnyMap, BlockProcessParams, InstanceType, KIND_BLOCK_TYPE_OPERATOR, Pro
 import { definitionsManager } from '../definitionsManager';
 import Docker from 'dockerode';
 import OS from 'node:os';
+import Path from 'node:path';
 import { taskManager } from '../taskManager';
 import { LocalDevContainer, LocalInstance } from '@kapeta/schemas';
 
@@ -182,6 +183,8 @@ export class BlockInstanceRunner {
             throw new Error('Missing target kind in block definition');
         }
 
+        const realLocalPath = await FSExtra.realpath(baseDir);
+
         const kindUri = parseKapetaUri(assetVersion.definition.kind);
 
         const providerVersion = await getProvider(kindUri);
@@ -204,9 +207,21 @@ export class BlockInstanceRunner {
             throw new Error(`Missing local container information from target: ${targetKindUri.id}`);
         }
 
-        const dockerImage = localContainer.image;
-        if (!dockerImage) {
+        let dockerImage = localContainer.image;
+        const isDockerImage = !localContainer.type || localContainer.type.toLowerCase() === 'docker';
+        const isDockerFile = Boolean(localContainer.type && localContainer.type.toLowerCase() === 'dockerfile');
+        if (isDockerImage && !dockerImage) {
             throw new Error(`Missing docker image information: ${JSON.stringify(localContainer)}`);
+        }
+
+        if (isDockerFile) {
+            dockerImage = blockInfo.fullName + ':local';
+            const dockerFile = Path.join(realLocalPath, localContainer.file ?? 'Dockerfile');
+            if (!FSExtra.existsSync(dockerFile)) {
+                throw new Error(`Dockerfile not found at: ${dockerFile}`);
+            }
+            const task = containerManager.buildDockerImage(dockerFile, blockInfo.fullName + ':local');
+            await task.wait();
         }
 
         const containerName = await getBlockInstanceContainerName(this._systemId, blockInstance.id, targetKindUri.id);
@@ -234,8 +249,6 @@ export class BlockInstanceRunner {
         if (localContainer.healthcheck) {
             HealthCheck = containerManager.toDockerHealth({ cmd: localContainer.healthcheck });
         }
-
-        const realLocalPath = await FSExtra.realpath(baseDir);
 
         const Mounts = containerManager.toDockerMounts({
             [workingDir]: toLocalBindVolume(realLocalPath),
