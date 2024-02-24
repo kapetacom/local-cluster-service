@@ -28,12 +28,11 @@ import {
     KIND_BLOCK_TYPE_EXECUTABLE,
     KIND_BLOCK_TYPE_OPERATOR,
     KIND_RESOURCE_OPERATOR,
-    LocalImageOptions,
     LogEntry,
     OperatorInstanceInfo,
     OperatorInstancePort,
 } from './types';
-import { BlockDefinitionSpec, BlockInstance, Plan } from '@kapeta/schemas';
+import { BlockDefinitionSpec, BlockInstance, LocalInstance, Plan } from '@kapeta/schemas';
 import { getBlockInstanceContainerName, getResolvedConfiguration } from './utils/utils';
 import { operatorManager } from './operatorManager';
 import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
@@ -385,7 +384,7 @@ export class InstanceManager {
             throw new Error(`Operator block has no local definition: ${blockRef}`);
         }
 
-        const localConfig = operatorDefinition.definition.spec.local as LocalImageOptions;
+        const localConfig = operatorDefinition.definition.spec.local as LocalInstance;
 
         let instance = await this.start(systemId, instanceId);
         if (instance instanceof Task) {
@@ -1013,7 +1012,7 @@ export class InstanceManager {
         }
 
         if (parseKapetaUri(provider.kind).fullName === KIND_BLOCK_TYPE_OPERATOR) {
-            const localConfig = provider.data.spec.local as LocalImageOptions;
+            const localConfig = provider.data.spec.local as LocalInstance;
             return localConfig.singleton ?? false;
         }
 

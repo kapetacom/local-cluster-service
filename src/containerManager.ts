@@ -14,12 +14,13 @@ import ClusterConfiguration from '@kapeta/local-cluster-config';
 import uuid from 'node-uuid';
 import md5 from 'md5';
 import { getBlockInstanceContainerName } from './utils/utils';
-import { Health, InstanceInfo, LogEntry, LogSource } from './types';
+import { InstanceInfo, LogEntry, LogSource } from './types';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
 import { taskManager, Task } from './taskManager';
 import { EventEmitter } from 'node:events';
 import StreamValues from 'stream-json/streamers/StreamValues';
 import { Stream } from 'stream';
+import { LocalInstanceHealth } from '@kapeta/schemas';
 
 type StringMap = { [key: string]: string };
 
@@ -529,7 +530,7 @@ class ContainerManager {
         return Mounts;
     }
 
-    toDockerHealth(health: Health) {
+    toDockerHealth(health: LocalInstanceHealth) {
         return {
             Test: ['CMD-SHELL', health.cmd],
             Interval: health.interval ? health.interval * NANO_SECOND : 5000 * NANO_SECOND,

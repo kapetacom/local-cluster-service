@@ -6,9 +6,9 @@
 import FS from 'node:fs';
 import YAML from 'yaml';
 import md5 from 'md5';
-import { EntityList } from '@kapeta/schemas';
+import { EntityList, LocalInstancePort, LocalInstancePortType } from '@kapeta/schemas';
 import _ from 'lodash';
-import { AnyMap, KIND_BLOCK_TYPE_OPERATOR, PortInfo } from '../types';
+import { AnyMap, KIND_BLOCK_TYPE_OPERATOR } from '../types';
 import ClusterConfiguration from '@kapeta/local-cluster-config';
 import { definitionsManager } from '../definitionsManager';
 import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
@@ -25,6 +25,7 @@ export async function getBlockInstanceContainerName(systemId: string, instanceId
             throw new Error(`Block ${instance.block.ref} not found`);
         }
         blockType = block.data.kind;
+        console.log('Resolved block kind for instance', blockType, instance.block.ref, instanceId, systemId);
     }
     const typeDefinition = await definitionsManager.getDefinition(blockType);
     if (!typeDefinition) {
@@ -40,13 +41,13 @@ export async function getBlockInstanceContainerName(systemId: string, instanceId
     return `kapeta-block-instance-${md5(normalizeKapetaUri(systemId) + instanceId)}`;
 }
 
-export function toPortInfo(port: PortInfo) {
+export function toPortInfo(port: LocalInstancePort) {
     if (typeof port === 'number' || typeof port === 'string') {
         return { port: parseInt(`${port}`), type: 'tcp' };
     }
 
     if (!port.type) {
-        port.type = 'tcp';
+        port.type = LocalInstancePortType.TCP;
     }
 
     return port;

@@ -18,19 +18,12 @@ import {
 } from '../containerManager';
 import { LogData } from './LogData';
 import { clusterService } from '../clusterService';
-import {
-    AnyMap,
-    BlockProcessParams,
-    InstanceType,
-    KIND_BLOCK_TYPE_OPERATOR,
-    LocalImageOptions,
-    ProcessInfo,
-    StringMap,
-} from '../types';
+import { AnyMap, BlockProcessParams, InstanceType, KIND_BLOCK_TYPE_OPERATOR, ProcessInfo, StringMap } from '../types';
 import { definitionsManager } from '../definitionsManager';
 import Docker from 'dockerode';
 import OS from 'node:os';
 import { taskManager } from '../taskManager';
+import { LocalDevContainer, LocalInstance } from '@kapeta/schemas';
 
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
 const KAPETA_BLOCK_REF = 'KAPETA_BLOCK_REF';
@@ -205,7 +198,7 @@ export class BlockInstanceRunner {
             throw new Error(`Target not found: ${targetKindUri.id}`);
         }
 
-        const localContainer = targetVersion.definition.spec.local;
+        const localContainer = targetVersion.definition.spec.local as LocalDevContainer;
 
         if (!localContainer) {
             throw new Error(`Missing local container information from target: ${targetKindUri.id}`);
@@ -391,7 +384,7 @@ export class BlockInstanceRunner {
             throw new Error(`Provider did not have local image: ${providerRef}`);
         }
 
-        const local = spec.local as LocalImageOptions;
+        const local = spec.local as LocalInstance;
 
         const dockerImage = local.image;
         const operatorUri = local.singleton ? parseKapetaUri(providerRef) : blockUri;
