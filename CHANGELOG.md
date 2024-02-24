@@ -1,3 +1,10 @@
+# [0.38.0](https://github.com/kapetacom/local-cluster-service/compare/v0.37.0...v0.38.0) (2024-02-24)
+
+
+### Features
+
+* Add support for running local dockerfiles ([2ee08c5](https://github.com/kapetacom/local-cluster-service/commit/2ee08c58eb19666834262d8011c8f901957b5f63))
+
 # [0.37.0](https://github.com/kapetacom/local-cluster-service/compare/v0.36.1...v0.37.0) (2024-02-23)
 
 
