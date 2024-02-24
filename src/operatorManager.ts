@@ -21,11 +21,10 @@ import {
     EnvironmentType,
     KIND_BLOCK_TYPE_OPERATOR,
     KIND_RESOURCE_OPERATOR,
-    LocalImageOptions,
     OperatorInfo,
     StringMap,
 } from './types';
-import { BlockInstance, Resource } from '@kapeta/schemas';
+import { BlockInstance, LocalInstance, Resource } from '@kapeta/schemas';
 import { definitionsManager } from './definitionsManager';
 import { getBindHost, toPortInfo } from './utils/utils';
 import { parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
@@ -42,7 +41,7 @@ class Operator {
         this._data = data;
     }
 
-    getLocalData(): LocalImageOptions {
+    getLocalData(): LocalInstance {
         return this._data.definition.spec.local;
     }
 

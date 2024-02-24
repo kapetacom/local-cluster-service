@@ -4,7 +4,7 @@
  */
 
 import { spawn, hasApp } from '@kapeta/nodejs-process';
-import { taskManager } from '../taskManager';
+import { Task, taskManager } from '../taskManager';
 
 export async function hasCLI() {
     return hasApp('kap');
@@ -17,9 +17,17 @@ export async function ensureCLI() {
 
     return taskManager.add(
         `cli:install`,
-        () => {
+        (task: Task) => {
             const process = spawn('npm', ['install', '-g', '@kapeta/kap'], {
                 shell: true,
+            });
+
+            process.process.stdout?.on('data', (data: any) => {
+                task.addLog(data.toString(), 'INFO');
+            });
+
+            process.process.stderr?.on('data', (data: any) => {
+                task.addLog(data.toString(), 'ERROR');
             });
 
             return process.wait();

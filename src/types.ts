@@ -73,20 +73,6 @@ export interface Health {
     retries?: number;
 }
 
-export type PortInfo = { port: number; type: 'tcp' | 'udp' } | number | string;
-
-export type LocalImageOptions<Credentials = AnyMap, Options = AnyMap> = {
-    image: string;
-    ports: { [key: string]: PortInfo };
-    credentials?: Credentials;
-    options?: Options;
-    cmd?: string;
-    env?: AnyMap;
-    health?: Health;
-    singleton?: boolean;
-    mounts?: { [key: string]: string };
-};
-
 export type InstanceInfo = {
     systemId: string;
     instanceId: string;
@@ -104,11 +90,6 @@ export type InstanceInfo = {
     pid?: number | string | null;
     portType?: string;
 };
-
-interface ResourceRef {
-    blockId: string;
-    resourceName: string;
-}
 
 export type ProxyRequestHandler = (req: StringBodyRequest, res: express.Response, info: ProxyRequestInfo) => void;
 

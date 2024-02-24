@@ -28,12 +28,11 @@ import {
     KIND_BLOCK_TYPE_EXECUTABLE,
     KIND_BLOCK_TYPE_OPERATOR,
     KIND_RESOURCE_OPERATOR,
-    LocalImageOptions,
     LogEntry,
     OperatorInstanceInfo,
     OperatorInstancePort,
 } from './types';
-import { BlockDefinitionSpec, BlockInstance, Plan } from '@kapeta/schemas';
+import { BlockDefinitionSpec, LocalInstance, Plan } from '@kapeta/schemas';
 import { getBlockInstanceContainerName, getResolvedConfiguration } from './utils/utils';
 import { operatorManager } from './operatorManager';
 import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
@@ -293,7 +292,9 @@ export class InstanceManager {
             systemId = normalizeKapetaUri(systemId);
             const instance = _.find(this._instances, { systemId, instanceId });
             if (instance && instance.owner === InstanceOwner.EXTERNAL && instance.status !== InstanceStatus.STOPPED) {
-                instance.status = InstanceStatus.STOPPED;
+                if (instance.status != InstanceStatus.FAILED) {
+                    instance.status = InstanceStatus.STOPPED;
+                }
                 instance.pid = null;
                 instance.health = null;
                 socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
@@ -385,7 +386,7 @@ export class InstanceManager {
             throw new Error(`Operator block has no local definition: ${blockRef}`);
         }
 
-        const localConfig = operatorDefinition.definition.spec.local as LocalImageOptions;
+        const localConfig = operatorDefinition.definition.spec.local as LocalInstance;
 
         let instance = await this.start(systemId, instanceId);
         if (instance instanceof Task) {
@@ -666,8 +667,7 @@ export class InstanceManager {
 
                         const out = await this.saveInternalInstance({
                             ...instance,
-                            type: InstanceType.UNKNOWN,
-                            pid: null,
+                            type: InstanceType.DOCKER,
                             health: null,
                             portType: DEFAULT_HEALTH_PORT_TYPE,
                             status: InstanceStatus.FAILED,
@@ -811,7 +811,6 @@ export class InstanceManager {
                 if (instance.status !== newStatus) {
                     const oldStatus = instance.status;
                     const skipUpdate =
-                        (newStatus === InstanceStatus.STOPPED && instance.status === InstanceStatus.FAILED) ||
                         ([InstanceStatus.READY, InstanceStatus.UNHEALTHY].includes(newStatus) &&
                             instance.status === InstanceStatus.STOPPING) ||
                         (newStatus === InstanceStatus.STOPPED &&
@@ -835,7 +834,7 @@ export class InstanceManager {
 
                 if (
                     instance.desiredStatus === DesiredInstanceStatus.RUN &&
-                    [InstanceStatus.STOPPED, InstanceStatus.FAILED, InstanceStatus.STOPPING].includes(newStatus)
+                    [InstanceStatus.STOPPED, InstanceStatus.STOPPING].includes(newStatus)
                 ) {
                     //If the instance is stopped but we want it to run, start it
                     try {
@@ -928,11 +927,18 @@ export class InstanceManager {
             }
 
             if (statusType === 'created') {
+                if (state.ExitCode !== 0) {
+                    // Failed during creation
+                    return InstanceStatus.FAILED;
+                }
                 return InstanceStatus.STARTING;
             }
 
             if (statusType === 'exited' || statusType === 'dead') {
-                return InstanceStatus.STOPPED;
+                if (state.ExitCode === 0) {
+                    return InstanceStatus.STOPPED;
+                }
+                return InstanceStatus.FAILED;
             }
 
             if (statusType === 'removing') {
@@ -1013,7 +1019,7 @@ export class InstanceManager {
         }
 
         if (parseKapetaUri(provider.kind).fullName === KIND_BLOCK_TYPE_OPERATOR) {
-            const localConfig = provider.data.spec.local as LocalImageOptions;
+            const localConfig = provider.data.spec.local as LocalInstance;
             return localConfig.singleton ?? false;
         }
 

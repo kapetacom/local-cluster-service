@@ -8,13 +8,13 @@ import FS from 'fs-extra';
 import YAML from 'yaml';
 import { Definition, DefinitionInfo } from '@kapeta/local-cluster-config';
 import { codeGeneratorManager } from './codeGeneratorManager';
-import { ProgressListener } from './progressListener';
+import { ProgressListener, TaskProgressListener } from './progressListener';
 import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { repositoryManager } from './repositoryManager';
 import { BlockDefinition, BlockInstance, Plan } from '@kapeta/schemas';
 import { Actions } from '@kapeta/nodejs-registry-utils';
 import { definitionsManager } from './definitionsManager';
-import { taskManager } from './taskManager';
+import { Task, taskManager } from './taskManager';
 import { KIND_BLOCK_TYPE_EXECUTABLE, KIND_BLOCK_TYPE_OPERATOR, KIND_BLOCK_TYPE, SourceOfChange } from './types';
 import { cacheManager } from './cacheManager';
 import uuid from 'node-uuid';
@@ -308,11 +308,12 @@ class AssetManager {
         }
 
         console.log('Installing updates', refs);
-        const updateAll = async () => {
+        const updateAll = async (task: Task) => {
+            const progressListener = new TaskProgressListener(task);
             try {
                 //We change to a temp dir to avoid issues with the current working directory
                 process.chdir(os.tmpdir());
-                await Actions.install(new ProgressListener(), refs, {});
+                await Actions.install(progressListener, refs, {});
                 await this.cleanupUnusedProviders();
             } catch (e) {
                 console.error(`Failed to update assets: ${refs.join(',')}`, e);

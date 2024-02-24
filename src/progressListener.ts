@@ -7,6 +7,7 @@ import { spawn } from '@kapeta/nodejs-process';
 import { socketManager } from './socketManager';
 import { LogEntry } from './types';
 import { format } from 'node:util';
+import { Task } from './taskManager';
 
 export class ProgressListener {
     private readonly systemId: string | undefined;
@@ -17,7 +18,7 @@ export class ProgressListener {
         this.instanceId = instanceId;
     }
 
-    private emitLog(payload: Omit<LogEntry, 'time' | 'source'>) {
+    protected emitLog(payload: Omit<LogEntry, 'time' | 'source'>) {
         const logEntry: LogEntry = {
             ...payload,
             source: 'stdout',
@@ -133,5 +134,18 @@ export class ProgressListener {
             message: format(msg, args),
             level: 'DEBUG',
         });
+    }
+}
+
+export class TaskProgressListener extends ProgressListener {
+    private readonly task: Task;
+
+    constructor(task: Task) {
+        super();
+        this.task = task;
+    }
+
+    protected emitLog(payload: Omit<LogEntry, 'time' | 'source'>) {
+        this.task.addLog(payload.message, payload.level);
     }
 }

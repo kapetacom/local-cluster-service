@@ -7,10 +7,12 @@
  * Class that handles processing background tasks.
  */
 import { socketManager } from './socketManager';
+import { LogLevel } from './types';
 
 const EVENT_TASK_UPDATED = 'task-updated';
 const EVENT_TASK_ADDED = 'task-added';
 const EVENT_TASK_REMOVED = 'task-removed';
+const EVENT_TASK_LOG = 'task-log';
 
 export type TaskRunner<T> = (task: Task<T>) => Promise<T>;
 
@@ -92,6 +94,15 @@ export class Task<T = void> implements TaskData<T> {
 
     public emitUpdate() {
         socketManager.emitGlobal(EVENT_TASK_UPDATED, this.toData());
+    }
+
+    public addLog(log: string, level: LogLevel = 'INFO') {
+        socketManager.emitGlobal(EVENT_TASK_LOG, {
+            id: this.id,
+            message: log,
+            level,
+            time: Date.now(),
+        });
     }
 
     async wait(): Promise<T> {
