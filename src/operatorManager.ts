@@ -16,21 +16,15 @@ import {
     containerManager,
 } from './containerManager';
 import FSExtra from 'fs-extra';
-import {
-    AnyMap,
-    EnvironmentType,
-    KIND_BLOCK_TYPE_OPERATOR,
-    KIND_RESOURCE_OPERATOR,
-    OperatorInfo,
-    StringMap,
-} from './types';
+import { AnyMap, EnvironmentType, KIND_BLOCK_TYPE_OPERATOR, KIND_RESOURCE_OPERATOR, StringMap } from './types';
 import { BlockInstance, LocalInstance, Resource } from '@kapeta/schemas';
 import { definitionsManager } from './definitionsManager';
-import { getBindHost, toPortInfo } from './utils/utils';
+import { getDockerHostIp, getRemoteHostForEnvironment, toPortInfo } from './utils/utils';
 import { parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import _ from 'lodash';
 import AsyncLock from 'async-lock';
 import { taskManager } from './taskManager';
+import { ResourceInfo } from '@kapeta/sdk-config';
 
 const KIND_PLAN = 'core/plan';
 
@@ -104,8 +98,9 @@ class OperatorManager {
         resourceType: string,
         portType: string,
         name: string,
-        environment?: EnvironmentType
-    ): Promise<OperatorInfo> {
+        environment?: EnvironmentType,
+        ensureContainer: boolean = true
+    ): Promise<ResourceInfo<any, any>> {
         systemId = normalizeKapetaUri(systemId);
         const plans = await definitionsManager.getDefinitions(KIND_PLAN);
 
@@ -144,10 +139,13 @@ class OperatorManager {
         const kindUri = parseKapetaUri(blockResource.kind);
         const operator = await this.getOperator(resourceType, kindUri.version);
         const credentials = operator.getCredentials();
-        const container = await this.ensureOperator(systemId, resourceType, kindUri.version);
-        const portInfo = await container.getPort(portType);
+        if (ensureContainer) {
+            await this.ensureOperator(systemId, resourceType, kindUri.version);
+        }
 
-        if (!portInfo) {
+        const hostPort = await serviceManager.ensureServicePort(systemId, resourceType, portType);
+
+        if (!hostPort) {
             throw new Error('Unknown resource port type : ' + resourceType + '#' + portType);
         }
 
@@ -155,10 +153,10 @@ class OperatorManager {
         const safeName = dbName.replace('_', '-');
 
         return {
-            host: environment === 'docker' ? 'host.docker.internal' : '127.0.0.1',
-            port: portInfo.hostPort,
+            host: getRemoteHostForEnvironment(environment),
+            port: hostPort,
             type: portType,
-            protocol: portInfo.protocol,
+            protocol: 'tcp',
             options: {
                 // expose as fullName since that is not operator specific, but unique
                 fullName: safeName,
@@ -166,6 +164,34 @@ class OperatorManager {
             },
             credentials,
         };
+    }
+
+    async getOperatorPorts(systemId: string, kind: string, version: string) {
+        const operator = await this.getOperator(kind, version);
+
+        const operatorData = operator.getLocalData();
+
+        const portTypes = Object.keys(operatorData.ports);
+
+        portTypes.sort();
+
+        const ports: AnyMap = {};
+
+        for (let i = 0; i < portTypes.length; i++) {
+            const portType = portTypes[i];
+            let containerPortInfo = operatorData.ports[portType];
+            const hostPort = await serviceManager.ensureServicePort(systemId, kind, portType);
+            const portInfo = toPortInfo(containerPortInfo);
+            const portId = portInfo.port + '/' + portInfo.type;
+
+            ports[portId] = {
+                type: portType,
+                hostPort,
+                protocol: portInfo.type,
+            };
+        }
+
+        return ports;
     }
 
     /**
@@ -185,24 +211,7 @@ class OperatorManager {
 
             const operatorData = operator.getLocalData();
 
-            const portTypes = Object.keys(operatorData.ports);
-
-            portTypes.sort();
-
-            const ports: AnyMap = {};
-
-            for (let i = 0; i < portTypes.length; i++) {
-                const portType = portTypes[i];
-                let containerPortInfo = operatorData.ports[portType];
-                const hostPort = await serviceManager.ensureServicePort(systemId, kind, portType);
-                const portInfo = toPortInfo(containerPortInfo);
-                const portId = portInfo.port + '/' + portInfo.type;
-
-                ports[portId] = {
-                    type: portType,
-                    hostPort,
-                };
-            }
+            const ports = await this.getOperatorPorts(systemId, kind, version);
 
             const nameParts = [systemId, kind.toLowerCase(), version];
 
@@ -221,7 +230,7 @@ class OperatorManager {
 
             const operatorMetadata = operator.getDefinitionInfo().definition.metadata;
 
-            const bindHost = getBindHost();
+            const hostIp = getDockerHostIp();
 
             const ExposedPorts: { [key: string]: any } = {};
 
@@ -230,7 +239,7 @@ class OperatorManager {
                 PortBindings['' + containerPort] = [
                     {
                         HostPort: '' + portInfo.hostPort,
-                        HostIp: bindHost,
+                        HostIp: hostIp,
                     },
                 ];
 

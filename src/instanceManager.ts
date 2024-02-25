@@ -29,15 +29,19 @@ import {
     KIND_BLOCK_TYPE_OPERATOR,
     KIND_RESOURCE_OPERATOR,
     LogEntry,
-    OperatorInstanceInfo,
-    OperatorInstancePort,
 } from './types';
 import { BlockDefinitionSpec, LocalInstance, Plan } from '@kapeta/schemas';
-import { getBlockInstanceContainerName, getResolvedConfiguration } from './utils/utils';
+import {
+    getBlockInstanceContainerName,
+    getOperatorInstancePorts,
+    getRemoteHostForEnvironment,
+    getResolvedConfiguration,
+} from './utils/utils';
 import { operatorManager } from './operatorManager';
 import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { definitionsManager } from './definitionsManager';
 import { Task, taskManager } from './taskManager';
+import { InstanceOperator, InstanceOperatorPort } from '@kapeta/sdk-config';
 
 const CHECK_INTERVAL = 5000;
 const DEFAULT_HEALTH_PORT_TYPE = 'http';
@@ -115,6 +119,10 @@ export class InstanceManager {
         const result = await this.instanceLocks.acquire(key, fn);
         //console.log(`Releasing lock for ${key}`, this.instanceLocks.isBusy(key));
         return result;
+    }
+
+    private isLocked(systemId: string, instanceId: string) {
+        return this.instanceLocks.isBusy(`${systemId}/${instanceId}`);
     }
 
     public async getLogs(systemId: string, instanceId: string): Promise<LogEntry[]> {
@@ -368,8 +376,9 @@ export class InstanceManager {
     public async getInstanceOperator(
         systemId: string,
         instanceId: string,
-        environment?: EnvironmentType
-    ): Promise<OperatorInstanceInfo> {
+        environment?: EnvironmentType,
+        ensureContainer: boolean = true
+    ): Promise<InstanceOperator<any, any>> {
         const blockInstance = await assetManager.getBlockInstance(systemId, instanceId);
         if (!blockInstance) {
             throw new Error(`Instance not found: ${systemId}/${instanceId}`);
@@ -382,36 +391,55 @@ export class InstanceManager {
 
         const operatorDefinition = await definitionsManager.getDefinition(block.kind);
 
-        if (!operatorDefinition?.definition.spec.local) {
+        if (!operatorDefinition) {
+            throw new Error(`Operator not found: ${block.kind}`);
+        }
+
+        if (operatorDefinition.definition.kind !== KIND_BLOCK_TYPE_OPERATOR) {
+            throw new Error(`Block is not an operator: ${blockRef}`);
+        }
+
+        if (!operatorDefinition.definition.spec.local) {
             throw new Error(`Operator block has no local definition: ${blockRef}`);
         }
 
         const localConfig = operatorDefinition.definition.spec.local as LocalInstance;
+        const ports: { [key: string]: InstanceOperatorPort } = {};
 
-        let instance = await this.start(systemId, instanceId);
-        if (instance instanceof Task) {
-            instance = await instance.wait();
+        if (ensureContainer) {
+            let instance = await this.start(systemId, instanceId);
+            if (instance instanceof Task) {
+                instance = await instance.wait();
+            }
+
+            const container = await containerManager.get(instance.pid as string);
+            if (!container) {
+                throw new Error(`Container not found: ${instance.pid}`);
+            }
+
+            const portInfo = await container.getPorts();
+            if (!portInfo) {
+                throw new Error(`No ports found for instance: ${instanceId}`);
+            }
+
+            Object.entries(portInfo).forEach(([key, value]) => {
+                ports[key] = {
+                    protocol: value.protocol as 'udp' | 'tcp',
+                    port: parseInt(value.hostPort),
+                };
+            });
+        } else {
+            // If we're not ensuring the container is running we just get the ports from the local config
+            const instancePorts = await getOperatorInstancePorts(systemId, instanceId, localConfig);
+            instancePorts.forEach((port) => {
+                ports[port.portType] = {
+                    protocol: port.protocol as 'udp' | 'tcp',
+                    port: port.hostPort,
+                };
+            });
         }
 
-        const container = await containerManager.get(instance.pid as string);
-        if (!container) {
-            throw new Error(`Container not found: ${instance.pid}`);
-        }
-
-        const portInfo = await container.getPorts();
-        if (!portInfo) {
-            throw new Error(`No ports found for instance: ${instanceId}`);
-        }
-
-        const hostname = serviceManager.getLocalHost(environment);
-        const ports: { [key: string]: OperatorInstancePort } = {};
-
-        Object.entries(portInfo).forEach(([key, value]) => {
-            ports[key] = {
-                protocol: value.protocol,
-                port: parseInt(value.hostPort),
-            };
-        });
+        const hostname = getRemoteHostForEnvironment(environment);
 
         return {
             hostname,
@@ -472,6 +500,8 @@ export class InstanceManager {
                 instance.desiredStatus = DesiredInstanceStatus.STOP;
             }
 
+            const wasFailed = instance.status === InstanceStatus.FAILED;
+
             instance.status = InstanceStatus.STOPPING;
 
             socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
@@ -490,7 +520,11 @@ export class InstanceManager {
                     const container = await containerManager.getContainerByName(containerName);
                     if (container) {
                         try {
-                            await container.stop();
+                            if (wasFailed) {
+                                await container.remove();
+                            } else {
+                                await container.stop();
+                            }
                             instance.status = InstanceStatus.STOPPED;
                             socketManager.emitSystemEvent(systemId, EVENT_STATUS_CHANGED, instance);
                             this.save();
@@ -556,7 +590,7 @@ export class InstanceManager {
                 }
             }
 
-            if (existingInstance?.pid) {
+            if (existingInstance && existingInstance.pid) {
                 if (existingInstance.status === InstanceStatus.READY) {
                     // Instance is already running
                     return existingInstance;
@@ -624,18 +658,15 @@ export class InstanceManager {
             if (existingInstance) {
                 // Check if the instance is already running - but after we've commmuicated the desired status
                 const currentStatus = await this.requestInstanceStatus(existingInstance);
+
                 if (currentStatus === InstanceStatus.READY) {
                     // Instance is already running
                     return existingInstance;
                 }
             }
 
-            const instanceConfig = await configManager.getConfigForSection(systemId, instanceId);
-            const resolvedConfig = getResolvedConfiguration(
-                blockSpec.configuration,
-                instanceConfig,
-                blockInstance.defaultConfiguration
-            );
+            const resolvedConfig = await configManager.getConfigForBlockInstance(systemId, instanceId);
+
             const task = taskManager.add(
                 `instance:start:${systemId}:${instanceId}`,
                 async () => {
@@ -927,15 +958,20 @@ export class InstanceManager {
             }
 
             if (statusType === 'created') {
-                if (state.ExitCode !== 0) {
-                    // Failed during creation
-                    return InstanceStatus.FAILED;
+                if (state.ExitCode !== undefined && state.ExitCode !== 0) {
+                    // Failed during creation. Exit code is not always reliable though
+                    if (state.Error) {
+                        return InstanceStatus.FAILED;
+                    } else {
+                        return InstanceStatus.STOPPED;
+                    }
                 }
                 return InstanceStatus.STARTING;
             }
 
             if (statusType === 'exited' || statusType === 'dead') {
-                if (state.ExitCode === 0) {
+                if (!state.Error) {
+                    // Exit code is not always reliable - if there is no error we assume it's stopped
                     return InstanceStatus.STOPPED;
                 }
                 return InstanceStatus.FAILED;

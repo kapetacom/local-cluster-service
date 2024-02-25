@@ -14,7 +14,7 @@ import ClusterConfiguration from '@kapeta/local-cluster-config';
 import uuid from 'node-uuid';
 import md5 from 'md5';
 import { getBlockInstanceContainerName } from './utils/utils';
-import { InstanceInfo, LogEntry, LogSource } from './types';
+import { DOCKER_HOST_INTERNAL, InstanceInfo, LogEntry, LogSource } from './types';
 import { KapetaAPI } from '@kapeta/nodejs-api-client';
 import { taskManager, Task } from './taskManager';
 import { EventEmitter } from 'node:events';
@@ -665,7 +665,9 @@ class ContainerManager {
         const newName = 'deleting-' + uuid.v4();
         // Rename the container first to avoid name conflicts if people start the same container
         await container.rename({ name: newName });
-        await container.remove({ force: !!opts?.force });
+
+        const newContainer = this.docker().getContainer(newName);
+        await newContainer.remove({ force: !!opts?.force });
     }
 
     /**
@@ -1144,11 +1146,11 @@ export function getExtraHosts(dockerVersion: string): string[] | undefined {
         const [major, minor] = dockerVersion.split('.');
         if (parseInt(major) >= 20 && parseInt(minor) >= 10) {
             // Docker 20.10+ on Linux supports adding host.docker.internal to point to host-gateway
-            return ['host.docker.internal:host-gateway'];
+            return [`${DOCKER_HOST_INTERNAL}:host-gateway`];
         }
         // Docker versions lower than 20.10 needs an actual IP address. We use the default network bridge which
         // is always 172.17.0.1
-        return ['host.docker.internal:172.17.0.1'];
+        return [`${DOCKER_HOST_INTERNAL}:172.17.0.1`];
     }
 
     return undefined;
