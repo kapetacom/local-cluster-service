@@ -1,3 +1,10 @@
+# [0.39.0](https://github.com/kapetacom/local-cluster-service/compare/v0.38.0...v0.39.0) (2024-02-26)
+
+
+### Features
+
+* Add support for dotenv and config templates ([#127](https://github.com/kapetacom/local-cluster-service/issues/127)) ([5e78610](https://github.com/kapetacom/local-cluster-service/commit/5e786106f1d6ca69fcd79cde351cc37908c2b4b2))
+
 # [0.38.0](https://github.com/kapetacom/local-cluster-service/compare/v0.37.0...v0.38.0) (2024-02-24)
 
 
