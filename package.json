@@ -53,7 +53,7 @@
         "@kapeta/local-cluster-config": "^0.4.0",
         "@kapeta/nodejs-api-client": ">=0.2.0 <2",
         "@kapeta/nodejs-process": "^1.2.0",
-        "@kapeta/nodejs-registry-utils": ">=0.10.0 <2",
+        "@kapeta/nodejs-registry-utils": ">=0.11.1 <2",
         "@kapeta/nodejs-utils": "<2",
         "@kapeta/schemas": "^3.5.0",
         "@kapeta/sdk-config": "^2.1.1",
