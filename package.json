@@ -84,7 +84,7 @@
         "tar-stream": "^3.1.6",
         "typescript": "^5.1.6",
         "yaml": "^1.6.0",
-        "@kapeta/config-mapper": "^1"
+        "@kapeta/config-mapper": "^1.1.0"
     },
     "devDependencies": {
         "@kapeta/eslint-config": "^0.7.0",
