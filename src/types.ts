@@ -21,6 +21,8 @@ export type LogLevel = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE' | 'FATAL';
 export type LogSource = 'stdout' | 'stderr';
 export type EnvironmentType = 'docker' | 'process';
 
+export const DOCKER_HOST_INTERNAL = 'host.docker.internal';
+
 export interface LogEntry {
     source: LogSource;
     level: LogLevel;
@@ -66,13 +68,6 @@ export type ProcessInfo = {
     portType?: string;
 };
 
-export interface Health {
-    cmd: string;
-    interval?: number;
-    timeout?: number;
-    retries?: number;
-}
-
 export type InstanceInfo = {
     systemId: string;
     instanceId: string;
@@ -92,30 +87,6 @@ export type InstanceInfo = {
 };
 
 export type ProxyRequestHandler = (req: StringBodyRequest, res: express.Response, info: ProxyRequestInfo) => void;
-
-export interface OperatorInstancePort {
-    protocol: string;
-    port: number;
-}
-
-export interface OperatorInstanceInfo {
-    hostname: string;
-    ports: { [portType: string]: OperatorInstancePort };
-    path?: string;
-    query?: string;
-    hash?: string;
-    options?: AnyMap;
-    credentials?: AnyMap;
-}
-
-export interface OperatorInfo {
-    host: string;
-    port: string;
-    type: string;
-    protocol: string;
-    options: AnyMap;
-    credentials: AnyMap;
-}
 
 export interface ProxyRequestInfo {
     address: string;

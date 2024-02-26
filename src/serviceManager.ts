@@ -6,9 +6,10 @@
 import _ from 'lodash';
 import { clusterService } from './clusterService';
 import { storageService } from './storageService';
-import { EnvironmentType } from './types';
+import { DOCKER_HOST_INTERNAL, EnvironmentType } from './types';
 import { normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import { resolvePortType } from './utils/BlockInstanceRunner';
+import { getRemoteHostForEnvironment } from './utils/utils';
 
 export const HTTP_PORT_TYPE = 'http';
 
@@ -34,20 +35,11 @@ class ServiceManager {
         });
     }
 
-    public getLocalHost(environmentType?: EnvironmentType) {
-        if (environmentType === 'docker') {
-            //We're inside a docker container, so we can use this special host name to access the host machine
-            return 'host.docker.internal';
-        }
-
-        return clusterService.getClusterServiceHost();
-    }
-
     _forLocal(port: string | number, path?: string, environmentType?: EnvironmentType) {
         if (!path) {
             path = '';
         }
-        const hostname = this.getLocalHost(environmentType);
+        const hostname = getRemoteHostForEnvironment(environmentType);
 
         if (path.startsWith('/')) {
             path = path.substring(1);

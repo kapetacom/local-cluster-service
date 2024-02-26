@@ -24,7 +24,7 @@ import AttachmentRoutes from './src/attachments/routes';
 import TaskRoutes from './src/tasks/routes';
 import APIRoutes from './src/api';
 import AIRoutes from './src/ai/routes';
-import { getBindHost } from './src/utils/utils';
+import { isLinux } from './src/utils/utils';
 import request from 'request';
 import { repositoryManager } from './src/repositoryManager';
 import { taskManager } from './src/taskManager';
@@ -223,7 +223,10 @@ export default {
                 reject(err);
             });
 
-            const bindHost = getBindHost(host);
+            // On Linux we need to bind to 0.0.0.0 to be able to connect to it from docker containers.
+            // TODO: This might pose a security risk - so we should authenticate all requests using a
+            //       shared secret/nonce that we pass around.
+            const bindHost = isLinux() ? '0.0.0.0' : host;
 
             currentServer.listen(port, bindHost, async () => {
                 try {

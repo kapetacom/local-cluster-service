@@ -5,7 +5,7 @@
 
 import FSExtra from 'fs-extra';
 import ClusterConfig, { DefinitionInfo } from '@kapeta/local-cluster-config';
-import { getBindHost, getBlockInstanceContainerName, readYML, toPortInfo } from './utils';
+import { getDockerHostIp, getBlockInstanceContainerName, getOperatorInstancePorts, readYML, toPortInfo } from './utils';
 import { KapetaURI, parseKapetaUri, normalizeKapetaUri } from '@kapeta/nodejs-utils';
 import { DEFAULT_PORT_TYPE, HTTP_PORT_TYPE, HTTP_PORTS, serviceManager } from '../serviceManager';
 import {
@@ -18,13 +18,23 @@ import {
 } from '../containerManager';
 import { LogData } from './LogData';
 import { clusterService } from '../clusterService';
-import { AnyMap, BlockProcessParams, InstanceType, KIND_BLOCK_TYPE_OPERATOR, ProcessInfo, StringMap } from '../types';
+import {
+    AnyMap,
+    BlockProcessParams,
+    DOCKER_HOST_INTERNAL,
+    InstanceType,
+    KIND_BLOCK_TYPE_OPERATOR,
+    ProcessInfo,
+    StringMap,
+} from '../types';
 import { definitionsManager } from '../definitionsManager';
 import Docker from 'dockerode';
 import OS from 'node:os';
 import Path from 'node:path';
 import { taskManager } from '../taskManager';
 import { LocalDevContainer, LocalInstance } from '@kapeta/schemas';
+import { createInternalConfigProvider } from './InternalConfigProvider';
+import { resolveKapetaVariables, writeConfigTemplates } from '@kapeta/config-mapper';
 
 const KAPETA_SYSTEM_ID = 'KAPETA_SYSTEM_ID';
 const KAPETA_BLOCK_REF = 'KAPETA_BLOCK_REF';
@@ -36,7 +46,7 @@ const KAPETA_INSTANCE_ID = 'KAPETA_INSTANCE_ID';
  */
 const DOCKER_ENV_VARS = [
     `KAPETA_LOCAL_SERVER=0.0.0.0`,
-    `KAPETA_LOCAL_CLUSTER_HOST=host.docker.internal`,
+    `KAPETA_LOCAL_CLUSTER_HOST=${DOCKER_HOST_INTERNAL}`,
     `KAPETA_ENVIRONMENT_TYPE=docker`,
 ];
 
@@ -105,20 +115,6 @@ export class BlockInstanceRunner {
     }
 
     private async _execute(blockInstance: BlockProcessParams): Promise<ProcessInfo> {
-        const env: StringMap = {};
-
-        if (this._systemId) {
-            env[KAPETA_SYSTEM_ID] = this._systemId;
-        }
-
-        if (blockInstance.ref) {
-            env[KAPETA_BLOCK_REF] = blockInstance.ref;
-        }
-
-        if (blockInstance.id) {
-            env[KAPETA_INSTANCE_ID] = blockInstance.id;
-        }
-
         const blockUri = parseKapetaUri(blockInstance.ref);
 
         if (!blockUri.version) {
@@ -139,18 +135,32 @@ export class BlockInstanceRunner {
             throw new Error(`Kind not found: ${kindUri.id}`);
         }
 
+        const baseDir = ClusterConfig.getRepositoryAssetPath(blockUri.handle, blockUri.name, blockUri.version);
+        const realBaseDir = await FSExtra.realpath(baseDir);
+        const internalConfigProvider = await createInternalConfigProvider(
+            this._systemId,
+            blockInstance.id,
+            assetVersion
+        );
+
+        // Resolve the environment variables
+        const envVars = await resolveKapetaVariables(realBaseDir, internalConfigProvider);
+
+        // Write out the config templates if they exist
+        await writeConfigTemplates(envVars, realBaseDir);
+
         let processInfo: ProcessInfo;
 
         if (providerVersion.definition.kind === KIND_BLOCK_TYPE_OPERATOR) {
-            processInfo = await this._startOperatorProcess(blockInstance, blockUri, providerVersion, env);
+            processInfo = await this._startOperatorProcess(blockInstance, blockUri, providerVersion, envVars);
         } else {
             //We need a port type to know how to connect to the block consistently
             const portTypes = getServiceProviderPorts(assetVersion, providerVersion);
 
             if (blockUri.version === 'local') {
-                processInfo = await this._startLocalProcess(blockInstance, blockUri, env, assetVersion);
+                processInfo = await this._startLocalProcess(blockInstance, blockUri, envVars, assetVersion);
             } else {
-                processInfo = await this._startDockerProcess(blockInstance, blockUri, env, assetVersion);
+                processInfo = await this._startDockerProcess(blockInstance, blockUri, envVars, assetVersion);
             }
 
             if (portTypes.length > 0) {
@@ -250,9 +260,13 @@ export class BlockInstanceRunner {
             HealthCheck = containerManager.toDockerHealth({ cmd: localContainer.healthcheck });
         }
 
-        const Mounts = containerManager.toDockerMounts({
-            [workingDir]: toLocalBindVolume(realLocalPath),
-        });
+        const Mounts = isDockerImage
+            ? // For docker images we mount the local directory to the working directory
+              containerManager.toDockerMounts({
+                  [workingDir]: toLocalBindVolume(realLocalPath),
+              })
+            : // For dockerfiles we don't mount anything
+              [];
 
         const systemUri = parseKapetaUri(this._systemId);
 
@@ -415,33 +429,29 @@ export class BlockInstanceRunner {
             `container:start:${containerName}`,
             async () => {
                 const logs = new LogData();
-
-                const bindHost = getBindHost();
+                const hostIp = getDockerHostIp();
 
                 const ExposedPorts: AnyMap = {};
                 const addonEnv: StringMap = {};
                 const PortBindings: AnyMap = {};
                 let HealthCheck = undefined;
                 let Mounts: DockerMounts[] = [];
-                const localPorts = local.ports ?? {};
+                const instancePorts = await getOperatorInstancePorts(this._systemId, operatorId, local);
                 const labels: { [key: string]: string } = {};
-                const promises = Object.entries(localPorts).map(async ([portType, value]) => {
-                    const portInfo = toPortInfo(value);
-                    const dockerPort = `${portInfo.port}/${portInfo.type}`;
+                instancePorts.forEach((portInfo) => {
+                    const dockerPort = `${portInfo.port}/${portInfo.protocol}`;
                     ExposedPorts[dockerPort] = {};
-                    addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portType.toUpperCase()}`] = `${portInfo.port}`;
-                    const publicPort = await serviceManager.ensureServicePort(this._systemId, operatorId, portType);
+                    addonEnv[`KAPETA_LOCAL_SERVER_PORT_${portInfo.portType.toUpperCase()}`] = `${portInfo.port}`;
+
                     PortBindings[dockerPort] = [
                         {
-                            HostIp: bindHost,
-                            HostPort: `${publicPort}`,
+                            HostIp: hostIp,
+                            HostPort: `${portInfo.hostPort}`,
                         },
                     ];
 
-                    labels[CONTAINER_LABEL_PORT_PREFIX + publicPort] = portType;
+                    labels[CONTAINER_LABEL_PORT_PREFIX + portInfo.hostPort] = portInfo.portType;
                 });
-
-                await Promise.all(promises);
 
                 if (local.env) {
                     Object.entries(local.env).forEach(([key, value]) => {
@@ -525,7 +535,7 @@ export class BlockInstanceRunner {
         assetVersion: DefinitionInfo,
         providerVersion: DefinitionInfo
     ) {
-        const bindHost = getBindHost();
+        const hostIp = getDockerHostIp();
         const ExposedPorts: AnyMap = {};
         const addonEnv: StringMap = {};
         const PortBindings: AnyMap = {};
@@ -541,7 +551,7 @@ export class BlockInstanceRunner {
 
             PortBindings[dockerPort] = [
                 {
-                    HostIp: bindHost,
+                    HostIp: hostIp,
                     HostPort: `${publicPort}`,
                 },
             ];

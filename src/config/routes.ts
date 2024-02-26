@@ -157,7 +157,8 @@ router.get('/consumes/resource/:resourceType/:portType/:name', async (req: Kapet
         req.params.resourceType,
         req.params.portType,
         req.params.name,
-        req.kapeta!.environment
+        req.kapeta!.environment,
+        req.query.ensure !== 'false'
     );
 
     res.send(operatorInfo);
@@ -190,7 +191,8 @@ router.get('/operator/:instanceId', async (req: KapetaRequest, res) => {
     const operatorInfo = await instanceManager.getInstanceOperator(
         req.kapeta!.systemId,
         req.params.instanceId,
-        req.kapeta!.environment
+        req.kapeta!.environment,
+        req.query.ensure !== 'false'
     );
 
     res.send(operatorInfo);
