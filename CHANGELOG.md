@@ -1,3 +1,10 @@
+## [0.39.2](https://github.com/kapetacom/local-cluster-service/compare/v0.39.1...v0.39.2) (2024-02-27)
+
+
+### Bug Fixes
+
+* remove unused dependencies ([#129](https://github.com/kapetacom/local-cluster-service/issues/129)) ([8c97fba](https://github.com/kapetacom/local-cluster-service/commit/8c97fba2ae44454d7ae8e62a29ba85171c182eb6))
+
 ## [0.39.1](https://github.com/kapetacom/local-cluster-service/compare/v0.39.0...v0.39.1) (2024-02-27)
 
 
