@@ -1,0 +1,11 @@
+name: npm publish on comment
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  npm-publish:
+    uses: kapetacom/actions-workflow-npm/.github/workflows/comment-npm-publish.yml@v1
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+      npm-token: ${{ secrets.NPM_TOKEN }}
