@@ -1,3 +1,10 @@
+## [0.39.1](https://github.com/kapetacom/local-cluster-service/compare/v0.39.0...v0.39.1) (2024-02-27)
+
+
+### Bug Fixes
+
+* remove dep on ui-web-plan-editor ([#128](https://github.com/kapetacom/local-cluster-service/issues/128)) ([48ee136](https://github.com/kapetacom/local-cluster-service/commit/48ee13629040b19c7eb716f33955c5bce280f069))
+
 # [0.39.0](https://github.com/kapetacom/local-cluster-service/compare/v0.38.0...v0.39.0) (2024-02-26)
 
 
