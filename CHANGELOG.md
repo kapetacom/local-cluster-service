@@ -1,3 +1,10 @@
+# [0.40.0](https://github.com/kapetacom/local-cluster-service/compare/v0.39.2...v0.40.0) (2024-02-28)
+
+
+### Features
+
+* add KAPETA_ENVIRONMENT_PLATFORM env variable when starting blocks ([500883f](https://github.com/kapetacom/local-cluster-service/commit/500883f05ec1e5c9a6be6e70f3a147c51b4768b0))
+
 ## [0.39.2](https://github.com/kapetacom/local-cluster-service/compare/v0.39.1...v0.39.2) (2024-02-27)
 
 
