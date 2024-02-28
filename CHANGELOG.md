@@ -1,3 +1,10 @@
+## [0.40.1](https://github.com/kapetacom/local-cluster-service/compare/v0.40.0...v0.40.1) (2024-02-28)
+
+
+### Bug Fixes
+
+* bump release ([1a6fbb2](https://github.com/kapetacom/local-cluster-service/commit/1a6fbb2d8095e1bc7878e35e52fe40a5a498f9e6))
+
 # [0.40.0](https://github.com/kapetacom/local-cluster-service/compare/v0.39.2...v0.40.0) (2024-02-28)
 
 
