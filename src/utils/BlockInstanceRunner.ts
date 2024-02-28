@@ -48,6 +48,7 @@ const DOCKER_ENV_VARS = [
     `KAPETA_LOCAL_SERVER=0.0.0.0`,
     `KAPETA_LOCAL_CLUSTER_HOST=${DOCKER_HOST_INTERNAL}`,
     `KAPETA_ENVIRONMENT_TYPE=docker`,
+    `KAPETA_ENVIRONMENT_PLATFORM=${OS.platform()}`
 ];
 
 async function getProvider(uri: KapetaURI) {
