@@ -21,8 +21,8 @@ export function proxyHttpRequest(req: StringBodyRequest, res: Response, opts: Pr
     delete requestHeaders['host'];
     delete requestHeaders['origin'];
 
-    const sourceBasePath = opts.consumerResource.spec.path;
-    const targetBasePath = opts.providerResource.spec.path;
+    const sourceBasePath = opts.consumerResource.spec.path ?? '/';
+    const targetBasePath = opts.providerResource.spec.path ?? '/';
     let path = opts.consumerPath;
     if (opts.consumerPath.startsWith(sourceBasePath)) {
         path = path.replace(sourceBasePath, targetBasePath);

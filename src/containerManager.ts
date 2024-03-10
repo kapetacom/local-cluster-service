@@ -306,6 +306,11 @@ class ContainerManager {
             tag = 'latest';
         }
 
+        if (tag === 'local') {
+            // Local image - no need to pull
+            return false;
+        }
+
         const imageTagList = (await this.docker().listImages({}))
             .filter((imageData) => !!imageData.RepoTags)
             .map((imageData) => imageData.RepoTags as string[]);
@@ -786,20 +791,23 @@ class ContainerManager {
     buildDockerImage(dockerFile: string, imageName: string) {
         const taskName = `Building docker image: ${imageName}`;
         const processor = async (task: Task) => {
-            const timeStarted = Date.now();
-            const stream = await this.docker().buildImage(
-                {
-                    context: Path.dirname(dockerFile),
-                    src: [Path.basename(dockerFile)],
-                },
-                {
-                    t: imageName,
-                    dockerfile: Path.basename(dockerFile),
-                }
-            );
+            const baseDir = Path.dirname(dockerFile);
+            const entries = await FSExtra.readdir(baseDir);
+            const contextInfo = {
+                context: Path.dirname(dockerFile),
+                src: entries,
+            };
+
+            const stream = await this.docker().buildImage(contextInfo, {
+                t: imageName,
+                dockerfile: Path.basename(dockerFile),
+            });
 
             await processJsonStream<string>(`image:build:${imageName}`, stream, (data) => {
-                if (data.stream) {
+                if (data.error) {
+                    task.future.reject(new Error(data.error));
+                    task.addLog(data.error, 'ERROR');
+                } else if (data.stream) {
                     // Emit raw output to the task log
                     task.addLog(data.stream);
                 }

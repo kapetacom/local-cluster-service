@@ -48,7 +48,7 @@ const DOCKER_ENV_VARS = [
     `KAPETA_LOCAL_SERVER=0.0.0.0`,
     `KAPETA_LOCAL_CLUSTER_HOST=${DOCKER_HOST_INTERNAL}`,
     `KAPETA_ENVIRONMENT_TYPE=docker`,
-    `KAPETA_ENVIRONMENT_PLATFORM=${OS.platform()}`
+    `KAPETA_ENVIRONMENT_PLATFORM=${OS.platform()}`,
 ];
 
 async function getProvider(uri: KapetaURI) {
@@ -231,8 +231,16 @@ export class BlockInstanceRunner {
             if (!FSExtra.existsSync(dockerFile)) {
                 throw new Error(`Dockerfile not found at: ${dockerFile}`);
             }
-            const task = containerManager.buildDockerImage(dockerFile, blockInfo.fullName + ':local');
-            await task.wait();
+
+            console.log('Building docker image from Dockerfile "%s": %s ', dockerFile, dockerImage);
+            try {
+                const task = containerManager.buildDockerImage(dockerFile, dockerImage);
+                await task.wait();
+            } catch (err: any) {
+                throw new Error(`Error building docker image: ${err}`);
+            }
+
+            console.log('Docker images was build from file "%s": %s', dockerFile, dockerImage);
         }
 
         const containerName = await getBlockInstanceContainerName(this._systemId, blockInstance.id, targetKindUri.id);
@@ -275,7 +283,7 @@ export class BlockInstanceRunner {
             ...dockerOpts,
             Image: dockerImage,
             name: containerName,
-            WorkingDir: workingDir,
+            WorkingDir: isDockerImage ? workingDir : undefined,
             Labels: {
                 ...customLabels,
                 instance: blockInstance.id,
