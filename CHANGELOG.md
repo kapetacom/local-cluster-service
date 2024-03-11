@@ -1,3 +1,10 @@
+## [0.40.2](https://github.com/kapetacom/local-cluster-service/compare/v0.40.1...v0.40.2) (2024-03-11)
+
+
+### Bug Fixes
+
+* Several issues when running external docker images ([#132](https://github.com/kapetacom/local-cluster-service/issues/132)) ([5218368](https://github.com/kapetacom/local-cluster-service/commit/521836819aa39084fe1c4f781fb560682e42fc8f))
+
 ## [0.40.1](https://github.com/kapetacom/local-cluster-service/compare/v0.40.0...v0.40.1) (2024-02-28)
 
 
