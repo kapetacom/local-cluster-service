@@ -15,6 +15,7 @@ import { ProxyRequestInfo, SimpleRequest, StringMap } from '../../types';
 import { StringBodyRequest } from '../../middleware/stringBody';
 import { Resource } from '@kapeta/schemas';
 import { stringify } from 'qs';
+import { proxyHttpRequest } from './web';
 
 export function getRestMethodId(restResource: Resource, httpMethod: string, httpPath: string) {
     return _.findKey(restResource.spec.methods, (method) => {
@@ -86,6 +87,10 @@ function resolveMethods(req: Request, opts: ProxyRequestInfo) {
 }
 
 export function proxyRestRequest(req: StringBodyRequest, res: Response, opts: ProxyRequestInfo) {
+    if (_.isEmpty(opts.consumerResource.spec.methods) && _.isEmpty(opts.providerResource.spec.methods)) {
+        // If there are no methods defined, we assume the user controls the path and we just proxy the raw request
+        return proxyHttpRequest(req, res, opts);
+    }
     let { consumerMethod, providerMethod } = resolveMethods(req, opts);
 
     const consumerPathTemplate = pathTemplateParser(consumerMethod.path);

@@ -59,8 +59,8 @@ export class InternalConfigProvider implements ConfigProvider {
     getInstanceId(): string {
         return this.instanceId;
     }
-    getServerPort(portType?: string | undefined): Promise<string> {
-        return serviceManager.ensureServicePort(this.systemId, this.instanceId, portType);
+    async getServerPort(portType?: string | undefined): Promise<string> {
+        return '80';
     }
     async getServiceAddress(serviceName: string, portType: string): Promise<string | null> {
         return serviceManager.getConsumerAddress(
