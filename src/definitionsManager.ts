@@ -27,8 +27,8 @@ function applyHandleChange(definition: DefinitionInfo, targetHandle: string) {
     return definition;
 }
 
-function normalizeFilters(kindFilter?: string | string[]) {
-    let resolvedFilters: string[] = [];
+function normalizeFilters(kindFilter?: string | (string | RegExp)[]) {
+    let resolvedFilters: any[] = [];
 
     if (kindFilter) {
         if (Array.isArray(kindFilter)) {
@@ -38,7 +38,7 @@ function normalizeFilters(kindFilter?: string | string[]) {
         }
     }
 
-    return resolvedFilters.map((k) => k.toLowerCase());
+    return resolvedFilters;
 }
 
 class DefinitionsManager {
@@ -138,17 +138,24 @@ class DefinitionsManager {
         console.log('Rewrite done for sample plan');
     }
 
-    private applyFilters(definitions: DefinitionInfo[], kindFilter: string[]): DefinitionInfo[] {
+    private applyFilters(definitions: DefinitionInfo[], kindFilter: (string|RegExp)[]): DefinitionInfo[] {
         if (kindFilter.length === 0) {
             return definitions;
         }
 
         return definitions.filter((d) => {
-            return kindFilter.includes(d.definition.kind.toLowerCase());
+            const kind = d.definition.kind.toLowerCase();
+            return kindFilter.some(filter => {
+                if (filter instanceof RegExp) {
+                    return filter.test(kind);
+                } else {
+                    return kind === filter.toLowerCase();
+                }
+            });
         });
     }
 
-    public async getDefinitions(kindFilter?: string | string[]): Promise<DefinitionInfo[]> {
+    public async getDefinitions(kindFilter?: string | (string | RegExp)[]): Promise<DefinitionInfo[]> {
         kindFilter = normalizeFilters(kindFilter);
 
         const definitions = await doCached<Promise<DefinitionInfo[]>>('definitionsManager:all', () =>
