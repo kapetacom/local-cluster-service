@@ -1,3 +1,10 @@
+## [0.40.3](https://github.com/kapetacom/local-cluster-service/compare/v0.40.2...v0.40.3) (2024-03-26)
+
+
+### Bug Fixes
+
+* codegen for 'core/block-type.*' regexp ([8e544b0](https://github.com/kapetacom/local-cluster-service/commit/8e544b0ca91acf0b467e60ee0249a5a96ece6393))
+
 ## [0.40.2](https://github.com/kapetacom/local-cluster-service/compare/v0.40.1...v0.40.2) (2024-03-11)
 
 
