@@ -13,7 +13,7 @@ import { normalizeKapetaUri, parseKapetaUri } from '@kapeta/nodejs-utils';
 import { repositoryManager } from './repositoryManager';
 
 const TARGET_KIND = 'core/language-target';
-const BLOCK_TYPE_KIND = 'core/block-type';
+const BLOCK_TYPE_REGEX = /^core\/block-type.*/;
 
 class CodeGeneratorManager {
     private async ensureLanguageTargetInRegistry(path: string, version: string, definition: Definition) {
@@ -68,7 +68,7 @@ class CodeGeneratorManager {
 
         const kindUri = parseKapetaUri(yamlContent.kind);
 
-        const blockTypes = await definitionsManager.getDefinitions(BLOCK_TYPE_KIND);
+        const blockTypes = await definitionsManager.getDefinitions([BLOCK_TYPE_REGEX]);
         const blockTypeKinds = blockTypes.map(
             (blockType) => parseKapetaUri(blockType.definition.metadata.name).fullName
         );
